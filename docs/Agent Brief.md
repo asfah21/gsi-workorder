@@ -1,0 +1,423 @@
+# Brief untuk opencode / coding agent
+
+Pakai file ini bersama:
+
+* `prds/2026-11-18_work-order-maintenance-gsi.md` — **apa & kenapa** (source of truth requirement).
+* `docs/Data Model.md` — ERD, kamus tabel, proposal DDL.
+* `docs/Domain Rules.md` — status transition, perhitungan, RBAC.
+* `docs/Timezone.md` — desain UTC/WITA dan scheduler.
+
+**Hierarki kebenaran:** migrasi M0 + PRD §5.2/A2 untuk kondisi implemented; PRD §3 dan companion docs untuk requirement/proposal M1+. Jika dokumen bertentangan, berhenti dan tanya—jangan menebak.
+
+---
+
+## 1. Status proyek
+
+**Milestone 0 sudah implemented dan locked.** Jangan mengubah migrasi, schema, atau perilaku M0 tanpa approval eksplisit.
+
+Fakta M0:
+
+| Item | Nilai |
+|---|---|
+| Service | `web`, `api`, `worker`, `db` (4 service, Docker Compose) |
+| Tabel aplikasi | **15** + `schema_migrations` |
+| Seed setting | `p2h_auto_wo=false`, `candidate_sla_hours=24`, `candidate_backfill_days=30` |
+| Kandidat P2H | status `pending/approved/skipped/auto_created/archived`, kolom `notified_at` |
+| Auto-WO P2H | default `false`; hanya jika setting `true` |
+| Timezone saat ini | `.env.example` masih `TZ=Asia/Jakarta`; target baru WITA, perubahan config butuh approval terpisah |
+
+**Fase saat ini:** dokumentasi rev. 3 (PM, material, sparepart, inventory, unit history, reporting, WITA). **Belum ada kode M1.** Jangan mulai M1 atau milestone lain tanpa instruksi eksplisit.
+
+---
+
+## 2. Guardrail non-negotiable
+
+1. **M0 locked.** Perubahan schema hanya melalui migration baru yang additive; jangan edit migrasi M0.
+2. **P2H tetap candidate-based.** Sync tidak boleh membuat `work_orders` kecuali `p2h_auto_wo=true`. Default `false`.
+3. **PM auto-WO default mati.** Butuh **global `pm_auto_wo=true` + plan `auto_generate_wo=true`**. Hanya admin yang boleh mengubah global; audit di `app_settings_history`.
+4. **Tidak ada procurement.** Jangan membuat PR, PO, vendor selection, approval pembelian, harga, cost, valuation, invoice, atau write ke Accurate. Itu domain Accurate.
+5. **Inventory ledger immutable.** Posted transaction tidak boleh dihapus/diedit; satu-satunya update adalah status `posted → reversed` saat reversal. Koreksi lewat reversal/adjustment. Tidak ada update saldo langsung.
+6. **Planning/reservation tidak mengurangi stok fisik.** Hanya issue yang mengurangi `on_hand`; return menambah. Reservation hanya menambah `reserved`.
+7. **No negative stock.** `on_hand`, `reserved`, dan available tidak boleh negatif.
+8. **Unit history dari transaksi aktual.** Jangan membuat tabel total statis atau menghitung history dari material requirement yang belum di-issue.
+9. **UTC storage, WITA experience.** `TIMESTAMPTZ` untuk event, `DATE` untuk tanggal bisnis, `APP_TIMEZONE=Asia/Makassar`, `TZ=UTC` untuk proses. Dilarang hardcode `+8`/`FixedZone`.
+10. **4 service, stack tetap.** Tanpa Redis, message broker, search engine, atau ORM (Prisma/GORM).
+11. **No duplicate tables.** Lihat §6. Jangan membuat `unit_maintenance_history`, `material_usage`, `inventory_adjustments`, `pm_notifications`, `waiting_material`, `pm_executions`, atau `unit_downtime_events`.
+12. **Satu milestone per sesi.** Jangan mengerjakan fitur di luar milestone aktif.
+
+---
+
+## 3. Peta modul
+
+| Modul | PRD | Tabel utama | Milestone | Aturan kunci |
+|---|---|---|---|---|
+| Auth & role | §3.1, §7.9 | `users`, `employees` | M1 | Tambah `storekeeper`; RBAC server-side |
+| Unit master | §5.3 | `unit_models`, `engine_models`, `units`, `unit_meter_readings` | M1 | Model/engine nullable; HM/KM dari reading |
+| P2H sync | §3.1, A4 | `p2h_reports`, `p2h_findings`, `wo_candidates` | M2 | Candidate-based; idempoten |
+| WO lifecycle | §7.3 | `work_orders`, `wo_updates`, `wo_attachments` | M3 | `waiting_part` reuse; audit |
+| PM | §3.2, §7.1–7.2 | `pm_plans`, `pm_plan_checklist_items`, `pm_schedules`, `work_order_checklist_items` | M4 | Interval plan-level; first reached; auto-WO double control |
+| PM material plan | §3.2 PM-08 | `pm_plan_materials` | M5 | Template; material requirement baru di M6 |
+| Sparepart | §3.3, §7.6 | `spareparts`, `sparepart_numbers`, `sparepart_alternatives`, `sparepart_compatibility` | M5 | Nomor OEM/brand; compatibility status |
+| Inventory | §3.4, §7.5 | `warehouses`, `warehouse_locations`, `inventory_transactions`, `inventory_transaction_items`, `inventory_balances`, `stock_opname_sessions`, `stock_opname_items`, `inventory_stock_policies` | M5 | Ledger immutable; balance cache |
+| Material | §3.5, §7.4 | `material_requirements`, `material_requirement_items`, `material_requirement_updates`, `inventory_reservations` | M6 | Planning ≠ stock; issue/return via ledger |
+| Usage/history | §3.6 | `work_order_sparepart_usage`, view history | M6/M7 | Actual usage only |
+| Dashboard/report | §3.7, §9 | view/query | M7 | WITA buckets; no static totals |
+| Timezone | §3.8, §8 | semua timestamp/date | M1+ | UTC storage; WITA display/scheduler |
+
+---
+
+## 4. Roadmap
+
+| Milestone | Scope | Jangan lakukan | Uji terima |
+|---|---|---|---|
+| **M0** ✅ | Scaffold, 4 service, 15 tabel, 3 seed | Mengubah M0 | Compose healthy; `/healthz`; seed benar |
+| **M1** | Auth Odoo/JWT, RBAC + `storekeeper`, sync user/employee, unit model/engine, meter reading, dashboard shell | PM/inventory/material | Login; role; unit model/engine; HM/KM reading |
+| **M2** | Sync P2H/findings, kandidat, notifikasi/reminder, approve/skip/bulk, kandidat → WO | WO otomatis dari sync | Sync 2x idempoten; kandidat pending; WO sync = 0; approve = 1 WO |
+| **M3** | WO manual/lifecycle, assignee, supervisor, `maintenance_type`, `started_at`, attachments, waiting_part | PM/inventory | Transisi valid; audit; done/cancel |
+| **M4** | PM plan/checklist/schedule/due, generate WO, completion/history/compliance | Material plan/requirement, stock check/reservation | Plan unit/model; combined; auto-WO 0 default; next due benar |
+| **M5** | Sparepart/compatibility, PM material plan (`pm_plan_materials`), warehouse/location, receipt/issue/return/transfer/adjustment/opname, ledger, balance, min stock | Material readiness/reservation | Ledger immutable; negative ditolak; balance reconcile |
+| **M6** | Material requirement/readiness, reserve/release, issue/return, waiting_part, shortage aging, PM material | Procurement | Planning ≠ stock; issue/return benar; readiness benar |
+| **M7** | Unit profile/history, component interval, downtime, dashboard/report, export, performance/audit | Fitur baru di luar PRD | History dari transaksi; report WITA; p95 |
+
+**Dependensi:** M4 PM core tidak menjanjikan readiness stok; `pm_plan_materials` baru ada di M5, dan material requirement/readiness penuh di M6. Jika PM harus launch dengan material plan/readiness, urutan M4/M5/M6 perlu approval.
+
+---
+
+## 5. Definition of Done per milestone
+
+### M1 — Foundation
+
+* [ ] Login Odoo → JWT; refresh; logout; role dari DB.
+* [ ] Role `admin/planner/mechanic/storekeeper/viewer`; otorisasi server-side.
+* [ ] Sync user/employee idempoten; user nonaktif tidak dihapus.
+* [ ] `unit_models`, `engine_models`, `units` extension, `unit_meter_readings`.
+* [ ] Dashboard shell + halaman unit dasar; tidak ada fitur PM/inventory.
+* [ ] Migration additive; M0 regression test lulus.
+* [ ] `APP_TIMEZONE=Asia/Makassar` divalidasi saat startup.
+
+### M2 — P2H
+
+* [ ] Sync list + detail + findings; concurrency ≤4; ≤1 req/detik.
+* [ ] Satu kandidat per laporan bertemuan; `archived` untuk laporan lama.
+* [ ] Notifikasi kandidat + reminder 24 jam; `notified_at` sekali.
+* [ ] Approve/skip/bulk; skip reason ≥5 karakter; approve ulang 409.
+* [ ] `work_orders` hasil sync = 0 saat `p2h_auto_wo=false`.
+* [ ] Sync 2x tidak menghasilkan duplikat.
+
+### M3 — WO
+
+* [ ] WO manual; kode `WO-YYYYMM-####`.
+* [ ] Transisi `open → in_progress ↔ waiting_part → done`; waiting_part tidak langsung done; cancel beralasan.
+* [ ] `started_at`, `closed_at`, `supervisor_id`, `maintenance_type`.
+* [ ] `wo_updates` append-only; assignment/priority/note tercatat.
+* [ ] Attachment jpg/png ≤5 MB di volume lokal.
+* [ ] Waiting-part duration dapat dihitung dari `wo_updates`.
+
+### M4 — PM
+
+* [ ] Plan per unit **atau** model; exactly one target.
+* [ ] Interval HM/KM/calendar; minimal satu; `first_reached` default.
+* [ ] Schedule per unit; due/upcoming/overdue; override beralasan.
+* [ ] Checklist snapshot ke WO; PM WO tidak done tanpa reading yang diwajibkan plan (HM/KM/date).
+* [ ] Generate WO manual; auto-WO hanya double control.
+* [ ] Completion update schedule, meter reading, next cycle.
+* [ ] PM history/compliance dari WO; belum ada material plan/requirement (M5/M6).
+* [ ] Tidak ada interval hardcoded.
+
+### M5 — Sparepart & Inventory
+
+* [ ] Sparepart master + OEM/aftermarket numbers + brand + alternatives.
+* [ ] Compatibility per unit model/engine/config; status verifikasi.
+* [ ] `pm_plan_materials` dapat didefinisikan setelah sparepart master; belum ada material requirement/readiness.
+* [ ] Warehouse/location; receipt/issue/return/transfer/adjustment/opname.
+* [ ] Ledger immutable; reversal; balance cache; reconciliation.
+* [ ] No negative; min/critical stock; balance reconcile dari ledger.
+* [ ] Movement history; search by part number/unit.
+* [ ] Tidak ada harga/cost/procurement.
+
+### M6 — Material
+
+* [ ] Material requirement per WO; lifecycle 10 status.
+* [ ] Planning/checking tidak mengubah stok.
+* [ ] Readiness Ready/Partially/Shortage; shortage aging.
+* [ ] Reserve/release (reservation tidak mengurangi `on_hand`); issue/return; usage linked ke ledger.
+* [ ] WO waiting_part ↔ material status.
+* [ ] PM material integration; cancel release reservations.
+* [ ] Tidak ada PR/PO/vendor/harga/Accurate.
+
+### M7 — History & Reporting
+
+* [ ] Unit profile, timeline, component history, HM/KM, downtime.
+* [ ] Component replacement interval dari usage.
+* [ ] Dashboard PM/material/stock/maintenance/downtime.
+* [ ] Report PM compliance, shortage aging, consumption, movement, component.
+* [ ] CSV export; WITA buckets.
+* [ ] p95 list <300 ms, dashboard <500 ms; audit hardening.
+
+---
+
+## 6. Aturan bisnis ringkas
+
+### 6.1 PM
+
+* Interval di level plan; per item checklist tidak punya interval di v1.
+* Combined: `first_reached` default; `all_required` opsional.
+* Due calendar = last completed + interval days; HM/KM = last reading + interval.
+* Auto-WO = global `pm_auto_wo` **dan** plan `auto_generate_wo`; default false.
+* 1 schedule = 1 WO aktif; WO cancelled boleh diganti (partial unique index).
+* Checklist dan material di-snapshot; perubahan template tidak mengubah WO.
+* PM done wajib HM/KM sesuai interval plan; calendar-only cukup tanggal completion. Update next due dan `unit_meter_readings`.
+
+### 6.2 Material
+
+* Status: `Draft → Planned → Checking Stock → Ready|Partially Ready|Shortage → Reserved → Issued → Completed`, plus `Cancelled`.
+* Prioritas status: Cancelled → Completed → Issued → Reserved → Shortage → Partially Ready → Ready → Checking Stock → Planned → Draft.
+* Ready = semua required item available; Partially Ready = semua required ada sebagian; Shortage = ada required item coverage nol. Item `is_optional` tidak memblokir.
+* Planning/checking/reservation **tidak** mengubah `on_hand`.
+* Issue mengurangi `on_hand`; return menambah; keduanya via ledger + usage.
+* Reserved = reservasi + net issued mencakup semua required.
+* Completed = WO done + reservasi aktif nol.
+* Bukan procurement.
+
+### 6.3 Inventory
+
+| Aksi | `on_hand` | `reserved` | Arah ledger |
+|---|---|---|---|
+| Receipt | + | — | `to_location_id` |
+| Issue | − | − (jika reservasi) | `from_location_id` |
+| Return | + | — | `to_location_id` |
+| Transfer | − asal, + tujuan | — | both |
+| Reserve | — | + | `from_location_id` |
+| Release | — | − | `from_location_id` |
+| Adjustment increase | + | — | `to_location_id` |
+| Adjustment decrease | − | — | `from_location_id` |
+| Opname | ± | — | adjustment per selisih |
+
+* Posted transaction tidak dihapus; reversal membuat transaction baru.
+* `inventory_balances` di-update dalam transaksi DB yang sama; lock baris.
+* Tidak ada edit saldo langsung; tidak ada negative.
+
+### 6.4 WO & history
+
+* `waiting_part` hanya untuk material; tidak ada `waiting_material`.
+* `maintenance_type`: preventive (planned downtime), breakdown/corrective (unplanned), inspection.
+* Downtime dari `started_at`/`created_at` sampai `closed_at`; waiting part dari `wo_updates`.
+* Unit history = WO + checklist + usage + meter readings + downtime; bukan static totals.
+* Component interval dari actual usage, bukan plan interval.
+
+### 6.5 Compatibility
+
+* `Pending Verification`, `Approved Compatible`, `Conditional Compatible`, `Not Compatible`.
+* Conditional wajib catatan; Not Compatible memblokir pemilihan.
+* Verifikasi admin/planner; `verified_by/at`.
+* Alternatif hanya disarankan jika verified.
+
+### 6.6 Notifikasi
+
+* Reuse `notifications` + `dedupe_key`; jangan buat `pm_notifications`.
+* PM upcoming 30 hari, due soon 7 hari, overdue harian.
+* Low/critical stock harian 07:30 WITA.
+* Email fase 2; in-app dulu.
+
+---
+
+## 7. Timezone checklist
+
+* [ ] `APP_TIMEZONE=Asia/Makassar`; invalid → fail fast.
+* [ ] Container/server/Postgres `TZ=UTC`/`timezone=UTC`.
+* [ ] Event `TIMESTAMPTZ`; business date `DATE`.
+* [ ] Scheduler memakai `time.LoadLocation("Asia/Makassar")`, bukan `+8`.
+* [ ] Job 07:00 WITA = 23:00 UTC hari sebelumnya.
+* [ ] API mengembalikan ISO 8601 UTC/offset.
+* [ ] Web memformat dengan `Intl.DateTimeFormat` + `timeZone`.
+* [ ] Report harian memakai batas WITA.
+* [ ] Tidak ada `time.FixedZone`, `+8`, atau penjumlahan jam manual.
+
+Detail: `docs/Timezone.md`.
+
+---
+
+## 8. Review checklist sebelum merge
+
+* [ ] Tidak ada request user yang memanggil Odoo langsung.
+* [ ] Tidak ada WO dari sync kecuali `p2h_auto_wo=true`.
+* [ ] Tidak ada PM auto-WO kecuali global + plan flag true.
+* [ ] Tidak ada update `on_hand`/`reserved` di luar inventory transaction.
+* [ ] Tidak ada posted transaction yang dihapus/diedit.
+* [ ] Tidak ada negative stock.
+* [ ] Tidak ada PR/PO/vendor/harga/Accurate.
+* [ ] Tidak ada tabel duplikat (§2 poin 11).
+* [ ] Tidak ada hardcoded timezone/offset.
+* [ ] RBAC dicek di server, bukan hanya UI.
+* [ ] Audit pelaku/waktu tercatat.
+* [ ] Migrasi M0 tidak berubah; migration baru additive.
+* [ ] Test/build/lint lulus; tidak ada secret di repo.
+
+---
+
+## 9. Keputusan terbuka — tanyakan, jangan menebak
+
+| # | Pertanyaan | Default sementara jika tidak dijawab |
+|---|---|---|
+| Q-01 | Interval default per model/komponen? | Planner input dari manual/OEM; jangan hardcode |
+| Q-02 | Mapping sparepart→komponen? | `components` master + pilihan manual saat usage |
+| Q-03 | Default assignee/supervisor per plan? | Opsional; fallback planner |
+| Q-04 | Siapa posting adjustment/opname? | Storekeeper draft/count; admin/planner post |
+| Q-05 | Opening balance? | Stock opname awal; bukan edit saldo |
+| Q-06 | Return tanpa issue asli? | Wajib referensi issue; exception admin beralasan |
+| Q-07 | Format export? | CSV dulu |
+| Q-08 | Penerima notifikasi per site? | Semua planner/admin |
+| Q-09 | Auto-WO perlu approval supervisor? | Buat WO `open`; approval opsional |
+| Q-10 | Email fase 1? | Tidak; in-app dulu |
+
+Jika jawaban berbeda dari default, update PRD/decision log terlebih dahulu—jangan langsung mengode.
+
+---
+
+## 10. File map
+
+| Path | Isi | Boleh diubah? |
+|---|---|---|
+| `prds/2026-11-18_work-order-maintenance-gsi.md` | PRD rev. 3 | Ya, dengan approval |
+| `docs/Agent Brief.md` | Brief ini | Ya, dengan approval |
+| `docs/Data Model.md` | ERD/DDL proposal | Ya, dengan approval |
+| `docs/Domain Rules.md` | Status/business rules | Ya, dengan approval |
+| `docs/Timezone.md` | Desain UTC/WITA | Ya, dengan approval |
+| `migrations/` | Migrasi M0 | **Tidak** (M0 locked) |
+| `docker-compose.yml`, `Dockerfile.*`, `.env.example` | Konfigurasi M0 | **Tidak** tanpa approval |
+| `README.md` | Operasional M0 | **Tidak** tanpa approval |
+| `apps/web/`, `services/api/` | Kode | Sesuai milestone aktif |
+
+---
+
+## 11. Protokol sesi
+
+1. Baca PRD, Brief ini, Data Model, Domain Rules, dan Timezone.
+2. Inspeksi repo dan migrasi yang ada; jangan mengasumsikan tabel sudah ada.
+3. Konfirmasi milestone aktif dan scope-nya.
+4. Buat rencana singkat; sebutkan file yang akan diubah dan migration baru.
+5. Implementasikan **hanya** milestone aktif.
+6. Jalankan test/build/lint dan verifikasi manual.
+7. Laporkan: selesai, belum selesai, perintah verifikasi, risiko.
+8. Jangan mulai milestone berikutnya tanpa instruksi.
+
+---
+
+## 12. Prompt template
+
+### M1
+
+```
+Lanjut Milestone 1 (Foundation) sesuai PRD §12 dan Brief §5.
+Scope: auth Odoo → JWT, RBAC + storekeeper, sync user/employee,
+unit_models/engine_models/units extension/unit_meter_readings, dashboard shell.
+Jangan membuat PM, inventory, material, atau report.
+Jangan mengubah migrasi M0.
+Verifikasi: login, role, sync idempoten, HM/KM reading, M0 regression.
+```
+
+### M2
+
+```
+Lanjut Milestone 2 (P2H) sesuai PRD §3.1/A4 dan Brief §5.
+Scope: sync list/detail/findings, kandidat, notifikasi/reminder, approve/skip/bulk.
+Syarat: kandidat unik per laporan; WO dari sync = 0 saat p2h_auto_wo=false;
+sync 2x tidak duplikat; skip wajib alasan; approve ulang 409.
+Jangan menyentuh PM/inventory/material.
+```
+
+### M3
+
+```
+Lanjut Milestone 3 (WO) sesuai PRD §7.3 dan Brief §5.
+Scope: WO manual/lifecycle, assignee, supervisor, maintenance_type,
+started_at, attachments, waiting_part, wo_updates.
+Syarat: transisi valid; audit; done/cancel beralasan; tidak ada PM/inventory.
+```
+
+### M4
+
+```
+Lanjut Milestone 4 (PM core) sesuai PRD §3.2/§7.1–7.2 dan Brief §5.
+Scope: pm_plans, checklist, schedules, due/upcoming/overdue,
+generate WO, completion, history, compliance.
+Syarat: plan per unit/model; interval HM/KM/calendar; first_reached default;
+auto-WO hanya jika pm_auto_wo=true DAN auto_generate_wo=true; default 0;
+PM done wajib reading yang diwajibkan plan (HM/KM/date); material plan/requirement baru di M5/M6.
+```
+
+### M5
+
+```
+Lanjut Milestone 5 (Sparepart & Inventory) sesuai PRD §3.3–3.4/§7.5–7.6.
+Scope: sparepart master/numbers/alternatives/compatibility,
+pm_plan_materials, warehouse/location,
+receipt/issue/return/transfer/adjustment/opname,
+ledger, balances, stock policy.
+Syarat: ledger immutable; negative ditolak; tidak ada harga/cost/procurement;
+tidak ada reservation/material readiness.
+```
+
+### M6
+
+```
+Lanjut Milestone 6 (Material) sesuai PRD §3.5/§7.4.
+Scope: material requirement, readiness, reserve/release, issue/return,
+waiting_part integration, shortage aging, PM material integration.
+Syarat: planning/checking/reservation tidak mengubah on_hand;
+issue mengurangi; return menambah; readiness benar; tidak ada PR/PO.
+```
+
+### M7
+
+```
+Lanjut Milestone 7 (History & Reporting) sesuai PRD §3.6–3.7/§9.
+Scope: unit profile/history, component history/interval, downtime,
+dashboard, report, CSV, performance/audit.
+Syarat: semua history dari transaksi aktual; bucket WITA;
+tidak ada static total; p95 target.
+```
+
+### Review
+
+```
+Review perubahan ini terhadap PRD dan Brief. Laporkan:
+- requirement yang belum terpenuhi;
+- field/tabel yang menyimpang dari Data Model;
+- request user yang memanggil Odoo langsung (harus nol);
+- WO dari sync tanpa p2h_auto_wo (harus nol);
+- PM auto-WO tanpa double control (harus nol);
+- update saldo di luar inventory transaction (harus nol);
+- hardcoded timezone/+8 (harus nol);
+- tabel duplikat/static history (harus nol).
+Jangan ubah kode; cukup daftar temuan.
+```
+
+---
+
+## 13. Yang harus dicek sendiri setelah agent selesai
+
+* `select count(*) from p2h_reports` = 4.333; kandidat pending ≈ 2.400; `work_orders` hasil sync = 0 sebelum approve.
+* Approve 3 kandidat → 3 WO, masing-masing punya `candidate_id` + `wo_updates`.
+* Skip tanpa alasan → 400; dengan alasan → `skipped`, WO tidak bertambah.
+* `p2h_auto_wo=true` → kandidat baru `auto_created`; balik `false` → pending.
+* PM default → tidak ada WO otomatis; aktifkan global + plan → WO `source='pm'`.
+* Receipt +10, reserve 3 → on_hand 10, reserved 3, available 7; issue 3 → on_hand 7, reserved 0.
+* Return 1 → on_hand 8; posted transaction tidak bisa dihapus.
+* Job 07:00 WITA → log menunjukkan 23:00 UTC.
+* Matikan Odoo → UI tetap jalan dengan data terakhir.
+
+---
+
+## 14. Hal yang paling sering salah
+
+1. Membuat `waiting_material` padahal sudah ada `waiting_part`.
+2. Mengurangi `on_hand` saat reservasi.
+3. Membuat tabel history/usage duplikat.
+4. Menghitung PM due dengan `+8` atau `Asia/Jakarta`.
+5. Membuat WO otomatis dari P2H tanpa setting.
+6. Menganggap `pm_auto_wo` cukup tanpa plan flag.
+7. Menyimpan harga/cost di sparepart.
+8. Mengedit `inventory_balances` langsung.
+9. Mengubah migrasi M0.
+10. Memakai total statis untuk unit history.

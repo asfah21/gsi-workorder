@@ -1,0 +1,15 @@
+DROP TABLE IF EXISTS sync_state;
+DROP TABLE IF EXISTS sync_runs;
+DROP TABLE IF EXISTS app_settings_history;
+DROP TABLE IF EXISTS app_settings;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS wo_attachments;
+DROP TABLE IF EXISTS wo_updates;
+DROP TABLE IF EXISTS wo_findings;
+DROP TABLE IF EXISTS work_orders;
+DROP TABLE IF EXISTS wo_candidates;
+DROP TABLE IF EXISTS p2h_findings;
+DROP TABLE IF EXISTS p2h_reports;
+DROP TABLE IF EXISTS units;
+DROP TABLE IF EXISTS employees;
+DROP TABLE IF EXISTS users;
