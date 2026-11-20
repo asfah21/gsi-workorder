@@ -127,3 +127,109 @@
     @apply font-sans;
     }
 }
+/* Responsive unit table: semantic table on desktop, stacked cards on narrow
+   containers. Column labels are carried by data-label and injected only in the
+   stacked layout. */
+.responsive-table-wrapper {
+  max-inline-size: 100%;
+  overflow: auto;
+  container-type: inline-size;
+  max-block-size: min(70vh, 760px);
+}
+
+.responsive-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+}
+
+.responsive-table th,
+.responsive-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+
+.responsive-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  background: var(--background);
+}
+
+.responsive-table thead th {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.responsive-table tbody tr:last-child th,
+.responsive-table tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+.responsive-table tbody th {
+  background: var(--background);
+}
+
+@container (max-width: 760px) {
+  .responsive-table,
+  .responsive-table thead,
+  .responsive-table tbody,
+  .responsive-table tr,
+  .responsive-table th,
+  .responsive-table td {
+    display: block;
+  }
+
+  .responsive-table thead {
+    display: none;
+  }
+
+  .responsive-table tbody {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .responsive-table tr {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: var(--background);
+  }
+
+  .responsive-table th,
+  .responsive-table td {
+    border: 0;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .responsive-table tbody th {
+    padding-block: 0.75rem;
+    background: var(--muted);
+  }
+
+  .responsive-table td {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .responsive-table td::before {
+    content: attr(data-label);
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .responsive-table .text-right {
+    text-align: left;
+  }
+}

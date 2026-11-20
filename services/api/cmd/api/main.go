@@ -17,6 +17,7 @@ import (
 	"gsi-workorder/internal/httpx"
 	"gsi-workorder/internal/odoo"
 	"gsi-workorder/internal/store"
+	"gsi-workorder/internal/units"
 )
 
 func main() {
@@ -38,7 +39,7 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	logger.Info("starting api", "milestone", "m1a", "app_timezone", cfg.AppTimezone)
+	logger.Info("starting api", "milestone", "m1c", "app_timezone", cfg.AppTimezone)
 
 	if err := db.Migrate(cfg.DatabaseURL, cfg.MigrationsDir, logger); err != nil {
 		return err
@@ -74,9 +75,11 @@ func run(logger *slog.Logger) error {
 		logger.Info("seed admin ensured", "user_id", admin.ID)
 	}
 
+	unitService := units.NewService(units.NewPostgresRepository(pool), logger)
+
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           httpx.NewRouter(logger, checker, authService),
+		Handler:           httpx.NewRouterWithUnits(logger, checker, authService, unitService),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
