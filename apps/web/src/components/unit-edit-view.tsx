@@ -117,7 +117,7 @@ export function UnitEditView({ unitId }: { unitId: number }) {
           Perbarui identitas, model, atau status unit.
         </p>
       </div>
-      <Card className="shadow-sm [--card-spacing:--spacing(5)] sm:[--card-spacing:--spacing(6)]">
+      <Card className="[--card-spacing:--spacing(5)] sm:[--card-spacing:--spacing(6)]">
         <CardContent>
           <UnitForm unit={unit} />
         </CardContent>

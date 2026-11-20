@@ -13,10 +13,11 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ApiError, login } from "@/lib/api-client";
 
 const highlights = [
@@ -42,12 +43,40 @@ export function LoginForm() {
   const [nik, setNik] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ nik?: string; password?: string }>({});
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+
+  const focusFirstError = (errors: { nik?: string; password?: string }) => {
+    const first = (["nik", "password"] as const).find((key) => errors[key]);
+    if (first) {
+      requestAnimationFrame(() => document.getElementById(first)?.focus());
+    }
+  };
+
+  const clearFieldError = (key: "nik" | "password") => {
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setFieldErrors({});
+
+    const nextErrors: { nik?: string; password?: string } = {};
+    if (!nik.trim()) nextErrors.nik = "NIK atau login wajib diisi.";
+    if (!password) nextErrors.password = "Password wajib diisi.";
+    if (nextErrors.nik || nextErrors.password) {
+      setFieldErrors(nextErrors);
+      focusFirstError(nextErrors);
+      return;
+    }
+
     setPending(true);
     try {
       await login(nik.trim(), password);
@@ -55,9 +84,20 @@ export function LoginForm() {
       router.refresh();
     } catch (loginError) {
       if (loginError instanceof ApiError) {
+        const mapped: { nik?: string; password?: string } = {
+          nik: loginError.fields.nik,
+          password: loginError.fields.password,
+        };
+        if (mapped.nik || mapped.password) {
+          setFieldErrors(mapped);
+          focusFirstError(mapped);
+        } else {
+          requestAnimationFrame(() => document.getElementById("login-error")?.focus());
+        }
         setError(loginError.message);
       } else {
         setError("Login gagal. Periksa koneksi lalu coba lagi.");
+        requestAnimationFrame(() => document.getElementById("login-error")?.focus());
       }
     } finally {
       setPending(false);
@@ -65,7 +105,10 @@ export function LoginForm() {
   };
 
   return (
-    <main className="grid min-h-dvh min-w-0 bg-muted/30 lg:grid-cols-[1.05fr_0.95fr]">
+    <main className="relative grid min-h-dvh min-w-0 bg-muted/30 lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
+        <ThemeToggle />
+      </div>
       <section className="relative hidden overflow-hidden bg-slate-950 lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-14">
         <div
           aria-hidden="true"
@@ -159,10 +202,10 @@ export function LoginForm() {
               aria-busy={pending}
               noValidate
             >
-              <div className="space-y-2">
-                <Label htmlFor="nik">
+              <Field data-invalid={Boolean(fieldErrors.nik)}>
+                <FieldLabel htmlFor="nik">
                   NIK / Login <span aria-hidden="true" className="text-destructive">*</span>
-                </Label>
+                </FieldLabel>
                 <Input
                   id="nik"
                   name="nik"
@@ -174,16 +217,24 @@ export function LoginForm() {
                   enterKeyHint="next"
                   required
                   value={nik}
-                  onChange={(event) => setNik(event.target.value)}
+                  onChange={(event) => {
+                    setNik(event.target.value);
+                    clearFieldError("nik");
+                  }}
+                  aria-invalid={Boolean(fieldErrors.nik)}
+                  aria-describedby={fieldErrors.nik ? "nik-error" : undefined}
                   placeholder="Masukkan NIK atau login Odoo"
                   className="h-11"
                 />
-              </div>
+                {fieldErrors.nik ? (
+                  <FieldError id="nik-error">{fieldErrors.nik}</FieldError>
+                ) : null}
+              </Field>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">
+              <Field data-invalid={Boolean(fieldErrors.password)}>
+                <FieldLabel htmlFor="password">
                   Password <span aria-hidden="true" className="text-destructive">*</span>
-                </Label>
+                </FieldLabel>
                 <div className="relative">
                   <Input
                     id="password"
@@ -193,7 +244,12 @@ export function LoginForm() {
                     enterKeyHint="done"
                     required
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      clearFieldError("password");
+                    }}
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    aria-describedby={fieldErrors.password ? "password-error" : undefined}
                     className="h-11 pr-12"
                   />
                   <button
@@ -211,10 +267,18 @@ export function LoginForm() {
                     )}
                   </button>
                 </div>
-              </div>
+                {fieldErrors.password ? (
+                  <FieldError id="password-error">{fieldErrors.password}</FieldError>
+                ) : null}
+              </Field>
 
               {error ? (
-                <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+                <Alert
+                  id="login-error"
+                  tabIndex={-1}
+                  variant="destructive"
+                  className="border-destructive/30 bg-destructive/5"
+                >
                   <CircleAlert aria-hidden="true" />
                   <AlertTitle>Login gagal</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>

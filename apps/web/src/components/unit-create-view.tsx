@@ -47,7 +47,7 @@ export function UnitCreateView() {
           HM/KM awal diisi melalui pembacaan setelah unit dibuat.
         </p>
       </div>
-      <Card className="shadow-sm [--card-spacing:--spacing(5)] sm:[--card-spacing:--spacing(6)]">
+      <Card className="[--card-spacing:--spacing(5)] sm:[--card-spacing:--spacing(6)]">
         <CardContent>
           <UnitForm />
         </CardContent>

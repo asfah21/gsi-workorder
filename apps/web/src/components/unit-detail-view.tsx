@@ -22,9 +22,32 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { ApiError, proxyGet, proxyPost } from "@/lib/api-client";
 import type { DataResponse, MeterReading, Unit } from "@/lib/types";
 import {
@@ -33,6 +56,7 @@ import {
   toDatetimeLocalWita,
   witaLocalToISOString,
 } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 const sourceLabels: Record<MeterReading["source_type"], string> = {
   p2h: "P2H",
@@ -175,7 +199,7 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
         />
       </div>
 
-      <Card className="shadow-sm">
+      <Card>
         <CardHeader className="border-b">
           <CardTitle>Identitas unit</CardTitle>
           <CardDescription>Data master dan model yang terpasang.</CardDescription>
@@ -209,7 +233,7 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
 
       {canReadMeter ? <MeterReadingForm unit={unit} onSaved={() => void load()} /> : null}
 
-      <Card className="overflow-hidden shadow-sm">
+      <Card className="overflow-hidden">
         <CardHeader className="border-b">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -223,14 +247,18 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
         </CardHeader>
 
         {readings.length === 0 ? (
-          <CardContent className="py-12 text-center">
-            <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
-              <ClipboardList className="size-6" aria-hidden="true" />
-            </span>
-            <p className="mt-4 font-medium">Belum ada reading.</p>
-            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-              Reading HM/KM yang disimpan akan muncul di sini.
-            </p>
+          <CardContent className="py-10">
+            <Empty className="border-0">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ClipboardList aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>Belum ada reading.</EmptyTitle>
+                <EmptyDescription>
+                  Reading HM/KM yang disimpan akan muncul di sini.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           </CardContent>
         ) : (
           <div
@@ -240,41 +268,43 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
             aria-labelledby="riwayat-reading"
           >
             <table className="responsive-table">
-              <caption id="riwayat-reading" className="sr-only">
+              <TableCaption id="riwayat-reading" className="sr-only">
                 Riwayat pembacaan HM dan KM unit {unit.code}
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Waktu</th>
-                  <th scope="col">Tipe</th>
-                  <th scope="col" className="text-right">Nilai</th>
-                  <th scope="col">Sumber</th>
-                  <th scope="col">Catatan</th>
-                </tr>
-              </thead>
-              <tbody>
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Waktu</TableHead>
+                  <TableHead scope="col">Tipe</TableHead>
+                  <TableHead scope="col" className="text-right">Nilai</TableHead>
+                  <TableHead scope="col">Sumber</TableHead>
+                  <TableHead scope="col">Catatan</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {readings.map((reading) => (
-                  <tr key={reading.id}>
-                    <td data-label="Waktu">{formatDateTimeWita(reading.recorded_at)}</td>
-                    <td data-label="Tipe">
+                  <TableRow key={reading.id}>
+                    <TableHead scope="row" data-label="Waktu">
+                      {formatDateTimeWita(reading.recorded_at)}
+                    </TableHead>
+                    <TableCell data-label="Tipe">
                       <Badge variant="outline" className="h-6 px-2.5 uppercase">
                         {reading.reading_type}
                       </Badge>
-                    </td>
-                    <td data-label="Nilai" className="text-right font-medium tabular-nums">
+                    </TableCell>
+                    <TableCell data-label="Nilai" className="text-right font-mono font-medium tabular-nums">
                       {formatNumber(reading.value)}
-                    </td>
-                    <td data-label="Sumber">
+                    </TableCell>
+                    <TableCell data-label="Sumber">
                       <Badge variant="secondary" className="h-6 px-2.5">
                         {sourceLabels[reading.source_type]}
                       </Badge>
-                    </td>
-                    <td data-label="Catatan" className="text-muted-foreground">
+                    </TableCell>
+                    <TableCell data-label="Catatan" className="text-muted-foreground">
                       {reading.notes || "-"}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
+              </TableBody>
             </table>
           </div>
         )}
@@ -293,6 +323,25 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
+  const fieldIds: Record<string, string> = {
+    value: "reading-value",
+    recorded_at: "reading-time",
+    notes: "reading-notes",
+  };
+
+  const clearFieldError = (key: string) => {
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const focusField = (id: string) => {
+    requestAnimationFrame(() => document.getElementById(id)?.focus());
+  };
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
@@ -301,10 +350,12 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
 
     if (value.trim() === "" || !Number.isFinite(Number(value))) {
       setFieldErrors({ value: "Nilai HM/KM wajib diisi" });
+      focusField("reading-value");
       return;
     }
     if (!recordedAt) {
       setFieldErrors({ recorded_at: "Waktu reading wajib diisi" });
+      focusField("reading-time");
       return;
     }
 
@@ -325,8 +376,11 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
       if (submitError instanceof ApiError) {
         setFieldErrors(submitError.fields);
         setError(submitError.message);
+        const firstField = Object.keys(submitError.fields)[0];
+        focusField(firstField ? (fieldIds[firstField] ?? "reading-form-error") : "reading-form-error");
       } else {
         setError("Reading tidak dapat disimpan.");
+        focusField("reading-form-error");
       }
     } finally {
       setPending(false);
@@ -334,7 +388,7 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
   };
 
   return (
-    <Card className="shadow-sm">
+    <Card>
       <CardHeader className="border-b">
         <CardTitle>Tambah reading manual</CardTitle>
         <CardDescription>
@@ -344,8 +398,8 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
       </CardHeader>
       <CardContent className="pt-4">
         <form className="grid gap-5 sm:grid-cols-2" onSubmit={(event) => void submit(event)} noValidate>
-          <fieldset className="space-y-2 sm:col-span-2">
-            <legend className="text-sm font-medium">Tipe reading</legend>
+          <FieldSet className="space-y-2 sm:col-span-2">
+            <FieldLegend className="text-sm">Tipe reading</FieldLegend>
             <div className="grid max-w-md grid-cols-2 gap-2">
               {(["hm", "km"] as const).map((type) => (
                 <label
@@ -364,10 +418,12 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
                 </label>
               ))}
             </div>
-          </fieldset>
+          </FieldSet>
 
-          <div className="space-y-2">
-            <Label htmlFor="reading-value">Nilai</Label>
+          <Field data-invalid={Boolean(fieldErrors.value)}>
+            <FieldLabel htmlFor="reading-value">
+              Nilai <span aria-hidden="true" className="text-destructive">*</span>
+            </FieldLabel>
             <Input
               id="reading-value"
               name="value"
@@ -377,61 +433,67 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
               step="0.1"
               required
               value={value}
-              onChange={(event) => setValue(event.target.value)}
+              onChange={(event) => {
+                setValue(event.target.value);
+                clearFieldError("value");
+              }}
               aria-invalid={Boolean(fieldErrors.value)}
               aria-describedby={fieldErrors.value ? "reading-value-error" : undefined}
             />
             {fieldErrors.value ? (
-              <p id="reading-value-error" className="text-sm text-destructive">
-                {fieldErrors.value}
-              </p>
+              <FieldError id="reading-value-error">{fieldErrors.value}</FieldError>
             ) : null}
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <Label htmlFor="reading-time">Waktu (WITA)</Label>
+          <Field data-invalid={Boolean(fieldErrors.recorded_at)}>
+            <FieldLabel htmlFor="reading-time">
+              Waktu (WITA) <span aria-hidden="true" className="text-destructive">*</span>
+            </FieldLabel>
             <Input
               id="reading-time"
               name="recorded_at"
               type="datetime-local"
               required
               value={recordedAt}
-              onChange={(event) => setRecordedAt(event.target.value)}
+              onChange={(event) => {
+                setRecordedAt(event.target.value);
+                clearFieldError("recorded_at");
+              }}
               aria-invalid={Boolean(fieldErrors.recorded_at)}
               aria-describedby={fieldErrors.recorded_at ? "reading-time-error" : undefined}
             />
             {fieldErrors.recorded_at ? (
-              <p id="reading-time-error" className="text-sm text-destructive">
-                {fieldErrors.recorded_at}
-              </p>
+              <FieldError id="reading-time-error">{fieldErrors.recorded_at}</FieldError>
             ) : null}
-          </div>
+          </Field>
 
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="reading-notes">Catatan</Label>
-            <textarea
+          <Field data-invalid={Boolean(fieldErrors.notes)} className="sm:col-span-2">
+            <FieldLabel htmlFor="reading-notes">Catatan</FieldLabel>
+            <Textarea
               id="reading-notes"
               name="notes"
               rows={3}
               value={notes}
-              onChange={(event) => setNotes(event.target.value)}
+              onChange={(event) => {
+                setNotes(event.target.value);
+                clearFieldError("notes");
+              }}
               aria-invalid={Boolean(fieldErrors.notes)}
               aria-describedby={fieldErrors.notes ? "reading-notes-error" : "reading-notes-hint"}
-              className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
             />
             {fieldErrors.notes ? (
-              <p id="reading-notes-error" className="text-sm text-destructive">
-                {fieldErrors.notes}
-              </p>
+              <FieldError id="reading-notes-error">{fieldErrors.notes}</FieldError>
             ) : (
-              <p id="reading-notes-hint" className="text-xs text-muted-foreground">
+              <FieldDescription id="reading-notes-hint">
                 Wajib minimal 5 karakter untuk koreksi reading yang lebih rendah.
-              </p>
+              </FieldDescription>
             )}
-          </div>
+          </Field>
 
           {error ? (
             <Alert
+              id="reading-form-error"
+              tabIndex={-1}
               variant="destructive"
               className="border-destructive/30 bg-destructive/5 sm:col-span-2"
             >
@@ -442,7 +504,10 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
           ) : null}
 
           {message ? (
-            <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 sm:col-span-2 dark:text-emerald-300">
+            <Alert
+              role="status"
+              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 sm:col-span-2 dark:text-emerald-300"
+            >
               <CircleCheck aria-hidden="true" />
               <AlertTitle>Berhasil</AlertTitle>
               <AlertDescription className="text-emerald-700 dark:text-emerald-300">
@@ -489,14 +554,14 @@ function MetricCard({
   tone: keyof typeof metricTones;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+    <div className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>
+          <p className="mt-2 font-mono text-2xl font-semibold tabular-nums">{value}</p>
           <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
         </div>
-        <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${metricTones[tone]}`}>
+        <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", metricTones[tone])}>
           <Icon className="size-5" aria-hidden="true" />
         </span>
       </div>

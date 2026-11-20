@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export function UnitStatusBadge({
   active,
@@ -38,14 +39,18 @@ export function ActiveBadge({ active }: { active: boolean }) {
   return (
     <Badge
       variant={active ? "secondary" : "outline"}
-      className={
+      className={cn(
+        "h-6 gap-1.5 px-2.5",
         active
-          ? "h-6 gap-1.5 border-transparent bg-emerald-500/10 px-2.5 text-emerald-700 dark:text-emerald-300"
-          : "h-6 gap-1.5 px-2.5 text-muted-foreground"
-      }
+          ? "border-transparent bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+          : "text-muted-foreground",
+      )}
     >
       <span
-        className={`size-1.5 rounded-full ${active ? "bg-emerald-600 dark:bg-emerald-300" : "bg-muted-foreground"}`}
+        className={cn(
+          "size-1.5 rounded-full",
+          active ? "bg-emerald-600 dark:bg-emerald-300" : "bg-muted-foreground",
+        )}
         aria-hidden="true"
       />
       {active ? "Aktif" : "Nonaktif"}

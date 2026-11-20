@@ -7,8 +7,15 @@ import { useEffect, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Field as FieldRoot,
+  FieldError,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { ApiError, proxyGet, proxyPatch, proxyPost } from "@/lib/api-client";
 import type {
   DataResponse,
@@ -86,6 +93,13 @@ export function UnitForm({ unit }: { unit?: Unit }) {
     event.preventDefault();
     setError("");
     setFieldErrors({});
+
+    if (!form.code.trim()) {
+      setFieldErrors({ code: "Kode unit wajib diisi." });
+      requestAnimationFrame(() => document.getElementById("code")?.focus());
+      return;
+    }
+
     setPending(true);
 
     const payload = {
@@ -122,8 +136,16 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       if (submitError instanceof ApiError) {
         setFieldErrors(submitError.fields);
         setError(submitError.message);
+        const firstField = Object.keys(submitError.fields)[0];
+        requestAnimationFrame(() => {
+          const target = firstField
+            ? document.getElementById(firstField)
+            : document.getElementById("unit-form-error");
+          target?.focus();
+        });
       } else {
         setError("Unit tidak dapat disimpan.");
+        requestAnimationFrame(() => document.getElementById("unit-form-error")?.focus());
       }
     } finally {
       setPending(false);
@@ -138,15 +160,20 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       noValidate
     >
       {error ? (
-        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+        <Alert
+          id="unit-form-error"
+          tabIndex={-1}
+          variant="destructive"
+          className="border-destructive/30 bg-destructive/5"
+        >
           <CircleAlert aria-hidden="true" />
           <AlertTitle>Unit tidak dapat disimpan</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
 
-      <fieldset className="space-y-5">
-        <legend className="text-base font-semibold">Identitas unit</legend>
+      <FieldSet className="gap-5">
+        <FieldLegend className="text-base">Identitas unit</FieldLegend>
         <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Kode unit" htmlFor="code" required error={fieldErrors.code}>
             <Input
@@ -218,46 +245,46 @@ export function UnitForm({ unit }: { unit?: Unit }) {
             />
           </Field>
         </div>
-      </fieldset>
+      </FieldSet>
 
-      <fieldset className="space-y-5">
-        <legend className="text-base font-semibold">Model dan serial</legend>
+      <FieldSet className="gap-5">
+        <FieldLegend className="text-base">Model dan serial</FieldLegend>
         <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Unit model" htmlFor="unit_model_id" error={fieldErrors.unit_model_id}>
-            <select
+            <NativeSelect
               id="unit_model_id"
               name="unit_model_id"
               value={form.unit_model_id}
               onChange={(event) => update("unit_model_id", event.target.value)}
-              className={selectClass}
+              className="w-full"
               {...fieldState("unit_model_id")}
             >
-              <option value="">Tidak dipilih</option>
+              <NativeSelectOption value="">Tidak dipilih</NativeSelectOption>
               {unitModels.map((model) => (
-                <option key={model.id} value={model.id}>
+                <NativeSelectOption key={model.id} value={model.id}>
                   {model.manufacturer} — {model.model}
                   {model.is_active ? "" : " (nonaktif)"}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
           </Field>
           <Field label="Engine model" htmlFor="engine_model_id" error={fieldErrors.engine_model_id}>
-            <select
+            <NativeSelect
               id="engine_model_id"
               name="engine_model_id"
               value={form.engine_model_id}
               onChange={(event) => update("engine_model_id", event.target.value)}
-              className={selectClass}
+              className="w-full"
               {...fieldState("engine_model_id")}
             >
-              <option value="">Tidak dipilih</option>
+              <NativeSelectOption value="">Tidak dipilih</NativeSelectOption>
               {engineModels.map((model) => (
-                <option key={model.id} value={model.id}>
+                <NativeSelectOption key={model.id} value={model.id}>
                   {model.manufacturer} — {model.model}
                   {model.is_active ? "" : " (nonaktif)"}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
           </Field>
           <Field label="Serial number unit" htmlFor="serial_number" error={fieldErrors.serial_number}>
             <Input
@@ -290,10 +317,10 @@ export function UnitForm({ unit }: { unit?: Unit }) {
             />
           </Field>
         </div>
-      </fieldset>
+      </FieldSet>
 
-      <fieldset className="space-y-3">
-        <legend className="text-base font-semibold">Status</legend>
+      <FieldSet className="gap-3">
+        <FieldLegend className="text-base">Status</FieldLegend>
         <label className="flex min-h-11 items-center gap-3 text-sm">
           <input
             type="checkbox"
@@ -314,7 +341,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
           />
           Tandai breakdown
         </label>
-      </fieldset>
+      </FieldSet>
 
       <div className="flex flex-wrap gap-3">
         <Button type="submit" disabled={pending} className="h-11 px-4">
@@ -340,9 +367,6 @@ export function UnitForm({ unit }: { unit?: Unit }) {
   );
 }
 
-const selectClass =
-  "mt-0 h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
-
 function Field({
   label,
   htmlFor,
@@ -357,22 +381,20 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2" data-invalid={Boolean(error)}>
-      <Label htmlFor={htmlFor}>
+    <FieldRoot data-invalid={Boolean(error)}>
+      <FieldLabel htmlFor={htmlFor}>
         {label}
         {required ? (
           <span aria-hidden="true" className="text-destructive">
             *
           </span>
         ) : null}
-      </Label>
+      </FieldLabel>
       {children}
       {error ? (
-        <p id={`${htmlFor}-error`} className="text-sm text-destructive">
-          {error}
-        </p>
+        <FieldError id={`${htmlFor}-error`}>{error}</FieldError>
       ) : null}
-    </div>
+    </FieldRoot>
   );
 }
 

@@ -7,21 +7,25 @@ import {
   CheckCircle2,
   CircleAlert,
   Plus,
+  RefreshCcw,
   TriangleAlert,
   Truck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { roleLabels, useSession } from "@/components/app-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, proxyGet } from "@/lib/api-client";
 import type { DashboardSummary, DataResponse } from "@/lib/types";
 import { formatNumber, formatWita } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 export function DashboardView() {
   const { user } = useSession();
@@ -43,34 +47,26 @@ export function DashboardView() {
     );
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadSummary = useCallback(async () => {
     setLoading(true);
-    proxyGet<DataResponse<DashboardSummary>>("/dashboard/summary")
-      .then((result) => {
-        if (!cancelled) {
-          setSummary(result.data);
-          setError("");
-        }
-      })
-      .catch((loadError) => {
-        if (!cancelled) {
-          setError(
-            loadError instanceof ApiError
-              ? loadError.message
-              : "Ringkasan dashboard tidak dapat dimuat.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const result = await proxyGet<DataResponse<DashboardSummary>>("/dashboard/summary");
+      setSummary(result.data);
+      setError("");
+    } catch (loadError) {
+      setError(
+        loadError instanceof ApiError
+          ? loadError.message
+          : "Ringkasan dashboard tidak dapat dimuat.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadSummary();
+  }, [loadSummary]);
 
   const activeShare =
     summary && summary.units_total > 0
@@ -92,15 +88,28 @@ export function DashboardView() {
             <span>Ringkasan master unit dan pembacaan HM/KM.</span>
           </div>
         </div>
-        {canWrite ? (
-          <Link
-            href="/units/new"
-            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void loadSummary()}
+            disabled={loading}
+            className="size-11 p-0"
+            aria-label="Muat ulang ringkasan"
+            title="Muat ulang ringkasan"
           >
-            <Plus className="size-4" aria-hidden="true" />
-            Tambah unit
-          </Link>
-        ) : null}
+            <RefreshCcw className={loading ? "animate-spin" : undefined} aria-hidden="true" />
+          </Button>
+          {canWrite ? (
+            <Link
+              href="/units/new"
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <Plus className="size-4" aria-hidden="true" />
+              Tambah unit
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {error ? (
@@ -153,7 +162,7 @@ export function DashboardView() {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader className="border-b">
             <CardTitle>Kesehatan armada</CardTitle>
             <CardDescription>Perbandingan unit aktif dan breakdown.</CardDescription>
@@ -178,16 +187,11 @@ export function DashboardView() {
                     {activeShare}% dari total
                   </Badge>
                 </div>
-                <div
-                  className="h-2.5 overflow-hidden rounded-full bg-muted"
-                  role="img"
+                <Progress
+                  value={activeShare}
                   aria-label={`${activeShare}% unit aktif`}
-                >
-                  <div
-                    className="h-full rounded-full bg-emerald-500 transition-[width]"
-                    style={{ width: `${activeShare}%` }}
-                  />
-                </div>
+                  className="[&_[data-slot=progress-track]]:h-2.5 [&_[data-slot=progress-indicator]]:bg-emerald-500"
+                />
                 <dl className="grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-lg bg-muted/60 p-3">
                     <dt className="text-muted-foreground">Breakdown</dt>
@@ -207,7 +211,7 @@ export function DashboardView() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader className="border-b">
             <CardTitle>Pembacaan HM/KM</CardTitle>
             <CardDescription>Reading manual 30 hari terakhir.</CardDescription>
@@ -241,7 +245,7 @@ export function DashboardView() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card>
           <CardHeader className="border-b">
             <CardTitle>Akses cepat</CardTitle>
             <CardDescription>Mulai dari master unit atau unit baru.</CardDescription>
@@ -301,19 +305,19 @@ function SummaryCard({
   tone: Tone;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+    <div className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">{label}</p>
           {loading && value === undefined ? (
             <Skeleton className="mt-3 h-8 w-20" />
           ) : (
-            <p className="mt-2 text-3xl font-semibold tabular-nums">
+            <p className="mt-2 font-mono text-3xl font-semibold tabular-nums">
               {formatOptionalNumber(value)}
             </p>
           )}
         </div>
-        <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${tones[tone]}`}>
+        <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", tones[tone])}>
           <Icon className="size-5" aria-hidden="true" />
         </span>
       </div>

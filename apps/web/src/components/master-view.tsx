@@ -16,9 +16,25 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { ApiError, proxyGet, proxyPost } from "@/lib/api-client";
 import type {
   DataResponse,
@@ -109,7 +125,7 @@ export function MasterView() {
         </div>
         <div className="grid gap-4">
           {canWrite ? <UnitModelForm onSaved={() => void load()} /> : null}
-          <Card className="overflow-hidden shadow-sm">
+          <Card className="overflow-hidden">
             <CardHeader className="border-b">
               <CardTitle>Daftar unit model</CardTitle>
               <CardDescription>Referensi model untuk master unit.</CardDescription>
@@ -126,31 +142,33 @@ export function MasterView() {
                 aria-labelledby="unit-model-heading"
               >
                 <table className="responsive-table">
-                  <caption className="sr-only">Daftar unit model</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Manufacturer</th>
-                      <th scope="col">Model</th>
-                      <th scope="col">Kategori</th>
-                      <th scope="col">Status</th>
-                      <th scope="col">Diperbarui</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                  <TableCaption className="sr-only">Daftar unit model</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead scope="col">Manufacturer</TableHead>
+                      <TableHead scope="col">Model</TableHead>
+                      <TableHead scope="col">Kategori</TableHead>
+                      <TableHead scope="col">Status</TableHead>
+                      <TableHead scope="col">Diperbarui</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {unitModels.map((model) => (
-                      <tr key={model.id}>
-                        <td data-label="Manufacturer">{model.manufacturer}</td>
-                        <td data-label="Model" className="font-medium">{model.model}</td>
-                        <td data-label="Kategori">{model.category || "-"}</td>
-                        <td data-label="Status">
+                      <TableRow key={model.id}>
+                        <TableHead scope="row" data-label="Manufacturer" className="whitespace-normal">
+                          {model.manufacturer}
+                        </TableHead>
+                        <TableCell data-label="Model" className="font-medium">{model.model}</TableCell>
+                        <TableCell data-label="Kategori">{model.category || "-"}</TableCell>
+                        <TableCell data-label="Status">
                           <ActiveBadge active={model.is_active} />
-                        </td>
-                        <td data-label="Diperbarui" className="text-muted-foreground">
+                        </TableCell>
+                        <TableCell data-label="Diperbarui" className="text-muted-foreground">
                           {formatDateTimeWita(model.updated_at)}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
+                  </TableBody>
                 </table>
               </div>
             )}
@@ -169,7 +187,7 @@ export function MasterView() {
         </div>
         <div className="grid gap-4">
           {canWrite ? <EngineModelForm onSaved={() => void load()} /> : null}
-          <Card className="overflow-hidden shadow-sm">
+          <Card className="overflow-hidden">
             <CardHeader className="border-b">
               <CardTitle>Daftar engine model</CardTitle>
               <CardDescription>Referensi engine untuk master unit.</CardDescription>
@@ -186,35 +204,37 @@ export function MasterView() {
                 aria-labelledby="engine-model-heading"
               >
                 <table className="responsive-table">
-                  <caption className="sr-only">Daftar engine model</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Manufacturer</th>
-                      <th scope="col">Model</th>
-                      <th scope="col">Bahan bakar</th>
-                      <th scope="col">Displacement</th>
-                      <th scope="col">Status</th>
-                      <th scope="col">Diperbarui</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                  <TableCaption className="sr-only">Daftar engine model</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead scope="col">Manufacturer</TableHead>
+                      <TableHead scope="col">Model</TableHead>
+                      <TableHead scope="col">Bahan bakar</TableHead>
+                      <TableHead scope="col">Displacement</TableHead>
+                      <TableHead scope="col">Status</TableHead>
+                      <TableHead scope="col">Diperbarui</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {engineModels.map((model) => (
-                      <tr key={model.id}>
-                        <td data-label="Manufacturer">{model.manufacturer}</td>
-                        <td data-label="Model" className="font-medium">{model.model}</td>
-                        <td data-label="Bahan bakar">{model.fuel_type || "-"}</td>
-                        <td data-label="Displacement">
+                      <TableRow key={model.id}>
+                        <TableHead scope="row" data-label="Manufacturer" className="whitespace-normal">
+                          {model.manufacturer}
+                        </TableHead>
+                        <TableCell data-label="Model" className="font-medium">{model.model}</TableCell>
+                        <TableCell data-label="Bahan bakar">{model.fuel_type || "-"}</TableCell>
+                        <TableCell data-label="Displacement" className="font-mono tabular-nums">
                           {model.displacement_cc ? `${model.displacement_cc} cc` : "-"}
-                        </td>
-                        <td data-label="Status">
+                        </TableCell>
+                        <TableCell data-label="Status">
                           <ActiveBadge active={model.is_active} />
-                        </td>
-                        <td data-label="Diperbarui" className="text-muted-foreground">
+                        </TableCell>
+                        <TableCell data-label="Diperbarui" className="text-muted-foreground">
                           {formatDateTimeWita(model.updated_at)}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
+                  </TableBody>
                 </table>
               </div>
             )}
@@ -261,13 +281,14 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
           ? submitError.message
           : "Unit model tidak dapat disimpan.",
       );
+      requestAnimationFrame(() => document.getElementById("unit-model-form-error")?.focus());
     } finally {
       setPending(false);
     }
   };
 
   return (
-    <Card className="shadow-sm">
+    <Card>
       <CardHeader className="border-b">
         <CardTitle>Tambah unit model</CardTitle>
         <CardDescription>Tambahkan referensi model unit baru.</CardDescription>
@@ -275,10 +296,10 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
       <CardContent className="pt-4">
         <form onSubmit={(event) => void submit(event)} className="space-y-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="um-manufacturer">
+            <Field>
+              <FieldLabel htmlFor="um-manufacturer">
                 Manufacturer <span aria-hidden="true" className="text-destructive">*</span>
-              </Label>
+              </FieldLabel>
               <Input
                 id="um-manufacturer"
                 name="manufacturer"
@@ -287,11 +308,11 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
                 value={manufacturer}
                 onChange={(event) => setManufacturer(event.target.value)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="um-model">
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="um-model">
                 Model <span aria-hidden="true" className="text-destructive">*</span>
-              </Label>
+              </FieldLabel>
               <Input
                 id="um-model"
                 name="model"
@@ -300,25 +321,26 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
                 value={model}
                 onChange={(event) => setModel(event.target.value)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="um-category">Kategori</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="um-category">Kategori</FieldLabel>
               <Input
                 id="um-category"
                 name="category"
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="um-notes">Catatan</Label>
-              <Input
+            </Field>
+            <Field className="sm:col-span-2 lg:col-span-4">
+              <FieldLabel htmlFor="um-notes">Catatan</FieldLabel>
+              <Textarea
                 id="um-notes"
                 name="notes"
+                rows={2}
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
               />
-            </div>
+            </Field>
           </div>
           <label className="flex min-h-11 items-center gap-3 text-sm">
             <input
@@ -331,14 +353,22 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
             Aktif
           </label>
           {error ? (
-            <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+            <Alert
+              id="unit-model-form-error"
+              tabIndex={-1}
+              variant="destructive"
+              className="border-destructive/30 bg-destructive/5"
+            >
               <CircleAlert aria-hidden="true" />
               <AlertTitle>Gagal menyimpan</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : null}
           {message ? (
-            <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300">
+            <Alert
+              role="status"
+              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
+            >
               <CircleCheck aria-hidden="true" />
               <AlertTitle>Berhasil</AlertTitle>
               <AlertDescription className="text-emerald-700 dark:text-emerald-300">
@@ -401,13 +431,14 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
           ? submitError.message
           : "Engine model tidak dapat disimpan.",
       );
+      requestAnimationFrame(() => document.getElementById("engine-model-form-error")?.focus());
     } finally {
       setPending(false);
     }
   };
 
   return (
-    <Card className="shadow-sm">
+    <Card>
       <CardHeader className="border-b">
         <CardTitle>Tambah engine model</CardTitle>
         <CardDescription>Tambahkan referensi engine baru.</CardDescription>
@@ -415,10 +446,10 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
       <CardContent className="pt-4">
         <form onSubmit={(event) => void submit(event)} className="space-y-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="em-manufacturer">
+            <Field>
+              <FieldLabel htmlFor="em-manufacturer">
                 Manufacturer <span aria-hidden="true" className="text-destructive">*</span>
-              </Label>
+              </FieldLabel>
               <Input
                 id="em-manufacturer"
                 name="manufacturer"
@@ -427,11 +458,11 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
                 value={manufacturer}
                 onChange={(event) => setManufacturer(event.target.value)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="em-model">
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="em-model">
                 Model <span aria-hidden="true" className="text-destructive">*</span>
-              </Label>
+              </FieldLabel>
               <Input
                 id="em-model"
                 name="model"
@@ -440,18 +471,18 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
                 value={model}
                 onChange={(event) => setModel(event.target.value)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="em-fuel">Bahan bakar</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="em-fuel">Bahan bakar</FieldLabel>
               <Input
                 id="em-fuel"
                 name="fuel_type"
                 value={fuelType}
                 onChange={(event) => setFuelType(event.target.value)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="em-displacement">Displacement (cc)</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="em-displacement">Displacement (cc)</FieldLabel>
               <Input
                 id="em-displacement"
                 name="displacement_cc"
@@ -462,16 +493,17 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
                 value={displacement}
                 onChange={(event) => setDisplacement(event.target.value)}
               />
-            </div>
-            <div className="space-y-2 sm:col-span-2 lg:col-span-4">
-              <Label htmlFor="em-notes">Catatan</Label>
-              <Input
+            </Field>
+            <Field className="sm:col-span-2 lg:col-span-4">
+              <FieldLabel htmlFor="em-notes">Catatan</FieldLabel>
+              <Textarea
                 id="em-notes"
                 name="notes"
+                rows={2}
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
               />
-            </div>
+            </Field>
           </div>
           <label className="flex min-h-11 items-center gap-3 text-sm">
             <input
@@ -484,14 +516,22 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
             Aktif
           </label>
           {error ? (
-            <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+            <Alert
+              id="engine-model-form-error"
+              tabIndex={-1}
+              variant="destructive"
+              className="border-destructive/30 bg-destructive/5"
+            >
               <CircleAlert aria-hidden="true" />
               <AlertTitle>Gagal menyimpan</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : null}
           {message ? (
-            <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300">
+            <Alert
+              role="status"
+              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
+            >
               <CircleCheck aria-hidden="true" />
               <AlertTitle>Berhasil</AlertTitle>
               <AlertDescription className="text-emerald-700 dark:text-emerald-300">
@@ -527,14 +567,18 @@ function TableSkeleton() {
 
 function EmptyModels({ label }: { label: string }) {
   return (
-    <CardContent className="py-12 text-center">
-      <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
-        <Boxes className="size-6" aria-hidden="true" />
-      </span>
-      <p className="mt-4 font-medium">Belum ada {label}.</p>
-      <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-        Tambahkan referensi model agar dapat dipilih saat membuat unit.
-      </p>
+    <CardContent className="py-10">
+      <Empty className="border-0">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Boxes aria-hidden="true" />
+          </EmptyMedia>
+          <EmptyTitle>Belum ada {label}.</EmptyTitle>
+          <EmptyDescription>
+            Tambahkan referensi model agar dapat dipilih saat membuat unit.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     </CardContent>
   );
 }
