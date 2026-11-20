@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { isAllowedOrigin } from "@/lib/request-origin";
 import { apiBaseUrl } from "@/lib/server-api";
 import {
   clearSessionCookies,
@@ -33,11 +34,8 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<NextR
     return errorResponse(405, "method_not_allowed", "Method tidak diizinkan");
   }
 
-  if (request.method !== "GET") {
-    const origin = request.headers.get("origin");
-    if (origin && origin !== request.nextUrl.origin) {
-      return errorResponse(403, "forbidden_origin", "Origin tidak diizinkan");
-    }
+  if (request.method !== "GET" && !isAllowedOrigin(request)) {
+    return errorResponse(403, "forbidden_origin", "Origin tidak diizinkan");
   }
 
   const { path } = await context.params;

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { isAllowedOrigin } from "@/lib/request-origin";
 import { apiBaseUrl } from "@/lib/server-api";
 import type { BackendTokens } from "@/lib/server-session";
 import { setSessionCookies } from "@/lib/server-session";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== request.nextUrl.origin) {
+  if (!isAllowedOrigin(request)) {
     return NextResponse.json(
       { error: { code: "forbidden_origin", message: "Origin tidak diizinkan" } },
       { status: 403 },

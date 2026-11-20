@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { publicOrigin } from "@/lib/request-origin";
 import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/session-cookies";
 
 export function middleware(request: NextRequest): NextResponse {
@@ -8,15 +9,17 @@ export function middleware(request: NextRequest): NextResponse {
     Boolean(request.cookies.get(ACCESS_COOKIE)?.value) ||
     Boolean(request.cookies.get(REFRESH_COOKIE)?.value);
 
+  const origin = publicOrigin(request) ?? request.url;
+
   if (pathname === "/login") {
     if (hasSession) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(new URL("/dashboard", origin));
     }
     return NextResponse.next();
   }
 
   if (!hasSession) {
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = new URL("/login", origin);
     loginUrl.searchParams.set("next", pathname + request.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
