@@ -1,6 +1,6 @@
 "use client";
 
-import { Truck } from "lucide-react";
+import { CircleAlert, Truck } from "lucide-react";
 import { Cell, Pie, PieChart } from "recharts";
 
 import {
@@ -29,11 +29,13 @@ export function FleetStatusChart({
   unitsActive,
   unitsBreakdown,
   loading = false,
+  failed = false,
 }: {
   unitsTotal: number;
   unitsActive: number;
   unitsBreakdown: number;
   loading?: boolean;
+  failed?: boolean;
 }) {
   if (loading) {
     return (
@@ -45,6 +47,22 @@ export function FleetStatusChart({
           <Skeleton className="h-5 w-full" />
         </div>
       </div>
+    );
+  }
+
+  if (failed) {
+    return (
+      <Empty className="border-0 py-6">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <CircleAlert aria-hidden="true" />
+          </EmptyMedia>
+          <EmptyTitle>Status armada tidak tersedia</EmptyTitle>
+          <EmptyDescription>
+            Ringkasan armada gagal dimuat. Coba muat ulang ringkasan.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 

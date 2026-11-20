@@ -168,6 +168,7 @@ export function DashboardView() {
               unitsActive={summary?.units_active ?? 0}
               unitsBreakdown={summary?.units_breakdown ?? 0}
               loading={loading && !summary}
+              failed={Boolean(error) && !summary}
             />
           </CardContent>
         </Card>
