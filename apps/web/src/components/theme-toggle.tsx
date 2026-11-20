@@ -25,7 +25,7 @@ export function ThemeToggle() {
       variant="ghost"
       size="icon"
       onClick={toggle}
-      className="size-11 rounded-full"
+      className="size-9"
       aria-label="Ubah tema terang atau gelap"
       title="Ubah tema"
     >

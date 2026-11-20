@@ -34,9 +34,9 @@ export function ProfileMenu({
       <SheetTrigger
         type="button"
         aria-label="Buka menu pengguna"
-        className="flex min-h-11 items-center gap-2 rounded-full border border-transparent p-1 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:pr-3"
+        className="flex h-9 items-center gap-2 rounded-md border border-transparent p-1 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:pr-2"
       >
-        <Avatar className="size-8">
+        <Avatar className="size-7">
           <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
             {initials}
           </AvatarFallback>
@@ -82,7 +82,7 @@ export function ProfileMenu({
             variant="outline"
             onClick={() => void onLogout()}
             disabled={loggingOut}
-            className="h-11 w-full px-4"
+            className="w-full"
           >
             {loggingOut ? (
               <Loader2 className="animate-spin" aria-hidden="true" />

@@ -104,8 +104,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (error) {
     return (
-      <main className="grid min-h-dvh place-items-center bg-muted/30 px-4 py-10">
-        <div className="w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-sm">
+      <main className="grid min-h-dvh place-items-center bg-background px-4 py-10">
+        <div className="w-full max-w-md rounded-xl border border-border bg-background p-6">
           <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
             <CircleAlert aria-hidden="true" />
             <AlertTitle>Tidak dapat memuat sesi</AlertTitle>
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Button
             type="button"
             onClick={() => void loadSession()}
-            className="mt-4 h-11 w-full px-4"
+            className="mt-4 w-full"
           >
             Coba lagi
           </Button>
@@ -129,7 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionContext.Provider value={value as SessionContextValue}>
-      <SidebarProvider className="min-h-dvh bg-muted/30">
+      <SidebarProvider className="min-h-svh">
         <AppShellFrame user={user}>{children}</AppShellFrame>
       </SidebarProvider>
     </SessionContext.Provider>
@@ -187,23 +187,19 @@ function AppShellFrame({
         Lewati ke konten
       </a>
 
-      <Sidebar
-        variant="inset"
-        collapsible="icon"
-        className="**:data-[slot=sidebar-inner]:border **:data-[slot=sidebar-inner]:border-border **:data-[slot=sidebar-inner]:bg-background"
-      >
-        <SidebarHeader className="flex flex-row items-center justify-between gap-2 border-b border-border p-3 pe-12 md:pe-3">
+      <Sidebar variant="inset" collapsible="icon">
+        <SidebarHeader className="flex flex-row items-center justify-between gap-2 p-2 px-3 pt-2 pb-4">
           <Link
             href="/dashboard"
             onClick={closeMobileNav}
             aria-label="GSI Work Order"
-            className="flex min-w-0 items-center gap-3"
+            className="flex min-w-0 items-center gap-2 overflow-hidden"
           >
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+            <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
               <Wrench className="size-4" aria-hidden="true" />
             </span>
             <span className="hide-menu min-w-0">
-              <span className="block truncate text-sm font-semibold tracking-tight">
+              <span className="block truncate text-sm font-semibold">
                 GSI Work Order
               </span>
               <span className="block truncate text-xs text-muted-foreground">
@@ -213,7 +209,7 @@ function AppShellFrame({
           </Link>
           <Badge
             variant="secondary"
-            className="hide-menu hidden h-6 shrink-0 px-2 text-[0.65rem] md:inline-flex"
+            className="hide-menu h-5 shrink-0 px-2 text-[0.65rem]"
           >
             M1
           </Badge>
@@ -221,11 +217,11 @@ function AppShellFrame({
 
         <SidebarContent>
           {navigationGroups.map((group) => (
-            <SidebarGroup key={group.label} className="py-3">
-              <SidebarGroupLabel className="px-3 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <SidebarGroup key={group.label}>
+              <SidebarGroupLabel className="mb-2 h-auto px-2 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/70">
                 {group.label}
               </SidebarGroupLabel>
-              <SidebarMenu className="gap-1">
+              <SidebarMenu className="gap-0.5">
                 {group.items.map((item) => {
                   const active = isActive(pathname, item.href);
                   return (
@@ -241,7 +237,7 @@ function AppShellFrame({
                         }
                         isActive={active}
                         tooltip={item.label}
-                        className="min-h-10 gap-3 rounded-lg px-3 text-sm font-medium data-active:bg-primary data-active:text-primary-foreground"
+                        className="h-9 gap-3 rounded-md px-3 text-sm font-medium data-active:bg-primary data-active:text-background data-active:hover:bg-primary data-active:hover:text-background"
                       >
                         <item.icon className="size-4" aria-hidden="true" />
                         <span className="hide-menu min-w-0 flex-1 truncate">
@@ -256,9 +252,9 @@ function AppShellFrame({
           ))}
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-border p-3">
-          <div className="hide-menu rounded-xl border border-border bg-muted/40 p-3">
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        <SidebarFooter className="p-2 pb-4">
+          <div className="hide-menu rounded-xl border border-sidebar-border bg-sidebar-accent/60 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Milestone 1
             </p>
             <p className="mt-1 text-sm font-medium">Master unit &amp; HM/KM</p>
@@ -272,64 +268,63 @@ function AppShellFrame({
       <SidebarInset
         id="konten"
         tabIndex={-1}
-        className="m-2 overflow-hidden rounded-xl border border-border bg-background shadow-none"
+        className="m-2 overflow-hidden rounded-none border border-border bg-background md:rounded-xl md:shadow-sm"
       >
-        <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
-          <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-3 sm:gap-3 lg:px-6">
-            <Link
-              href="/dashboard"
-              className="flex min-w-0 items-center gap-2 md:hidden"
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
-                <Wrench className="size-4" aria-hidden="true" />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold tracking-tight">
-                  GSI Work Order
+        <header className="sticky top-0 z-20 min-h-14 border-b border-border bg-background">
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <Link
+                href="/dashboard"
+                className="flex min-w-0 items-center gap-2 lg:hidden"
+              >
+                <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
+                  <Wrench className="size-4" aria-hidden="true" />
                 </span>
-                <span className="hidden truncate text-xs text-muted-foreground sm:block">
-                  Maintenance &amp; Unit
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">
+                    GSI Work Order
+                  </span>
+                  <span className="hidden truncate text-xs text-muted-foreground sm:block">
+                    Maintenance &amp; Unit
+                  </span>
                 </span>
-              </span>
-            </Link>
+              </Link>
 
-            <SidebarTrigger
-              aria-label="Buka menu navigasi"
-              className="size-11 shrink-0 rounded-full"
-            />
+              <SidebarTrigger
+                aria-label="Buka menu navigasi"
+                className="size-9 shrink-0"
+              />
 
-            <form
-              role="search"
-              onSubmit={handleSearch}
-              className="ml-1 hidden min-w-0 flex-1 md:block md:max-w-sm"
-            >
-              <label htmlFor="global-unit-search" className="sr-only">
-                Cari unit
-              </label>
-              <div className="relative">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden="true"
-                />
-                <Input
-                  id="global-unit-search"
-                  name="q"
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Cari unit..."
-                  enterKeyHint="search"
-                  className="h-10 pl-9"
-                />
-              </div>
-            </form>
+              <Separator orientation="vertical" className="h-4 self-center" />
 
-            <Separator
-              orientation="vertical"
-              className="mx-1 hidden h-6 self-center md:block"
-            />
+              <form
+                role="search"
+                onSubmit={handleSearch}
+                className="hidden min-w-0 sm:block"
+              >
+                <label htmlFor="global-unit-search" className="sr-only">
+                  Cari unit
+                </label>
+                <div className="relative w-80 max-w-full">
+                  <Search
+                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <Input
+                    id="global-unit-search"
+                    name="q"
+                    type="search"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Cari unit..."
+                    enterKeyHint="search"
+                    className="pl-9"
+                  />
+                </div>
+              </form>
+            </div>
 
-            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+            <div className="ml-auto flex items-center gap-1.5">
               <ThemeToggle />
               <ProfileMenu
                 user={user}
@@ -341,23 +336,27 @@ function AppShellFrame({
           </div>
         </header>
 
-        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6 lg:px-6 lg:py-8">
-          <div className="min-h-[calc(100dvh-9rem)] flex-1">{children}</div>
-          <footer className="mt-10 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
-            <p>GSI Work Order · Milestone 1</p>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <p>Operasional WITA · PT GSI</p>
-              <span aria-hidden="true">·</span>
-              <a
-                href="https://shadcndashboard.dev/"
-                target="_blank"
-                rel="noreferrer"
-                className="underline-offset-4 hover:text-foreground hover:underline"
-              >
-                UI reference: Shadcn Dashboard
-              </a>
-            </div>
-          </footer>
+        <div className="flex flex-1 flex-col gap-4 p-4">
+          <div className="container mx-auto flex min-h-[calc(100dvh-140px)] w-full flex-1 flex-col">
+            {children}
+          </div>
+          <div className="container mx-auto w-full pt-6">
+            <footer className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+              <p>GSI Work Order · Milestone 1</p>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <p>Operasional WITA · PT GSI</p>
+                <span aria-hidden="true">·</span>
+                <a
+                  href="https://shadcndashboard.dev/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  UI reference: Shadcn Dashboard
+                </a>
+              </div>
+            </footer>
+          </div>
         </div>
       </SidebarInset>
     </>
@@ -378,46 +377,41 @@ function isActive(pathname: string, href: string): boolean {
 
 function AppShellSkeleton() {
   return (
-    <div className="min-h-dvh bg-muted/30 p-2">
-      <div className="flex min-h-[calc(100dvh-1rem)] gap-2">
-        <aside className="hidden w-64 shrink-0 rounded-xl border border-border bg-background p-4 md:block">
-          <div className="flex items-center gap-3">
-            <Skeleton className="size-10 rounded-xl" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-20" />
+    <div className="min-h-svh bg-sidebar p-2">
+      <aside className="fixed inset-y-2 left-2 hidden w-64 rounded-xl bg-sidebar p-3 lg:block">
+        <div className="flex items-center gap-2 px-1">
+          <Skeleton className="size-8 rounded-md" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        </div>
+        <div className="mt-8 space-y-2">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-9 w-full rounded-md" />
+          <Skeleton className="h-9 w-full rounded-md" />
+          <Skeleton className="h-9 w-full rounded-md" />
+        </div>
+      </aside>
+      <div className="ml-0 min-w-0 overflow-hidden rounded-none border border-border bg-background lg:ml-64 lg:rounded-xl">
+        <header className="min-h-14 border-b border-border p-2">
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-9 rounded-md" />
+            <Skeleton className="h-9 w-80 max-w-full" />
+            <div className="ml-auto flex items-center gap-1.5">
+              <Skeleton className="size-9 rounded-md" />
+              <Skeleton className="h-9 w-24 rounded-md" />
             </div>
           </div>
-          <div className="mt-8 space-y-3">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-10 w-full rounded-lg" />
-            <Skeleton className="h-10 w-full rounded-lg" />
-            <Skeleton className="h-10 w-full rounded-lg" />
-          </div>
-        </aside>
-        <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-background">
-          <header className="border-b border-border px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Skeleton className="size-10 rounded-full" />
-              <Skeleton className="h-10 w-full max-w-sm" />
-              <div className="ml-auto flex items-center gap-2">
-                <Skeleton className="size-10 rounded-full" />
-                <Skeleton className="size-10 rounded-full" />
-              </div>
-            </div>
-          </header>
-          <div className="px-4 py-6 lg:px-6 lg:py-8">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="mt-3 h-4 w-80 max-w-full" />
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton key={index} className="h-32 rounded-xl" />
-              ))}
-            </div>
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <Skeleton className="h-48 rounded-xl" />
-              <Skeleton className="h-48 rounded-xl" />
-            </div>
+        </header>
+        <div className="p-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="mt-3 h-4 w-80 max-w-full" />
+          <div className="mt-4 grid gap-4 lg:grid-cols-12">
+            <Skeleton className="h-56 rounded-xl lg:col-span-8" />
+            <Skeleton className="h-56 rounded-xl lg:col-span-4" />
+            <Skeleton className="h-80 rounded-xl lg:col-span-8" />
+            <Skeleton className="h-80 rounded-xl lg:col-span-4" />
           </div>
         </div>
       </div>
