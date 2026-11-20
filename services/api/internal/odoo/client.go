@@ -83,14 +83,35 @@ func (c *Client) Login(ctx context.Context, login, password string) error {
 	}
 
 	var envelope struct {
-		Data *struct {
-			Token string `json:"token"`
+		Code   int    `json:"code"`
+		Status string `json:"status"`
+		Data   *struct {
+			AccessToken string `json:"access_token"`
+			Token       string `json:"token"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &envelope); err != nil {
 		return fmt.Errorf("%w: decode login response", ErrUnexpectedResponse)
 	}
-	if envelope.Data == nil || strings.TrimSpace(envelope.Data.Token) == "" {
+
+	// Odoo's API returns authentication failures inside an HTTP 200 envelope.
+	// Map those to invalid credentials so the application returns 401, not 503.
+	if envelope.Code == http.StatusUnauthorized || envelope.Code == http.StatusForbidden {
+		return ErrInvalidCredentials
+	}
+	if envelope.Code != 0 && envelope.Code != http.StatusOK {
+		return fmt.Errorf("%w: login envelope code %d", ErrUnavailable, envelope.Code)
+	}
+	if envelope.Data == nil {
+		return ErrUnexpectedResponse
+	}
+
+	token := strings.TrimSpace(envelope.Data.AccessToken)
+	if token == "" {
+		// Keep compatibility with the original documented contract.
+		token = strings.TrimSpace(envelope.Data.Token)
+	}
+	if token == "" {
 		return ErrUnexpectedResponse
 	}
 	return nil

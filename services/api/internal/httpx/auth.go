@@ -210,6 +210,7 @@ func (h *AuthHandler) writeServiceError(c *gin.Context, err error, operation str
 	case errors.Is(err, auth.ErrUserNotFound):
 		writeAuthError(c, http.StatusNotFound, "user_not_found", "User tidak ditemukan")
 	case errors.Is(err, auth.ErrOdooUnavailable):
+		h.logger.Warn("odoo unavailable", "operation", operation, "error", err)
 		writeAuthError(c, http.StatusServiceUnavailable, "odoo_unavailable", "Layanan autentikasi Odoo tidak tersedia")
 	default:
 		h.logger.Error("auth operation failed", "operation", operation, "error", err)

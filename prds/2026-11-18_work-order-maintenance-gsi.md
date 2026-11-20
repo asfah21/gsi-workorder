@@ -912,10 +912,12 @@ Detail dan test case ada di `docs/Timezone.md`.
 
 Base `http://10.10.11.2:8068`, envelope `{code,status,data,message,errors}`.
 
+> Catatan: kegagalan autentikasi Odoo dapat dibungkus dalam HTTP 200 dengan `code` 401/403. Aplikasi harus memetakan envelope tersebut ke 401, bukan 503.
+
 | Method | Path | Catatan |
 |---|---|---|
 | GET | `/api/health` | tanpa token |
-| POST | `/api/auth/login` | `{login,password}` → `data.token` (43 char), `refresh_token`, `expires_at` |
+| POST | `/api/auth/login` | `{login,password}` → `data.access_token`, `refresh_token`, `expires_at`, `user` |
 | GET | `/api/p2h` | hanya `limit`, `offset`, `state` (`draft\|submitted\|approved\|rejected`) |
 | GET | `/api/p2h/<id>` | + `checklist_lines[]`, `approval_steps[]`, `foto_kendaraan[]` |
 | GET | `/api/p2h/questions` | 783 pertanyaan |

@@ -19,13 +19,40 @@ func TestLoginSuccess(t *testing.T) {
 			t.Fatalf("method = %q, want POST", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"code":0,"status":"success","data":{"token":"odoo-token"}}`))
+		_, _ = w.Write([]byte(`{"code":200,"status":"OK","data":{"access_token":"odoo-access-token"}}`))
 	}))
 	defer server.Close()
 
 	client := NewClient(server.URL+"/", time.Second)
 	if err := client.Login(context.Background(), "12345", "secret"); err != nil {
 		t.Fatalf("Login() error = %v", err)
+	}
+}
+
+func TestLoginSuccessLegacyTokenField(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":0,"status":"success","data":{"token":"odoo-token"}}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, time.Second)
+	if err := client.Login(context.Background(), "12345", "secret"); err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+}
+
+func TestLoginEnvelopeUnauthorized(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":401,"status":"error","data":null,"message":"invalid credentials"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(server.URL, time.Second)
+	err := client.Login(context.Background(), "12345", "wrong-password")
+	if !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("Login() error = %v, want ErrInvalidCredentials", err)
 	}
 }
 
