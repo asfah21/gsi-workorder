@@ -1,9 +1,14 @@
 "use client";
 
+import { CircleAlert, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ApiError, proxyGet, proxyPatch, proxyPost } from "@/lib/api-client";
 import type {
   DataResponse,
@@ -72,6 +77,11 @@ export function UnitForm({ unit }: { unit?: Unit }) {
     });
   };
 
+  const fieldState = (key: keyof FormState) => ({
+    "aria-invalid": Boolean(fieldErrors[key]),
+    "aria-describedby": fieldErrors[key] ? `${key}-error` : undefined,
+  });
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
@@ -121,145 +131,173 @@ export function UnitForm({ unit }: { unit?: Unit }) {
   };
 
   return (
-    <form className="space-y-6" onSubmit={(event) => void handleSubmit(event)} noValidate>
+    <form
+      className="space-y-7"
+      onSubmit={(event) => void handleSubmit(event)}
+      aria-busy={pending}
+      noValidate
+    >
       {error ? (
-        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          {error}
-        </p>
+        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+          <CircleAlert aria-hidden="true" />
+          <AlertTitle>Unit tidak dapat disimpan</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
 
-      <fieldset className="grid gap-5 sm:grid-cols-2">
-        <legend className="mb-4 text-base font-semibold">Identitas unit</legend>
-        <Field label="Kode unit" htmlFor="code" required error={fieldErrors.code}>
-          <input
-            id="code"
-            name="code"
-            type="text"
-            required
-            autoComplete="off"
-            spellCheck={false}
-            value={form.code}
-            onChange={(event) => update("code", event.target.value)}
-            aria-invalid={Boolean(fieldErrors.code)}
-            aria-describedby={fieldErrors.code ? "code-error" : undefined}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Tipe unit" htmlFor="unit_type" error={fieldErrors.unit_type}>
-          <input
-            id="unit_type"
-            name="unit_type"
-            type="text"
-            autoComplete="off"
-            value={form.unit_type}
-            onChange={(event) => update("unit_type", event.target.value)}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Merk" htmlFor="merk" error={fieldErrors.merk}>
-          <input
-            id="merk"
-            name="merk"
-            type="text"
-            value={form.merk}
-            onChange={(event) => update("merk", event.target.value)}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Kelas unit" htmlFor="class_unit" error={fieldErrors.class_unit}>
-          <input
-            id="class_unit"
-            name="class_unit"
-            type="text"
-            value={form.class_unit}
-            onChange={(event) => update("class_unit", event.target.value)}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Nomor polisi" htmlFor="license_plate" error={fieldErrors.license_plate}>
-          <input
-            id="license_plate"
-            name="license_plate"
-            type="text"
-            autoComplete="off"
-            value={form.license_plate}
-            onChange={(event) => update("license_plate", event.target.value)}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Lokasi" htmlFor="site_location" error={fieldErrors.site_location}>
-          <input
-            id="site_location"
-            name="site_location"
-            type="text"
-            value={form.site_location}
-            onChange={(event) => update("site_location", event.target.value)}
-            className={inputClass}
-          />
-        </Field>
+      <fieldset className="space-y-5">
+        <legend className="text-base font-semibold">Identitas unit</legend>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Kode unit" htmlFor="code" required error={fieldErrors.code}>
+            <Input
+              id="code"
+              name="code"
+              type="text"
+              required
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={form.code}
+              onChange={(event) => update("code", event.target.value)}
+              {...fieldState("code")}
+            />
+          </Field>
+          <Field label="Tipe unit" htmlFor="unit_type" error={fieldErrors.unit_type}>
+            <Input
+              id="unit_type"
+              name="unit_type"
+              type="text"
+              autoComplete="off"
+              value={form.unit_type}
+              onChange={(event) => update("unit_type", event.target.value)}
+              {...fieldState("unit_type")}
+            />
+          </Field>
+          <Field label="Merk" htmlFor="merk" error={fieldErrors.merk}>
+            <Input
+              id="merk"
+              name="merk"
+              type="text"
+              autoComplete="off"
+              value={form.merk}
+              onChange={(event) => update("merk", event.target.value)}
+              {...fieldState("merk")}
+            />
+          </Field>
+          <Field label="Kelas unit" htmlFor="class_unit" error={fieldErrors.class_unit}>
+            <Input
+              id="class_unit"
+              name="class_unit"
+              type="text"
+              value={form.class_unit}
+              onChange={(event) => update("class_unit", event.target.value)}
+              {...fieldState("class_unit")}
+            />
+          </Field>
+          <Field label="Nomor polisi" htmlFor="license_plate" error={fieldErrors.license_plate}>
+            <Input
+              id="license_plate"
+              name="license_plate"
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              value={form.license_plate}
+              onChange={(event) => update("license_plate", event.target.value)}
+              {...fieldState("license_plate")}
+            />
+          </Field>
+          <Field label="Lokasi" htmlFor="site_location" error={fieldErrors.site_location}>
+            <Input
+              id="site_location"
+              name="site_location"
+              type="text"
+              autoComplete="off"
+              value={form.site_location}
+              onChange={(event) => update("site_location", event.target.value)}
+              {...fieldState("site_location")}
+            />
+          </Field>
+        </div>
       </fieldset>
 
-      <fieldset className="grid gap-5 sm:grid-cols-2">
-        <legend className="mb-4 text-base font-semibold">Model</legend>
-        <Field label="Unit model" htmlFor="unit_model_id" error={fieldErrors.unit_model_id}>
-          <select
-            id="unit_model_id"
-            name="unit_model_id"
-            value={form.unit_model_id}
-            onChange={(event) => update("unit_model_id", event.target.value)}
-            className={inputClass}
+      <fieldset className="space-y-5">
+        <legend className="text-base font-semibold">Model dan serial</legend>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Unit model" htmlFor="unit_model_id" error={fieldErrors.unit_model_id}>
+            <select
+              id="unit_model_id"
+              name="unit_model_id"
+              value={form.unit_model_id}
+              onChange={(event) => update("unit_model_id", event.target.value)}
+              className={selectClass}
+              {...fieldState("unit_model_id")}
+            >
+              <option value="">Tidak dipilih</option>
+              {unitModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.manufacturer} — {model.model}
+                  {model.is_active ? "" : " (nonaktif)"}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Engine model" htmlFor="engine_model_id" error={fieldErrors.engine_model_id}>
+            <select
+              id="engine_model_id"
+              name="engine_model_id"
+              value={form.engine_model_id}
+              onChange={(event) => update("engine_model_id", event.target.value)}
+              className={selectClass}
+              {...fieldState("engine_model_id")}
+            >
+              <option value="">Tidak dipilih</option>
+              {engineModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.manufacturer} — {model.model}
+                  {model.is_active ? "" : " (nonaktif)"}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Serial number unit" htmlFor="serial_number" error={fieldErrors.serial_number}>
+            <Input
+              id="serial_number"
+              name="serial_number"
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              value={form.serial_number}
+              onChange={(event) => update("serial_number", event.target.value)}
+              {...fieldState("serial_number")}
+            />
+          </Field>
+          <Field
+            label="Serial number engine"
+            htmlFor="engine_serial_number"
+            error={fieldErrors.engine_serial_number}
           >
-            <option value="">Tidak dipilih</option>
-            {unitModels.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.manufacturer} — {model.model}{model.is_active ? "" : " (nonaktif)"}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Engine model" htmlFor="engine_model_id" error={fieldErrors.engine_model_id}>
-          <select
-            id="engine_model_id"
-            name="engine_model_id"
-            value={form.engine_model_id}
-            onChange={(event) => update("engine_model_id", event.target.value)}
-            className={inputClass}
-          >
-            <option value="">Tidak dipilih</option>
-            {engineModels.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.manufacturer} — {model.model}{model.is_active ? "" : " (nonaktif)"}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Serial number unit" htmlFor="serial_number" error={fieldErrors.serial_number}>
-          <input
-            id="serial_number"
-            name="serial_number"
-            type="text"
-            value={form.serial_number}
-            onChange={(event) => update("serial_number", event.target.value)}
-            className={inputClass}
-          />
-        </Field>
-        <Field label="Serial number engine" htmlFor="engine_serial_number" error={fieldErrors.engine_serial_number}>
-          <input
-            id="engine_serial_number"
-            name="engine_serial_number"
-            type="text"
-            value={form.engine_serial_number}
-            onChange={(event) => update("engine_serial_number", event.target.value)}
-            className={inputClass}
-          />
-        </Field>
+            <Input
+              id="engine_serial_number"
+              name="engine_serial_number"
+              type="text"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              value={form.engine_serial_number}
+              onChange={(event) => update("engine_serial_number", event.target.value)}
+              {...fieldState("engine_serial_number")}
+            />
+          </Field>
+        </div>
       </fieldset>
 
       <fieldset className="space-y-3">
-        <legend className="mb-2 text-base font-semibold">Status</legend>
+        <legend className="text-base font-semibold">Status</legend>
         <label className="flex min-h-11 items-center gap-3 text-sm">
           <input
             type="checkbox"
+            name="is_active"
             checked={form.is_active}
             onChange={(event) => update("is_active", event.target.checked)}
             className="size-4 accent-primary"
@@ -269,6 +307,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
         <label className="flex min-h-11 items-center gap-3 text-sm">
           <input
             type="checkbox"
+            name="is_breakdown"
             checked={form.is_breakdown}
             onChange={(event) => update("is_breakdown", event.target.checked)}
             className="size-4 accent-primary"
@@ -278,16 +317,21 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       </fieldset>
 
       <div className="flex flex-wrap gap-3">
-        <button
-          type="submit"
-          disabled={pending}
-          className="min-h-11 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          {pending ? "Menyimpan..." : isEdit ? "Simpan perubahan" : "Buat unit"}
-        </button>
+        <Button type="submit" disabled={pending} className="h-11 px-4">
+          {pending ? (
+            <>
+              <Loader2 className="animate-spin" aria-hidden="true" />
+              Menyimpan...
+            </>
+          ) : isEdit ? (
+            "Simpan perubahan"
+          ) : (
+            "Buat unit"
+          )}
+        </Button>
         <Link
           href={unit ? `/units/${unit.id}` : "/units"}
-          className="inline-flex min-h-11 items-center rounded-md border border-border px-4 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="inline-flex min-h-11 items-center rounded-lg border border-border bg-background px-4 text-sm font-medium shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           Batal
         </Link>
@@ -296,8 +340,8 @@ export function UnitForm({ unit }: { unit?: Unit }) {
   );
 }
 
-const inputClass =
-  "mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30";
+const selectClass =
+  "mt-0 h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 
 function Field({
   label,
@@ -313,14 +357,18 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <label htmlFor={htmlFor} className="text-sm font-medium">
+    <div className="space-y-2" data-invalid={Boolean(error)}>
+      <Label htmlFor={htmlFor}>
         {label}
-        {required ? <span aria-hidden="true"> *</span> : null}
-      </label>
+        {required ? (
+          <span aria-hidden="true" className="text-destructive">
+            *
+          </span>
+        ) : null}
+      </Label>
       {children}
       {error ? (
-        <p id={`${htmlFor}-error`} className="mt-1 text-sm text-destructive">
+        <p id={`${htmlFor}-error`} className="text-sm text-destructive">
           {error}
         </p>
       ) : null}

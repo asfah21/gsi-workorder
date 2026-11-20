@@ -1,8 +1,24 @@
 "use client";
 
+import {
+  Boxes,
+  CircleAlert,
+  CircleCheck,
+  Loader2,
+  Settings2,
+  ShieldCheck,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
+import { ActiveBadge } from "@/components/status-badges";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, proxyGet, proxyPost } from "@/lib/api-client";
 import type {
   DataResponse,
@@ -12,17 +28,16 @@ import type {
 } from "@/lib/types";
 import { formatDateTimeWita } from "@/lib/time";
 
-const inputClass =
-  "mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30";
-
 export function MasterView() {
   const { user } = useSession();
   const [unitModels, setUnitModels] = useState<UnitModel[]>([]);
   const [engineModels, setEngineModels] = useState<EngineModel[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const canWrite = user.role === "admin" || user.role === "planner";
 
   const load = useCallback(async () => {
+    setLoading(true);
     setError("");
     try {
       const [units, engines] = await Promise.all([
@@ -32,7 +47,13 @@ export function MasterView() {
       setUnitModels(units.data);
       setEngineModels(engines.data);
     } catch (loadError) {
-      setError(loadError instanceof ApiError ? loadError.message : "Master model tidak dapat dimuat.");
+      setError(
+        loadError instanceof ApiError
+          ? loadError.message
+          : "Master model tidak dapat dimuat.",
+      );
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -43,95 +64,163 @@ export function MasterView() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Master unit</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Master unit</h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
           Model unit dan engine yang dipakai pada master unit.
         </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Badge variant="secondary" className="h-6 gap-1.5 px-2.5">
+            <Boxes className="size-3.5" aria-hidden="true" />
+            {unitModels.length} unit model
+          </Badge>
+          <Badge variant="secondary" className="h-6 gap-1.5 px-2.5">
+            <Settings2 className="size-3.5" aria-hidden="true" />
+            {engineModels.length} engine model
+          </Badge>
+        </div>
       </div>
 
       {error ? (
-        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          {error}
-        </p>
+        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+          <CircleAlert aria-hidden="true" />
+          <AlertTitle>Master model tidak dapat dimuat</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {!canWrite ? (
+        <Alert className="border-sky-500/30 bg-sky-500/5">
+          <ShieldCheck aria-hidden="true" />
+          <AlertTitle>Akses baca saja</AlertTitle>
+          <AlertDescription>
+            Role Anda dapat melihat master unit, tetapi tidak dapat menambah model.
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       <section aria-labelledby="unit-model-heading" className="space-y-4">
         <div>
-          <h2 id="unit-model-heading" className="text-lg font-semibold">Unit model</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Kombinasi manufacturer dan model harus unik.</p>
+          <h2 id="unit-model-heading" className="text-lg font-semibold tracking-tight">
+            Unit model
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Kombinasi manufacturer dan model harus unik.
+          </p>
         </div>
-        {canWrite ? <UnitModelForm onSaved={() => void load()} /> : null}
-        <div className="overflow-hidden rounded-xl border border-border bg-background">
-          <div className="responsive-table-wrapper" tabIndex={0} role="region" aria-labelledby="unit-model-heading">
-            <table className="responsive-table">
-              <caption className="sr-only">Daftar unit model</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Manufacturer</th>
-                  <th scope="col">Model</th>
-                  <th scope="col">Kategori</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Diperbarui</th>
-                </tr>
-              </thead>
-              <tbody>
-                {unitModels.map((model) => (
-                  <tr key={model.id}>
-                    <td data-label="Manufacturer">{model.manufacturer}</td>
-                    <td data-label="Model">{model.model}</td>
-                    <td data-label="Kategori">{model.category || "-"}</td>
-                    <td data-label="Status"><ActiveBadge active={model.is_active} /></td>
-                    <td data-label="Diperbarui">{formatDateTimeWita(model.updated_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {unitModels.length === 0 ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">Belum ada unit model.</p> : null}
+        <div className="grid gap-4">
+          {canWrite ? <UnitModelForm onSaved={() => void load()} /> : null}
+          <Card className="overflow-hidden shadow-sm">
+            <CardHeader className="border-b">
+              <CardTitle>Daftar unit model</CardTitle>
+              <CardDescription>Referensi model untuk master unit.</CardDescription>
+            </CardHeader>
+            {loading ? (
+              <TableSkeleton />
+            ) : unitModels.length === 0 ? (
+              <EmptyModels label="unit model" />
+            ) : (
+              <div
+                className="responsive-table-wrapper"
+                tabIndex={0}
+                role="region"
+                aria-labelledby="unit-model-heading"
+              >
+                <table className="responsive-table">
+                  <caption className="sr-only">Daftar unit model</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Manufacturer</th>
+                      <th scope="col">Model</th>
+                      <th scope="col">Kategori</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Diperbarui</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unitModels.map((model) => (
+                      <tr key={model.id}>
+                        <td data-label="Manufacturer">{model.manufacturer}</td>
+                        <td data-label="Model" className="font-medium">{model.model}</td>
+                        <td data-label="Kategori">{model.category || "-"}</td>
+                        <td data-label="Status">
+                          <ActiveBadge active={model.is_active} />
+                        </td>
+                        <td data-label="Diperbarui" className="text-muted-foreground">
+                          {formatDateTimeWita(model.updated_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         </div>
       </section>
 
       <section aria-labelledby="engine-model-heading" className="space-y-4">
         <div>
-          <h2 id="engine-model-heading" className="text-lg font-semibold">Engine model</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Kombinasi manufacturer dan model harus unik.</p>
+          <h2 id="engine-model-heading" className="text-lg font-semibold tracking-tight">
+            Engine model
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Kombinasi manufacturer dan model harus unik.
+          </p>
         </div>
-        {canWrite ? <EngineModelForm onSaved={() => void load()} /> : null}
-        <div className="overflow-hidden rounded-xl border border-border bg-background">
-          <div className="responsive-table-wrapper" tabIndex={0} role="region" aria-labelledby="engine-model-heading">
-            <table className="responsive-table">
-              <caption className="sr-only">Daftar engine model</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Manufacturer</th>
-                  <th scope="col">Model</th>
-                  <th scope="col">Bahan bakar</th>
-                  <th scope="col">Displacement</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Diperbarui</th>
-                </tr>
-              </thead>
-              <tbody>
-                {engineModels.map((model) => (
-                  <tr key={model.id}>
-                    <td data-label="Manufacturer">{model.manufacturer}</td>
-                    <td data-label="Model">{model.model}</td>
-                    <td data-label="Bahan bakar">{model.fuel_type || "-"}</td>
-                    <td data-label="Displacement">{model.displacement_cc ? `${model.displacement_cc} cc` : "-"}</td>
-                    <td data-label="Status"><ActiveBadge active={model.is_active} /></td>
-                    <td data-label="Diperbarui">{formatDateTimeWita(model.updated_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {engineModels.length === 0 ? <p className="px-4 py-8 text-center text-sm text-muted-foreground">Belum ada engine model.</p> : null}
+        <div className="grid gap-4">
+          {canWrite ? <EngineModelForm onSaved={() => void load()} /> : null}
+          <Card className="overflow-hidden shadow-sm">
+            <CardHeader className="border-b">
+              <CardTitle>Daftar engine model</CardTitle>
+              <CardDescription>Referensi engine untuk master unit.</CardDescription>
+            </CardHeader>
+            {loading ? (
+              <TableSkeleton />
+            ) : engineModels.length === 0 ? (
+              <EmptyModels label="engine model" />
+            ) : (
+              <div
+                className="responsive-table-wrapper"
+                tabIndex={0}
+                role="region"
+                aria-labelledby="engine-model-heading"
+              >
+                <table className="responsive-table">
+                  <caption className="sr-only">Daftar engine model</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Manufacturer</th>
+                      <th scope="col">Model</th>
+                      <th scope="col">Bahan bakar</th>
+                      <th scope="col">Displacement</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Diperbarui</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {engineModels.map((model) => (
+                      <tr key={model.id}>
+                        <td data-label="Manufacturer">{model.manufacturer}</td>
+                        <td data-label="Model" className="font-medium">{model.model}</td>
+                        <td data-label="Bahan bakar">{model.fuel_type || "-"}</td>
+                        <td data-label="Displacement">
+                          {model.displacement_cc ? `${model.displacement_cc} cc` : "-"}
+                        </td>
+                        <td data-label="Status">
+                          <ActiveBadge active={model.is_active} />
+                        </td>
+                        <td data-label="Diperbarui" className="text-muted-foreground">
+                          {formatDateTimeWita(model.updated_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
         </div>
       </section>
-
-      {!canWrite ? (
-        <p className="text-sm text-muted-foreground">Role Anda hanya dapat membaca master unit.</p>
-      ) : null}
     </div>
   );
 }
@@ -143,11 +232,13 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
   const [notes, setNotes] = useState("");
   const [active, setActive] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setMessage("");
     setPending(true);
     try {
       await proxyPost<DataResponse<UnitModel>>("/unit-models", {
@@ -162,44 +253,112 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
       setCategory("");
       setNotes("");
       setActive(true);
+      setMessage("Unit model berhasil ditambahkan.");
       onSaved();
     } catch (submitError) {
-      setError(submitError instanceof ApiError ? submitError.message : "Unit model tidak dapat disimpan.");
+      setError(
+        submitError instanceof ApiError
+          ? submitError.message
+          : "Unit model tidak dapat disimpan.",
+      );
     } finally {
       setPending(false);
     }
   };
 
   return (
-    <form onSubmit={(event) => void submit(event)} className="rounded-xl border border-border bg-background p-5" noValidate>
-      <h3 className="text-base font-semibold">Tambah unit model</h3>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <label htmlFor="um-manufacturer" className="text-sm font-medium">Manufacturer</label>
-          <input id="um-manufacturer" required value={manufacturer} onChange={(event) => setManufacturer(event.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label htmlFor="um-model" className="text-sm font-medium">Model</label>
-          <input id="um-model" required value={model} onChange={(event) => setModel(event.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label htmlFor="um-category" className="text-sm font-medium">Kategori</label>
-          <input id="um-category" value={category} onChange={(event) => setCategory(event.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label htmlFor="um-notes" className="text-sm font-medium">Catatan</label>
-          <input id="um-notes" value={notes} onChange={(event) => setNotes(event.target.value)} className={inputClass} />
-        </div>
-      </div>
-      <label className="mt-4 flex min-h-11 items-center gap-3 text-sm">
-        <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="size-4 accent-primary" />
-        Aktif
-      </label>
-      {error ? <p role="alert" className="mt-3 text-sm text-destructive">{error}</p> : null}
-      <button type="submit" disabled={pending} className="mt-4 min-h-11 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
-        {pending ? "Menyimpan..." : "Tambah unit model"}
-      </button>
-    </form>
+    <Card className="shadow-sm">
+      <CardHeader className="border-b">
+        <CardTitle>Tambah unit model</CardTitle>
+        <CardDescription>Tambahkan referensi model unit baru.</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-4">
+        <form onSubmit={(event) => void submit(event)} className="space-y-4" noValidate>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="um-manufacturer">
+                Manufacturer <span aria-hidden="true" className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="um-manufacturer"
+                name="manufacturer"
+                required
+                autoComplete="off"
+                value={manufacturer}
+                onChange={(event) => setManufacturer(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="um-model">
+                Model <span aria-hidden="true" className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="um-model"
+                name="model"
+                required
+                autoComplete="off"
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="um-category">Kategori</Label>
+              <Input
+                id="um-category"
+                name="category"
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="um-notes">Catatan</Label>
+              <Input
+                id="um-notes"
+                name="notes"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </div>
+          </div>
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              name="is_active"
+              checked={active}
+              onChange={(event) => setActive(event.target.checked)}
+              className="size-4 accent-primary"
+            />
+            Aktif
+          </label>
+          {error ? (
+            <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+              <CircleAlert aria-hidden="true" />
+              <AlertTitle>Gagal menyimpan</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {message ? (
+            <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300">
+              <CircleCheck aria-hidden="true" />
+              <AlertTitle>Berhasil</AlertTitle>
+              <AlertDescription className="text-emerald-700 dark:text-emerald-300">
+                {message}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <Button type="submit" disabled={pending} className="h-11 px-4">
+            {pending ? (
+              <>
+                <Loader2 className="animate-spin" aria-hidden="true" />
+                Menyimpan...
+              </>
+            ) : (
+              "Tambah unit model"
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -211,11 +370,13 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
   const [notes, setNotes] = useState("");
   const [active, setActive] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setMessage("");
     setPending(true);
     try {
       await proxyPost<DataResponse<EngineModel>>("/engine-models", {
@@ -232,55 +393,148 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
       setDisplacement("");
       setNotes("");
       setActive(true);
+      setMessage("Engine model berhasil ditambahkan.");
       onSaved();
     } catch (submitError) {
-      setError(submitError instanceof ApiError ? submitError.message : "Engine model tidak dapat disimpan.");
+      setError(
+        submitError instanceof ApiError
+          ? submitError.message
+          : "Engine model tidak dapat disimpan.",
+      );
     } finally {
       setPending(false);
     }
   };
 
   return (
-    <form onSubmit={(event) => void submit(event)} className="rounded-xl border border-border bg-background p-5" noValidate>
-      <h3 className="text-base font-semibold">Tambah engine model</h3>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <label htmlFor="em-manufacturer" className="text-sm font-medium">Manufacturer</label>
-          <input id="em-manufacturer" required value={manufacturer} onChange={(event) => setManufacturer(event.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label htmlFor="em-model" className="text-sm font-medium">Model</label>
-          <input id="em-model" required value={model} onChange={(event) => setModel(event.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label htmlFor="em-fuel" className="text-sm font-medium">Bahan bakar</label>
-          <input id="em-fuel" value={fuelType} onChange={(event) => setFuelType(event.target.value)} className={inputClass} />
-        </div>
-        <div>
-          <label htmlFor="em-displacement" className="text-sm font-medium">Displacement (cc)</label>
-          <input id="em-displacement" type="number" min="1" step="1" value={displacement} onChange={(event) => setDisplacement(event.target.value)} className={inputClass} />
-        </div>
-        <div className="sm:col-span-2 lg:col-span-4">
-          <label htmlFor="em-notes" className="text-sm font-medium">Catatan</label>
-          <input id="em-notes" value={notes} onChange={(event) => setNotes(event.target.value)} className={inputClass} />
-        </div>
-      </div>
-      <label className="mt-4 flex min-h-11 items-center gap-3 text-sm">
-        <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="size-4 accent-primary" />
-        Aktif
-      </label>
-      {error ? <p role="alert" className="mt-3 text-sm text-destructive">{error}</p> : null}
-      <button type="submit" disabled={pending} className="mt-4 min-h-11 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
-        {pending ? "Menyimpan..." : "Tambah engine model"}
-      </button>
-    </form>
+    <Card className="shadow-sm">
+      <CardHeader className="border-b">
+        <CardTitle>Tambah engine model</CardTitle>
+        <CardDescription>Tambahkan referensi engine baru.</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-4">
+        <form onSubmit={(event) => void submit(event)} className="space-y-4" noValidate>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label htmlFor="em-manufacturer">
+                Manufacturer <span aria-hidden="true" className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="em-manufacturer"
+                name="manufacturer"
+                required
+                autoComplete="off"
+                value={manufacturer}
+                onChange={(event) => setManufacturer(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="em-model">
+                Model <span aria-hidden="true" className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="em-model"
+                name="model"
+                required
+                autoComplete="off"
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="em-fuel">Bahan bakar</Label>
+              <Input
+                id="em-fuel"
+                name="fuel_type"
+                value={fuelType}
+                onChange={(event) => setFuelType(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="em-displacement">Displacement (cc)</Label>
+              <Input
+                id="em-displacement"
+                name="displacement_cc"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                step="1"
+                value={displacement}
+                onChange={(event) => setDisplacement(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2 lg:col-span-4">
+              <Label htmlFor="em-notes">Catatan</Label>
+              <Input
+                id="em-notes"
+                name="notes"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </div>
+          </div>
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input
+              type="checkbox"
+              name="is_active"
+              checked={active}
+              onChange={(event) => setActive(event.target.checked)}
+              className="size-4 accent-primary"
+            />
+            Aktif
+          </label>
+          {error ? (
+            <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+              <CircleAlert aria-hidden="true" />
+              <AlertTitle>Gagal menyimpan</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          {message ? (
+            <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300">
+              <CircleCheck aria-hidden="true" />
+              <AlertTitle>Berhasil</AlertTitle>
+              <AlertDescription className="text-emerald-700 dark:text-emerald-300">
+                {message}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <Button type="submit" disabled={pending} className="h-11 px-4">
+            {pending ? (
+              <>
+                <Loader2 className="animate-spin" aria-hidden="true" />
+                Menyimpan...
+              </>
+            ) : (
+              "Tambah engine model"
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
-function ActiveBadge({ active }: { active: boolean }) {
+function TableSkeleton() {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${active ? "bg-emerald-100 text-emerald-800" : "bg-muted text-muted-foreground"}`}>
-      {active ? "Aktif" : "Nonaktif"}
-    </span>
+    <div className="space-y-2 p-4" role="status" aria-label="Memuat master model">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Skeleton key={index} className="h-11 w-full" />
+      ))}
+    </div>
+  );
+}
+
+function EmptyModels({ label }: { label: string }) {
+  return (
+    <CardContent className="py-12 text-center">
+      <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
+        <Boxes className="size-6" aria-hidden="true" />
+      </span>
+      <p className="mt-4 font-medium">Belum ada {label}.</p>
+      <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+        Tambahkan referensi model agar dapat dipilih saat membuat unit.
+      </p>
+    </CardContent>
   );
 }

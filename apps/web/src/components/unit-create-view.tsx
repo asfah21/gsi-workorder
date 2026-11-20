@@ -1,9 +1,12 @@
 "use client";
 
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { useSession } from "@/components/app-shell";
 import { UnitForm } from "@/components/unit-form";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function UnitCreateView() {
   const { user } = useSession();
@@ -11,12 +14,18 @@ export function UnitCreateView() {
 
   if (!canWrite) {
     return (
-      <div className="max-w-xl space-y-3">
+      <div className="max-w-xl space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">Tambah unit</h1>
-        <p role="alert" className="rounded-lg border border-border bg-background px-4 py-3 text-sm">
-          Role Anda hanya dapat membaca master unit.
-        </p>
-        <Link href="/units" className="text-sm font-medium underline underline-offset-4">
+        <Alert className="border-sky-500/30 bg-sky-500/5">
+          <ShieldCheck aria-hidden="true" />
+          <AlertTitle>Akses baca saja</AlertTitle>
+          <AlertDescription>Role Anda hanya dapat membaca master unit.</AlertDescription>
+        </Alert>
+        <Link
+          href="/units"
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
           Kembali ke daftar unit
         </Link>
       </div>
@@ -26,14 +35,23 @@ export function UnitCreateView() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Tambah unit</h1>
+        <Link
+          href="/units"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Unit
+        </Link>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Tambah unit</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           HM/KM awal diisi melalui pembacaan setelah unit dibuat.
         </p>
       </div>
-      <div className="rounded-xl border border-border bg-background p-5 sm:p-6">
-        <UnitForm />
-      </div>
+      <Card className="shadow-sm [--card-spacing:--spacing(5)] sm:[--card-spacing:--spacing(6)]">
+        <CardContent>
+          <UnitForm />
+        </CardContent>
+      </Card>
     </div>
   );
 }
