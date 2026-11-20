@@ -52,8 +52,9 @@ Gunakan untuk tanggal kalender yang tidak punya jam:
 * `work_orders.due_date`
 * `pm_plans.effective_from`, `effective_to`
 * `pm_schedules.due_date`
-* `stock_opname_sessions` tanggal operasional (bila ditambahkan)
 * filter laporan `date_from`, `date_to`
+
+Opname tidak memakai kolom tanggal terpisah; gunakan `created_at`/`posted_at` (`TIMESTAMPTZ`).
 
 Aturan:
 

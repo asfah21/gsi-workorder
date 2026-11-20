@@ -12,11 +12,11 @@
 ## 1. Prinsip model data
 
 1. **Satu sumber kebenaran per konsep.** Tabel history/usage/adjustment tidak diduplikasi bila dapat menjadi view atau tipe transaksi.
-2. **Ledger immutable.** `inventory_transactions` + `inventory_transaction_items` adalah sumber kebenaran saldo. `inventory_balances` hanya cache yang dapat dibangun ulang.
-3. **Snapshot pada WO.** Checklist PM dan material plan disalin saat WO dibuat; perubahan template tidak mengubah history.
+2. **Ledger immutable.** `inventory_transactions` + `inventory_transaction_items` adalah sumber kebenaran saldo; item/qty posted tidak diubah/dihapus, hanya status `posted → reversed` saat reversal. `inventory_balances` hanya cache yang dapat dibangun ulang.
+3. **Snapshot pada WO.** Checklist PM disalin saat WO dibuat; material plan disalin menjadi material requirement saat modul material aktif (M6); perubahan template tidak mengubah history.
 4. **Master + transaksi.** Master unit/sparepart/inventory/PM terpisah dari transaksi.
 5. **UTC + DATE.** Event memakai `TIMESTAMPTZ`; tanggal bisnis memakai `DATE`.
-6. **Additive migration.** M0 locked; semua perubahan berupa `CREATE TABLE`, `ALTER TABLE ADD COLUMN`, `CREATE INDEX`, dan `CREATE VIEW` baru.
+6. **Migration additive.** Migrasi 000001/000002 tidak diubah; perluasan memakai migration baru (`CREATE TABLE`, `ALTER TABLE ADD COLUMN`/`ADD CONSTRAINT`, perluasan CHECK). Tidak ada drop table/column data existing.
 7. **No costing.** Tidak ada harga, cost, valuation, vendor price, atau data procurement.
 
 ### 1.1 Status vocabulary
@@ -35,7 +35,7 @@ Nilai DB memakai `snake_case`; label UI memakai Title Case.
 
 ---
 
-## 2. Baseline M0 (implemented & locked)
+## 2. Baseline M0 schema (implemented & locked)
 
 ### 2.1 Tabel aplikasi (15)
 
@@ -85,7 +85,7 @@ Nilai DB memakai `snake_case`; label UI memakai Title Case.
 | Inventory | `warehouses`, `warehouse_locations`, `inventory_stock_policies`, `inventory_transactions`, `inventory_transaction_items`, `inventory_balances`, `stock_opname_sessions`, `stock_opname_items` |
 | Material | `material_requirements`, `material_requirement_items`, `material_requirement_updates`, `inventory_reservations` |
 | Usage | `work_order_sparepart_usage` |
-| Reporting | view §5 |
+| Reporting | view §6 |
 
 ### 3.2 ERD konseptual
 
@@ -98,6 +98,7 @@ erDiagram
     PM_PLANS ||--o{ PM_SCHEDULES : "generates"
     PM_PLANS ||--o{ PM_PLAN_CHECKLIST_ITEMS : "contains"
     PM_PLANS ||--o{ PM_PLAN_MATERIALS : "requires"
+    SPAREPARTS ||--o{ PM_PLAN_MATERIALS : "planned"
     PM_SCHEDULES ||--o{ WORK_ORDERS : "generates"
     WORK_ORDERS ||--o{ WORK_ORDER_CHECKLIST_ITEMS : "snapshots"
     WORK_ORDERS ||--o{ MATERIAL_REQUIREMENTS : "has"
@@ -126,14 +127,14 @@ Catatan:
 
 * `work_orders` juga berelasi ke `units`, `users`, `p2h_reports`, dan `wo_candidates` (M0).
 * `pm_schedules → work_orders` adalah **satu schedule ke banyak WO historis**, tetapi hanya satu WO non-`cancelled` (partial unique index).
-* `material_requirements → work_orders` adalah **satu active requirement per WO** (partial unique index).
+* `material_requirements → work_orders` adalah **satu requirement non-`cancelled` per WO** (partial unique index).
 * `inventory_balances` tidak memiliki FK ke transaction; hubungan "updates" adalah proses, bukan relasi fisik.
 
 ---
 
 ## 4. Perluasan M0 (ALTER)
 
-> Urutan eksekusi: master → PM → WO extension → inventory → material. DDL lengkap ada di §5; bagian ini merangkum perubahan tabel existing.
+> Urutan eksekusi: master → WO extension → PM → sparepart/inventory → material/usage. DDL lengkap ada di §5; bagian ini merangkum perubahan tabel existing.
 
 ### 4.1 `users`
 
@@ -177,6 +178,11 @@ ALTER TABLE work_orders
   ADD COLUMN pm_schedule_id bigint REFERENCES pm_schedules(id),
   ADD COLUMN supervisor_id bigint REFERENCES users(id),
   ADD COLUMN started_at timestamptz;
+
+ALTER TABLE work_orders
+  ADD CONSTRAINT work_orders_pm_source_check
+  CHECK ((source = 'pm' AND pm_schedule_id IS NOT NULL AND maintenance_type = 'preventive')
+      OR (source <> 'pm' AND pm_schedule_id IS NULL));
 
 CREATE UNIQUE INDEX uq_work_orders_active_pm_schedule
   ON work_orders (pm_schedule_id)
@@ -454,8 +460,10 @@ CREATE TABLE pm_schedules (
     updated_at        timestamptz NOT NULL DEFAULT now(),
     UNIQUE (pm_plan_id, unit_id, cycle_no),
     CHECK (due_hm IS NOT NULL OR due_km IS NOT NULL OR due_date IS NOT NULL),
-    CHECK (status <> 'skipped' OR skip_reason IS NOT NULL),
-    CHECK (status <> 'cancelled' OR cancel_reason IS NOT NULL)
+    CHECK (overridden_by IS NULL OR (override_reason IS NOT NULL AND char_length(override_reason) >= 5)),
+    CHECK (status <> 'skipped' OR (skip_reason IS NOT NULL AND char_length(skip_reason) >= 5)),
+    CHECK (status <> 'cancelled' OR (cancel_reason IS NOT NULL AND char_length(cancel_reason) >= 5)),
+    CHECK (status <> 'completed' OR last_completed_at IS NOT NULL)
 );
 
 CREATE UNIQUE INDEX uq_pm_schedules_active
@@ -650,7 +658,7 @@ CREATE TABLE material_requirements (
     updated_at        timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX uq_material_requirements_active_wo
+CREATE UNIQUE INDEX uq_material_requirements_non_cancelled_wo
     ON material_requirements (wo_id)
     WHERE status <> 'cancelled';
 
@@ -685,7 +693,7 @@ CREATE INDEX idx_material_items_sparepart
 CREATE TABLE material_requirement_updates (
     id                      bigserial PRIMARY KEY,
     material_requirement_id bigint NOT NULL
-                            REFERENCES material_requirements(id) ON DELETE CASCADE,
+                            REFERENCES material_requirements(id) ON DELETE RESTRICT,
     user_id                 bigint REFERENCES users(id),
     status_from             text,
     status_to               text NOT NULL,
@@ -703,7 +711,7 @@ CREATE INDEX idx_material_updates_requirement
 CREATE TABLE inventory_reservations (
     id                           bigserial PRIMARY KEY,
     material_requirement_item_id bigint NOT NULL
-                                 REFERENCES material_requirement_items(id) ON DELETE CASCADE,
+                                 REFERENCES material_requirement_items(id) ON DELETE RESTRICT,
     sparepart_id                 bigint NOT NULL REFERENCES spareparts(id),
     warehouse_location_id        bigint NOT NULL REFERENCES warehouse_locations(id),
     qty                          numeric(14,3) NOT NULL CHECK (qty >= 0),
@@ -736,13 +744,17 @@ CREATE TABLE work_order_sparepart_usage (
     component_id                 bigint REFERENCES components(id),
     warehouse_location_id        bigint NOT NULL REFERENCES warehouse_locations(id),
     qty                          numeric(14,3) NOT NULL CHECK (qty > 0),
+    hm                           numeric(12,1) CHECK (hm IS NULL OR hm >= 0),
+    km                           numeric(12,1) CHECK (km IS NULL OR km >= 0),
     movement_type                text NOT NULL CHECK (movement_type IN ('issue','return')),
     inventory_transaction_item_id bigint NOT NULL
                                   REFERENCES inventory_transaction_items(id),
+    return_of_usage_id            bigint REFERENCES work_order_sparepart_usage(id),
     used_by                      bigint REFERENCES users(id),
     used_at                      timestamptz NOT NULL DEFAULT now(),
     notes                        text,
-    UNIQUE (inventory_transaction_item_id)
+    UNIQUE (inventory_transaction_item_id),
+    CHECK (return_of_usage_id IS NULL OR return_of_usage_id <> id)
 );
 
 CREATE INDEX idx_wo_usage_wo ON work_order_sparepart_usage (wo_id);
@@ -750,6 +762,9 @@ CREATE INDEX idx_wo_usage_unit_time
     ON work_order_sparepart_usage (sparepart_id, used_at DESC);
 CREATE INDEX idx_wo_usage_component
     ON work_order_sparepart_usage (component_id, used_at DESC);
+CREATE INDEX idx_wo_usage_return_of
+    ON work_order_sparepart_usage (return_of_usage_id)
+    WHERE return_of_usage_id IS NOT NULL;
 ```
 
 ### 5.8 Tambahan kolom setelah M6
@@ -808,7 +823,7 @@ Header status (prioritas):
 
 1. `cancelled`
 2. `completed`
-3. `issued` — `net_issued > 0` dan semua required item `coverage >= qty_required`
+3. `issued` — `net_issued > 0` dan tidak ada required item `coverage <= 0` (boleh belum penuh)
 4. `reserved` — `qty_reserved > 0` dan semua required item `coverage >= qty_required`
 5. `shortage` — ada required item `coverage <= 0`
 6. `partially_ready` — semua required item `coverage > 0`, tetapi ada yang belum penuh
@@ -817,11 +832,13 @@ Header status (prioritas):
 9. `planned`
 10. `draft`
 
+`issued` adalah status workflow (issue sudah dimulai); kekurangan qty tetap terlihat dari field `coverage`/`shortage`, bukan disembunyikan.
+
 Item optional tidak memblokir status header. Jika tidak ada required item (semua optional), status `ready` setelah `checking_stock`.
 
 ### 6.3 `v_pm_due`
 
-Kolom: schedule, plan, unit, due values, status, `days_to_due`, `hm_to_due`, `km_to_due`, `due_bucket` (`upcoming|due_soon|due|overdue`).
+Kolom: schedule, plan, unit, due values, status, `days_to_due`, `hm_to_due`, `km_to_due`, `due_bucket` (`scheduled|upcoming|due_soon|due|overdue`).
 
 * Date: `due_date - (now() AT TIME ZONE 'Asia/Makassar')::date`.
 * HM: `due_hm - units.current_hm`.
@@ -835,10 +852,12 @@ Kolom: schedule, plan, unit, due values, status, `days_to_due`, `hm_to_due`, `km
 Per plan/unit/periode:
 
 * `due_count` = schedule yang due dalam periode.
+* `completed_count` = schedule yang due dalam periode dan berstatus completed (on time atau late).
 * `completed_on_time` mengikuti plan: calendar date, HM, KM, atau combined (`first_reached`/`all_required`); detail di `docs/Domain Rules.md` §2.8.
 * `skipped_count`.
 * `overdue_count`.
 * `compliance_pct = completed_on_time / due_count`.
+* `completion_rate = completed_count / due_count`.
 
 ### 6.5 `v_unit_maintenance_history`
 
@@ -882,7 +901,7 @@ Union/join:
 
 ### 6.12 `v_low_stock`
 
-`v_stock_balance` filter `stock_status IN ('low','critical')`. `v_low_stock` dibentuk dari `inventory_stock_policies` LEFT JOIN `inventory_balances`; lokasi yang punya policy tetapi belum punya baris saldo dianggap `on_hand=0`, `reserved=0`, sehingga low/critical tetap muncul.
+Status dihitung sama dengan `v_stock_balance`. `v_low_stock` dibentuk dari `inventory_stock_policies` LEFT JOIN `inventory_balances`; lokasi yang punya policy tetapi belum punya baris saldo dianggap `on_hand=0`, `reserved=0`, sehingga low/critical tetap muncul.
 
 ---
 
@@ -900,7 +919,7 @@ Union/join:
 | `inventory_transactions` | `(posted_at DESC)`, `(reference_type,reference_id)` | movement |
 | `inventory_transaction_items` | `(sparepart_id)`, `(from_location_id)`, `(to_location_id)` | ledger query |
 | `inventory_balances` | `(warehouse_location_id)` | stock by location |
-| `inventory_reservations` | `(sparepart_id,location_id,status)` | available stock |
+| `inventory_reservations` | `(sparepart_id,warehouse_location_id,status)` | available stock |
 | `work_order_sparepart_usage` | `(wo_id)`, `(sparepart_id,used_at DESC)`, `(component_id,used_at DESC)` | usage/history |
 
 Catatan:
@@ -921,16 +940,19 @@ Catatan:
 | M3-01 | `ALTER work_orders` (`maintenance_type`, `supervisor_id`, `started_at`) | belum `pm_schedule_id` |
 | M4-01 | `pm_plans`, `pm_plan_checklist_items`, `pm_schedules` | PM core; material plan belum bisa dibuat sebelum `spareparts` |
 | M4-02 | `ALTER work_orders source pm`, `pm_schedule_id` + partial unique | setelah `pm_schedules` |
-| M4-03 | `work_order_checklist_items`, `ALTER notifications dedupe_key` | snapshot/notif |
+| M4-03 | `work_order_checklist_items`, `ALTER notifications dedupe_key`, seed `pm_auto_wo=false` | snapshot/notif/auto-WO guard |
+| M4-04 | `v_pm_due`, `v_pm_compliance` | view PM untuk M4 |
 | M5-01 | `spareparts`, `sparepart_numbers`, `sparepart_alternatives`, `sparepart_compatibility` | master sparepart |
 | M5-02 | `warehouses`, `warehouse_locations`, `inventory_stock_policies` | master lokasi |
 | M5-03 | `inventory_transactions`, `inventory_transaction_items`, `inventory_balances`, `stock_opname_sessions`, `stock_opname_items` | ledger |
 | M5-04 | `pm_plan_materials` | jembatan PM–sparepart; butuh `pm_plans` (M4) + `spareparts` (M5) |
+| M5-05 | `v_stock_balance`, `v_low_stock` | view stok untuk M5 |
 | M6-01 | `material_requirements`, `material_requirement_items`, `material_requirement_updates` | material |
 | M6-02 | `inventory_reservations` | butuh material items |
 | M6-03 | `ALTER inventory_transaction_items ADD reservation_id` | setelah reservations |
 | M6-04 | `work_order_sparepart_usage` | usage |
-| M7-01 | view + index performa | reporting |
+| M6-05 | `v_material_readiness`, `v_shortage_aging` | view material untuk M6 |
+| M7-01 | `v_unit_maintenance_history`, `v_unit_component_history`, `v_unit_downtime`, `v_sparepart_consumption`, `v_inventory_movement`, `v_component_replacement_frequency` + index performa | reporting |
 
 **Aturan:** setiap migration harus punya `down` yang aman atau explicitly irreversible dengan alasan. Jangan mengubah migration yang sudah dijalankan. `pm_plan_materials` sengaja berada di M5 karena FK ke `spareparts`; M4 tidak boleh membuat tabel yang bergantung pada master M5.
 
@@ -954,7 +976,7 @@ Formula `on_hand` per sparepart+lokasi:
 - opname decrease.qty (from)
 ```
 
-`reserved` = `SUM(active inventory_reservations.qty)` per sparepart+lokasi.
+Hanya transaksi berstatus `posted` yang dihitung; transaksi asli yang sudah `reversed` tidak dihitung, sedangkan reversal yang `posted` dihitung. `reserved` = `SUM(active inventory_reservations.qty)` per sparepart+lokasi.
 
 Reconcile query harus menghasilkan nol selisih. Jika tidak, jangan edit manual—perbaiki bug transaksi dan buat adjustment beralasan.
 
@@ -962,6 +984,7 @@ Reconcile query harus menghasilkan nol selisih. Jika tidak, jangan edit manual�
 
 * Master yang sudah dipakai: `is_active=false`, jangan delete.
 * `pm_plan_checklist_items`, `pm_plan_materials`, `material_requirement_items`, `stock_opname_items`, `work_order_checklist_items`: `ON DELETE CASCADE` hanya dari parent yang memang template/child.
+* `material_requirement_updates` dan `inventory_reservations`: `ON DELETE RESTRICT` agar audit/state tidak hilang; requirement/item tidak boleh dihapus setelah punya histori.
 * `inventory_transactions`, `inventory_transaction_items`, `work_order_sparepart_usage`: `ON DELETE RESTRICT`.
 * `wo_updates`, `inventory_transactions`: append-only; tidak ada delete.
 * `notifications`: boleh delete oleh user? Tidak; tandai `read_at`.
@@ -1003,7 +1026,7 @@ Jika salah satu gagal, rollback semua.
 * [ ] Semua timestamp `TIMESTAMPTZ`; tidak ada `TIMESTAMP WITHOUT TIME ZONE`.
 * [ ] Semua tanggal bisnis `DATE`; tidak ada konversi timezone.
 * [ ] Semua FK memiliki index bila dipakai query.
-* [ ] Semua unique constraint sesuai aturan (active schedule, active material requirement, primary part number).
+* [ ] Semua unique constraint sesuai aturan (active schedule, non-cancelled material requirement, primary part number).
 * [ ] Tidak ada `ON DELETE CASCADE` dari ledger/usage.
 * [ ] `inventory_balances` dapat direkonsiliasi dari ledger.
 * [ ] `material_requirements.status_changed_at`/`shortage_since` di-update saat transisi.

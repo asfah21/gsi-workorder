@@ -33,7 +33,7 @@
 
 * `wo_updates` append-only; setiap transisi WO wajib menulis baris.
 * `material_requirement_updates` append-only; setiap transisi status material wajib menulis baris.
-* `inventory_transactions` posted tidak boleh dihapus/diedit.
+* `inventory_transactions` posted tidak boleh dihapus/diubah item/qty-nya; satu-satunya update status adalah `posted → reversed` saat reversal.
 * `app_settings_history` mencatat setting lama → baru.
 * `wo_candidates` mencatat `decided_by/at`, `skip_reason`.
 * `pm_schedules` mencatat override (`override_reason`, `overridden_by`, `overridden_at`).
@@ -67,6 +67,7 @@ Aturan:
 * Unit baru aktif pada model setelah plan aktif: worker harian membuat schedule bila belum ada active schedule; due awal dihitung dari reading/effective date saat pembuatan.
 * Plan `active` tanpa unit aktif valid tetapi menghasilkan nol schedule; tampilkan warning.
 * `auto_generate_wo` hanya boleh `true` jika global `pm_auto_wo=true`; validasi saat simpan dan saat eksekusi.
+* Perubahan interval/ambang/checklist setelah plan aktif hanya berlaku untuk WO/siklus baru; schedule aktif tidak dihitung ulang otomatis. Jika due harus berubah, gunakan override due beralasan.
 
 ### 2.2 Status schedule
 
@@ -121,7 +122,7 @@ Due awal saat aktivasi:
 * Calendar: `effective_from + interval_days`.
 * HM: `units.current_hm + interval_hm` (jika reading 0/null, gunakan 0 + interval).
 * KM: `units.current_km + interval_km`.
-* Override awal dicatat dengan alasan.
+* Override awal dicatat dengan alasan minimal 5 karakter.
 
 Next due setelah completion:
 
@@ -180,25 +181,27 @@ Efek completion:
 2. Update `units.current_hm/current_km` hanya jika reading >= current; jika lebih rendah, tolak atau jalankan koreksi admin.
 3. Update schedule: `last_hm`, `last_km`, `last_completed_at`, status `completed`.
 4. Buat schedule baru `cycle_no + 1`, status `scheduled`, due dari §2.3.
-5. Jika plan `inactive`, jangan buat siklus baru.
+5. Jika plan `inactive` atau tanggal WITA di luar `effective_from`/`effective_to`, jangan buat siklus baru.
 6. WO `closed_at = now()`.
 
 ### 2.7 Skip & cancel
 
 * Skip hanya untuk schedule tanpa WO aktif; alasan ≥5 karakter; status `skipped`; catat `skip_reason`, `skipped_by`, `skipped_at`.
 * Next cycle setelah skip: `due = previous due + interval` (cadence dipertahankan). Jika due sudah jauh lewat, tetap satu interval per siklus; jangan loncat beberapa siklus sekaligus.
-* Cancel schedule hanya jika tidak ada WO aktif; alasan wajib; catat `cancel_reason`, `cancelled_by`, `cancelled_at`; tidak ada next cycle.
+* Cancel schedule hanya jika tidak ada WO aktif; alasan ≥5 karakter; catat `cancel_reason`, `cancelled_by`, `cancelled_at`; tidak ada next cycle.
 * WO PM yang cancelled: schedule kembali `due`/`overdue`; WO pengganti boleh dibuat.
 
 ### 2.8 Compliance
 
 * `due_count` = schedule dengan due date/reading pada periode.
+* `completed_count` = schedule due dalam periode yang completed, on time atau late.
 * `completed_on_time` = completion tidak melewati due; untuk combined mengikuti `interval_rule`:
   * `first_reached`: on-time jika completion tidak melewati threshold pertama yang memicu due.
   * `all_required`: on-time hanya jika completion tidak melewati seluruh threshold.
 * `skipped` = dihitung missed, bukan completed.
 * `overdue` = belum completed dan melewati due.
 * `compliance_pct = completed_on_time / due_count` (0 jika due_count=0).
+* `completion_rate = completed_count / due_count` (0 jika due_count=0).
 * PM compliance tidak memakai material readiness sebagai faktor; itu metrik terpisah.
 
 ---
@@ -276,7 +279,7 @@ Aturan:
 | `partially_ready` | Semua required item punya sebagian coverage, belum penuh | Tidak berubah |
 | `shortage` | Ada required item dengan coverage nol | Tidak berubah |
 | `reserved` | Semua required item tercakup (available + reservasi + issue); minimal satu reservasi aktif | `reserved` naik; `on_hand` tetap |
-| `issued` | Issue sudah dimulai, tidak ada shortage | `on_hand` turun |
+| `issued` | Issue sudah dimulai dan tidak ada required item coverage nol; boleh belum penuh | `on_hand` turun |
 | `completed` | WO selesai, reservasi aktif nol | Tidak berubah |
 | `cancelled` | Dibatalkan | Reservasi dilepas |
 
@@ -288,8 +291,8 @@ Aturan:
 | `planned` | `checking_stock` | planner/storekeeper | — |
 | `checking_stock` | `checking_stock` | planner/storekeeper | Recheck |
 | `ready`/`partially_ready`/`shortage` | `checking_stock` | planner/storekeeper | Recheck setelah stock berubah |
-| `ready`/`partially_ready`/`shortage` | `reserved` | planner/storekeeper | Semua required item `coverage >= qty_required`; minimal satu reservasi aktif; jika belum, tetap status semula |
-| `reserved` | `issued` | storekeeper/admin | Issue pertama |
+| `ready`/`partially_ready` | `reserved` | planner/storekeeper | Semua required item `coverage >= qty_required`; minimal satu reservasi aktif; jika belum, tetap status semula |
+| `ready`/`partially_ready`/`reserved` | `issued` | storekeeper/admin | Issue pertama dan tidak ada required item coverage nol |
 | semua non-terminal kecuali `shortage` | `completed` | system | WO done; release sisa reservasi; tidak shortage |
 | `shortage` | `completed` | admin | WO done; override alasan |
 | semua non-terminal | `cancelled` | planner/admin | Alasan; release reservasi; issue > return butuh approval |
@@ -304,7 +307,7 @@ Sistem menghitung ulang status pada event:
 * WO done/cancelled.
 * Recheck manual.
 
-Status yang boleh berubah otomatis: `ready ↔ partially_ready ↔ shortage`, `reserved → issued`, `issued → partially_ready/shortage` (bila return/koreksi), dan penutupan `completed` saat WO done dari status non-terminal (kecuali `shortage` yang butuh override admin). Pengecualian penutupan WO ini bukan skip manual; `draft/planned/checking_stock` tidak boleh dilompati oleh aksi manual biasa.
+Status yang boleh berubah otomatis: `ready ↔ partially_ready ↔ shortage`, `ready/partially_ready/reserved → issued`, `issued → partially_ready/shortage` (bila return/koreksi), dan penutupan `completed` saat WO done dari status non-terminal (kecuali `shortage` yang butuh override admin). Pengecualian penutupan WO ini bukan skip manual; `draft/planned/checking_stock` tidak boleh dilompati oleh aksi manual biasa.
 
 ### 4.4 Formula readiness
 
@@ -322,17 +325,20 @@ shortage          = GREATEST(qty_required - coverage, 0)
 * `coverage` menjumlahkan stok yang masih tersedia, yang sudah direservasi, dan yang sudah di-issue (net).
 * Item `is_optional=true` **tidak** memblokir status; shortage optional tidak membuat header `shortage`.
 
-Status header (hanya setelah `checking_stock`):
+Status header readiness (prioritas; status workflow `draft/planned/checking_stock` adalah fallback):
 
 1. `cancelled` — status cancelled.
 2. `completed` — status completed.
-3. `issued` — `net_issued > 0` dan semua required item `coverage >= qty_required`.
+3. `issued` — `net_issued > 0` dan tidak ada required item `coverage <= 0` (boleh belum penuh).
 4. `reserved` — `qty_reserved > 0` dan semua required item `coverage >= qty_required`.
 5. `shortage` — ada required item `coverage <= 0`.
 6. `partially_ready` — semua required item `coverage > 0`, tetapi ada yang `coverage < qty_required`.
 7. `ready` — semua required item `coverage >= qty_required`, `qty_reserved = 0`, `net_issued = 0`.
+8. `checking_stock`.
+9. `planned`.
+10. `draft`.
 
-Jika tidak ada required item (semua optional), status mengikuti `ready` setelah check.
+Jika tidak ada required item (semua optional), status mengikuti `ready` setelah check. Perubahan status lifecycle manual tetap mengikuti §4.2; view readiness dapat menampilkan status derivatif yang lebih tinggi.
 
 ### 4.5 Reservasi
 
@@ -348,7 +354,7 @@ Jika tidak ada required item (semua optional), status mengikuti `ready` setelah 
 * Qty issue <= `qty_required - net_issued`.
 * Konsumsi reservasi aktif terlebih dahulu (FIFO `reserved_at`), lalu available.
 * Issue mengurangi `on_hand`; jika dari reservasi, `reserved` dan `reservation.qty` berkurang; reservation menjadi `consumed` saat `qty = 0`.
-* Setiap issue membuat `work_order_sparepart_usage` (`movement_type='issue'`) yang menautkan `inventory_transaction_item_id`.
+* Setiap issue membuat `work_order_sparepart_usage` (`movement_type='issue'`) yang menautkan `inventory_transaction_item_id` dan mencatat snapshot `hm/km` saat issue bila tersedia.
 * Issue parsial diperbolehkan; status menjadi `issued` bila tidak ada shortage.
 * Issue tanpa reservasi diperbolehkan bila available cukup.
 * Issue melebihi required ditolak (kecuali fitur override baru dengan approval).
@@ -359,7 +365,8 @@ Jika tidak ada required item (semua optional), status mengikuti `ready` setelah 
 * Return menambah `on_hand`; membuat usage `movement_type='return'`; tidak otomatis reservasi ulang.
 * Jika requirement belum completed, status dihitung ulang; jika menjadi shortage, `shortage_since` di-set.
 * Return setelah completed diperbolehkan; status tetap completed, reporting memakai net usage.
-* Return tanpa referensi issue asli ditolak; exception admin harus beralasan dan tercatat.
+* Return harus untuk WO dan sparepart yang sama dengan issue asal; qty <= sisa issue yang belum diretur.
+* Return tanpa referensi issue asli ditolak; `return_of_usage_id` wajib diisi dan harus menunjuk usage `issue`; return of return ditolak. Exception admin harus beralasan dan tercatat.
 
 ### 4.8 Complete & cancel
 
@@ -399,7 +406,7 @@ Cancel:
 ### 4.11 Concurrency
 
 * Lock `material_requirements` + item rows saat reserve/issue/return.
-* Lock `inventory_balances` urut `(sparepart_id, location_id)` untuk menghindari deadlock.
+* Lock `inventory_balances` urut `(sparepart_id, warehouse_location_id)` untuk menghindari deadlock.
 * Gunakan `idempotency_key` untuk posting inventory.
 * Retry pada unique conflict nomor dokumen.
 
@@ -426,7 +433,7 @@ Cancel:
 
 Dalam satu DB transaction:
 
-1. Validasi input: qty > 0; sparepart/location aktif; tipe transaksi valid.
+1. Validasi input: qty > 0; sparepart/location aktif; tipe transaksi valid; issue manual tanpa WO/material requirement wajib alasan.
 2. Lock balance rows terkait (`SELECT ... FOR UPDATE`), urutkan key.
 3. Validasi:
    * Issue: `available + reserved_for_this_requirement >= qty`; konsumsi reservasi lebih dulu.
@@ -497,7 +504,7 @@ Aturan:
 
 ### 5.8 Reversal
 
-* Posted transaction tidak dihapus/diedit. Satu-satunya update yang diizinkan adalah status `posted → reversed` saat reversal; item tidak berubah.
+* Posted transaction tidak dihapus dan item/qty-nya tidak diubah. Satu-satunya update yang diizinkan adalah status `posted → reversed` saat reversal; item tidak berubah.
 * Reversal membuat transaction baru dengan item mirror (from/to ditukar), `reversal_of_id` diisi, status `posted`.
 * Original status menjadi `reversed`.
 * Issue reversal menghasilkan return usage; original usage tetap ada (net consumption = issue - return).
@@ -607,7 +614,7 @@ Tidak ada tabel total statis. Semua agregasi query/view.
 
 ### 7.3 Downtime
 
-* Unplanned: `breakdown`/`corrective`; planned: `preventive`; inspection tidak dihitung kecuali unit berhenti.
+* Unplanned: `breakdown`/`corrective`; planned: `preventive`; inspection tidak dihitung.
 * Start = `started_at`; fallback `created_at` untuk breakdown/corrective.
 * End = `closed_at`.
 * Hanya WO `done`; `cancelled` tidak dihitung.
@@ -621,7 +628,7 @@ Tidak ada tabel total statis. Semua agregasi query/view.
 * Event = issue usage dengan `component_id` tidak null; group per `wo_id` + `component_id` (satu WO = satu event).
 * Jika `component_id` null, fallback ke `sparepart_id` (ditandai).
 * Interval = `used_at`/HM/KM event sekarang − event sebelumnya untuk unit+component.
-* HM/KM event diambil dari reading WO terkait (start/close) atau reading terdekat.
+* HM/KM event diambil dari snapshot `work_order_sparepart_usage.hm/km`; fallback reading WO terkait atau reading terdekat.
 * Frequency = jumlah event per periode.
 * Bukan plan interval; plan interval adalah rencana, ini actual.
 
@@ -642,9 +649,9 @@ Tidak ada tabel total statis. Semua agregasi query/view.
 | PM due | planner/admin | Scan harian | `pm:{schedule}:due:{date}` |
 | PM overdue | planner/admin | Scan harian | `pm:{schedule}:overdue:{date}` |
 | PM auto-WO | planner/admin + assignee | WO dibuat | `pm:{schedule}:wo:{wo_id}` |
-| Material shortage | planner/storekeeper | Status shortage | `mat:{requirement}:shortage:{date}` |
-| Material ready | planner/mechanic | Status ready/reserved | `mat:{requirement}:ready:{date}` |
-| WO waiting part | supervisor/planner | Status waiting_part | `wo:{wo}:waiting:{date}` |
+| Material shortage/partially ready | planner/storekeeper | Status shortage/partially_ready | `mat:{requirement}:{status}:{date}` |
+| Material ready | planner/mechanic | Status ready/reserved | `mat:{requirement}:{status}:{date}` |
+| WO waiting part | planner/admin + `supervisor_id` WO | Status waiting_part | `wo:{wo}:waiting:{date}` |
 | Low stock | storekeeper/admin | 07:30 WITA | `stock:{sparepart}:{location}:low:{date}` |
 | Critical stock | storekeeper/admin | 07:30 WITA | `stock:{sparepart}:{location}:critical:{date}` |
 | Adjustment/opname posted | admin/planner | Posting | `inv:{transaction}:posted` |
@@ -682,7 +689,7 @@ Aturan:
 | Return | ✅ | — | — | ✅ | — |
 | Transfer | ✅ | — | — | ✅ | — |
 | Reservation | ✅ | ✅ | — | ✅ | — |
-| Adjustment create | ✅ | — | — | ✅ | — |
+| Adjustment create | ✅ | ✅ | — | — | — |
 | Adjustment post | ✅ | ✅ | — | — | — |
 | Opname create/count | ✅ | — | — | ✅ | — |
 | Opname post | ✅ | ✅ | — | — | — |
@@ -716,6 +723,7 @@ Aturan:
 | Material status | `material_requirement_updates` |
 | Inventory posting | `inventory_transactions.posted_by/at`, `notes` |
 | Reservation | `inventory_reservations.reserved_by/at`, `released_at`, `consumed_at` |
+| Actual usage | `work_order_sparepart_usage.used_by/at` + ledger |
 | Opname | `stock_opname_sessions.posted_by/at` |
 | Compatibility | `verified_by/at`, `updated_at` |
 | Sync | `sync_runs` |
