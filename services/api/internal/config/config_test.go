@@ -21,6 +21,10 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("APP_TIMEZONE", "")
 	t.Setenv("SEED_ADMIN_NIK", "")
 	t.Setenv("SEED_ADMIN_NAME", "")
+	t.Setenv("ODOO_DB", "")
+	t.Setenv("ODOO_SERVICE_LOGIN", "")
+	t.Setenv("ODOO_SERVICE_PASSWORD", "")
+	t.Setenv("ODOO_EMPLOYEE_NIK_FIELD", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -46,6 +50,31 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.SeedAdminName != "Seed Admin" {
 		t.Fatalf("SeedAdminName = %q, want Seed Admin", cfg.SeedAdminName)
+	}
+	if cfg.OdooEmployeeNIKField != "nik" {
+		t.Fatalf("OdooEmployeeNIKField = %q, want nik", cfg.OdooEmployeeNIKField)
+	}
+	if cfg.UserSyncEnabled() {
+		t.Fatal("UserSyncEnabled() = true without worker JSON-RPC settings")
+	}
+}
+
+func TestLoadUserSyncSettings(t *testing.T) {
+	setRequiredEnv(t)
+	t.Setenv("ODOO_DB", "odoo_new")
+	t.Setenv("ODOO_SERVICE_LOGIN", "svc_gsi_workorder")
+	t.Setenv("ODOO_SERVICE_PASSWORD", "secret")
+	t.Setenv("ODOO_EMPLOYEE_NIK_FIELD", "nik")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.UserSyncEnabled() {
+		t.Fatal("UserSyncEnabled() = false, want true")
+	}
+	if cfg.OdooDB != "odoo_new" || cfg.OdooEmployeeNIKField != "nik" {
+		t.Fatalf("unexpected user sync config: %#v", cfg)
 	}
 }
 

@@ -4,6 +4,9 @@
 .env.*.local
 !.env.example
 
+# Local OpenCode skills — keep on disk, don't publish
+.opencode/skills/
+
 # Dependencies & build output
 node_modules/
 .next/

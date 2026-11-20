@@ -39,6 +39,14 @@ type Config struct {
 	// It never stores a password; login still validates against Odoo.
 	SeedAdminNIK  string
 	SeedAdminName string
+
+	// Odoo JSON-RPC settings for the worker user/employee sync. They are
+	// optional for the API so login remains available even before M1B env is
+	// configured; the worker requires them to run a sync.
+	OdooDB               string
+	OdooServiceLogin     string
+	OdooServicePassword  string
+	OdooEmployeeNIKField string
 }
 
 // Load reads configuration from environment variables. Secrets are never
@@ -88,6 +96,14 @@ func Load() (Config, error) {
 		seedAdminName = "Seed Admin"
 	}
 
+	odooDB := strings.TrimSpace(os.Getenv("ODOO_DB"))
+	odooServiceLogin := strings.TrimSpace(os.Getenv("ODOO_SERVICE_LOGIN"))
+	odooServicePassword := os.Getenv("ODOO_SERVICE_PASSWORD")
+	odooEmployeeNIKField := strings.TrimSpace(os.Getenv("ODOO_EMPLOYEE_NIK_FIELD"))
+	if odooEmployeeNIKField == "" {
+		odooEmployeeNIKField = "nik"
+	}
+
 	return Config{
 		DatabaseURL:     databaseURL,
 		Port:            port,
@@ -103,7 +119,20 @@ func Load() (Config, error) {
 
 		SeedAdminNIK:  seedAdminNIK,
 		SeedAdminName: seedAdminName,
+
+		OdooDB:               odooDB,
+		OdooServiceLogin:     odooServiceLogin,
+		OdooServicePassword:  odooServicePassword,
+		OdooEmployeeNIKField: odooEmployeeNIKField,
 	}, nil
+}
+
+// UserSyncEnabled reports whether all worker JSON-RPC settings are present.
+func (c Config) UserSyncEnabled() bool {
+	return c.OdooDB != "" &&
+		c.OdooServiceLogin != "" &&
+		c.OdooServicePassword != "" &&
+		c.OdooEmployeeNIKField != ""
 }
 
 func validateHTTPBaseURL(raw string) error {
