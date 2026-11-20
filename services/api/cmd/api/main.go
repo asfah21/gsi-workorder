@@ -11,9 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	"gsi-workorder/internal/auth"
 	"gsi-workorder/internal/config"
 	"gsi-workorder/internal/db"
 	"gsi-workorder/internal/httpx"
+	"gsi-workorder/internal/odoo"
 	"gsi-workorder/internal/store"
 )
 
@@ -36,7 +38,7 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	logger.Info("starting api", "milestone", "m0")
+	logger.Info("starting api", "milestone", "m1a", "app_timezone", cfg.AppTimezone)
 
 	if err := db.Migrate(cfg.DatabaseURL, cfg.MigrationsDir, logger); err != nil {
 		return err
@@ -57,9 +59,24 @@ func run(logger *slog.Logger) error {
 		return err
 	})
 
+	authService := auth.NewService(
+		auth.NewPostgresRepository(pool),
+		odoo.NewClient(cfg.OdooBaseURL, cfg.OdooTimeout),
+		auth.NewTokenManager(cfg.JWTSecret),
+		logger,
+	)
+
+	if cfg.SeedAdminNIK != "" {
+		admin, err := authService.EnsureAdmin(ctx, cfg.SeedAdminNIK, cfg.SeedAdminName)
+		if err != nil {
+			return fmt.Errorf("seed admin: %w", err)
+		}
+		logger.Info("seed admin ensured", "user_id", admin.ID)
+	}
+
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           httpx.NewRouter(logger, checker),
+		Handler:           httpx.NewRouter(logger, checker, authService),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
