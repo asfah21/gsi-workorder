@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ChevronLeft,
   ChevronRight,
   CircleAlert,
   Filter,
@@ -12,11 +11,13 @@ import {
   Truck,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
 import { UnitStatusBadge } from "@/components/status-badges";
+import { TablePagination } from "@/components/table-pagination";
+import { TableSortHeader } from "@/components/table-sort-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,11 +41,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useListParams } from "@/hooks/use-list-params";
 import { ApiError, proxyGet } from "@/lib/api-client";
 import type { ListResponse, Unit } from "@/lib/types";
 import { formatDateTimeWita, formatNumber } from "@/lib/time";
-
-const PAGE_SIZE = 25;
 
 const filterLabels: Record<string, string> = {
   active: "Aktif",
@@ -52,29 +52,42 @@ const filterLabels: Record<string, string> = {
   all: "Semua",
 };
 
+const sortableColumns = [
+  "code",
+  "model",
+  "site_location",
+  "current_hm",
+  "current_km",
+  "is_active",
+] as const;
+
 export function UnitsView() {
   const { user } = useSession();
-  const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const urlQuery = searchParams.get("q") ?? "";
+  const q = searchParams.get("q") ?? "";
+  const rawActive = searchParams.get("is_active");
+  const activeFilter =
+    rawActive === "false" ? "inactive" : rawActive === "all" ? "all" : "active";
+  const list = useListParams({
+    defaultSort: "code",
+    allowedSorts: sortableColumns,
+  });
+
   const [units, setUnits] = useState<Unit[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [query, setQuery] = useState(urlQuery);
-  const [appliedQuery, setAppliedQuery] = useState(urlQuery);
-  const [activeFilter, setActiveFilter] = useState("active");
+  const [query, setQuery] = useState(q);
+  const [queryError, setQueryError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const canWrite = user.role === "admin" || user.role === "planner";
-  const hasFilters = appliedQuery.trim() !== "" || activeFilter !== "active";
+  const hasFilters = q.trim() !== "" || activeFilter !== "active";
+  const totalPages = Math.max(1, Math.ceil(total / list.pageSize));
 
   useEffect(() => {
-    setQuery(urlQuery);
-    setAppliedQuery(urlQuery);
-    setPage(1);
-  }, [urlQuery]);
+    setQuery(q);
+    setQueryError("");
+  }, [q]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,13 +95,13 @@ export function UnitsView() {
     setError("");
 
     const params = new URLSearchParams({
-      page: String(page),
-      limit: String(PAGE_SIZE),
-      sort: "code",
-      order: "asc",
+      page: String(list.page),
+      limit: String(list.pageSize),
+      sort: list.sort,
+      order: list.order,
     });
-    if (appliedQuery.trim()) {
-      params.set("q", appliedQuery.trim());
+    if (q.trim()) {
+      params.set("q", q.trim());
     }
     if (activeFilter === "active") {
       params.set("is_active", "true");
@@ -121,43 +134,24 @@ export function UnitsView() {
     return () => {
       cancelled = true;
     };
-  }, [page, appliedQuery, activeFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const range = useMemo(() => {
-    if (total === 0) {
-      return "Tidak ada unit";
-    }
-    const start = (page - 1) * PAGE_SIZE + 1;
-    const end = Math.min(page * PAGE_SIZE, total);
-    return `${start}–${end} dari ${total} unit`;
-  }, [page, total]);
+  }, [activeFilter, list.order, list.page, list.pageSize, list.sort, q]);
 
   const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setPage(1);
-    setAppliedQuery(query);
-
-    const next = new URLSearchParams(searchParams.toString());
-    if (query.trim()) {
-      next.set("q", query.trim());
-    } else {
-      next.delete("q");
+    const term = query.trim();
+    if (term.length > 100) {
+      setQueryError("Kata kunci maksimal 100 karakter.");
+      requestAnimationFrame(() => document.getElementById("unit-search")?.focus());
+      return;
     }
-    const nextSearch = next.toString();
-    router.replace(nextSearch ? `${pathname}?${nextSearch}` : pathname);
+    setQueryError("");
+    list.setFilters({ q: term || null });
   };
 
   const resetFilters = () => {
     setQuery("");
-    setAppliedQuery("");
-    setActiveFilter("active");
-    setPage(1);
-
-    const next = new URLSearchParams(searchParams.toString());
-    next.delete("q");
-    const nextSearch = next.toString();
-    router.replace(nextSearch ? `${pathname}?${nextSearch}` : pathname);
+    setQueryError("");
+    list.setFilters({ q: null, is_active: null });
   };
 
   return (
@@ -192,7 +186,7 @@ export function UnitsView() {
           aria-label="Cari dan filter unit"
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <Field className="min-w-0 flex-1">
+            <Field className="min-w-0 flex-1" data-invalid={Boolean(queryError)}>
               <FieldLabel htmlFor="unit-search">Cari unit</FieldLabel>
               <div className="relative">
                 <Search
@@ -207,11 +201,19 @@ export function UnitsView() {
                   autoCapitalize="none"
                   spellCheck={false}
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setQueryError("");
+                  }}
+                  aria-invalid={Boolean(queryError)}
+                  aria-describedby={queryError ? "unit-search-error" : undefined}
                   placeholder="Kode, nopol, lokasi, atau merk"
                   className="pl-10"
                 />
               </div>
+              {queryError ? (
+                <FieldError id="unit-search-error">{queryError}</FieldError>
+              ) : null}
             </Field>
             <Field className="sm:w-40 sm:shrink-0">
               <FieldLabel htmlFor="unit-active-filter">Status</FieldLabel>
@@ -220,8 +222,10 @@ export function UnitsView() {
                 name="is_active"
                 value={activeFilter}
                 onChange={(event) => {
-                  setActiveFilter(event.target.value);
-                  setPage(1);
+                  list.setFilters({
+                    is_active:
+                      event.target.value === "active" ? null : event.target.value,
+                  });
                 }}
                 className="w-full sm:w-40"
               >
@@ -252,9 +256,9 @@ export function UnitsView() {
           {hasFilters ? (
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>Filter aktif:</span>
-              {appliedQuery.trim() ? (
+              {q.trim() ? (
                 <Badge variant="outline" className="h-6 px-2.5">
-                  Cari: {appliedQuery.trim()}
+                  Cari: {q.trim()}
                 </Badge>
               ) : null}
               {activeFilter !== "active" ? (
@@ -275,14 +279,15 @@ export function UnitsView() {
         </Alert>
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-background">
-        {loading && units.length === 0 ? (
+      {error && units.length === 0 ? null : (
+        <div className="overflow-hidden rounded-xl border border-border bg-background">
+          {loading && units.length === 0 ? (
           <div className="space-y-3 p-4" role="status" aria-label="Memuat unit">
             {Array.from({ length: 6 }).map((_, index) => (
               <Skeleton key={index} className="h-12 w-full" />
             ))}
           </div>
-        ) : units.length === 0 && !error ? (
+        ) : error && units.length === 0 ? null : units.length === 0 ? (
           <div className="p-4">
             <Empty className="border-0 py-10">
               <EmptyHeader>
@@ -327,7 +332,6 @@ export function UnitsView() {
               <TableCaption
                 id="unit-table-caption"
                 className="border-b border-border px-4 py-3 text-left text-sm text-muted-foreground"
-                aria-live="polite"
               >
                 {loading ? (
                   <span className="inline-flex items-center gap-2">
@@ -335,17 +339,55 @@ export function UnitsView() {
                     Memuat unit...
                   </span>
                 ) : (
-                  range
+                  `${formatNumber(total)} unit`
                 )}
               </TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col">Unit</TableHead>
-                  <TableHead scope="col">Model</TableHead>
-                  <TableHead scope="col">Lokasi</TableHead>
-                  <TableHead scope="col" className="text-right">HM</TableHead>
-                  <TableHead scope="col" className="text-right">KM</TableHead>
-                  <TableHead scope="col">Status</TableHead>
+                  <TableSortHeader
+                    label="Unit"
+                    sortKey="code"
+                    currentSort={list.sort}
+                    currentOrder={list.order}
+                    onSort={list.toggleSort}
+                  />
+                  <TableSortHeader
+                    label="Model"
+                    sortKey="model"
+                    currentSort={list.sort}
+                    currentOrder={list.order}
+                    onSort={list.toggleSort}
+                  />
+                  <TableSortHeader
+                    label="Lokasi"
+                    sortKey="site_location"
+                    currentSort={list.sort}
+                    currentOrder={list.order}
+                    onSort={list.toggleSort}
+                  />
+                  <TableSortHeader
+                    label="HM"
+                    sortKey="current_hm"
+                    currentSort={list.sort}
+                    currentOrder={list.order}
+                    onSort={list.toggleSort}
+                    align="end"
+                  />
+                  <TableSortHeader
+                    label="KM"
+                    sortKey="current_km"
+                    currentSort={list.sort}
+                    currentOrder={list.order}
+                    onSort={list.toggleSort}
+                    align="end"
+                  />
+                  <TableSortHeader
+                    label="Status"
+                    sortKey="is_active"
+                    currentSort={list.sort}
+                    currentOrder={list.order}
+                    onSort={list.toggleSort}
+                  />
                   <TableHead scope="col" className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -394,37 +436,21 @@ export function UnitsView() {
             </table>
           </div>
         )}
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground" aria-live="polite">
-          {range} · Halaman {page} dari {totalPages}
-        </p>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={page <= 1 || loading}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-            className="h-10 px-3"
-            aria-label="Halaman sebelumnya"
-          >
-            <ChevronLeft aria-hidden="true" />
-            Sebelumnya
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={page >= totalPages || loading}
-            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-            className="h-10 px-3"
-            aria-label="Halaman berikutnya"
-          >
-            Berikutnya
-            <ChevronRight aria-hidden="true" />
-          </Button>
         </div>
-      </div>
+      )}
+
+      {total > 0 ? (
+        <TablePagination
+          page={list.page}
+          pageSize={list.pageSize}
+          total={total}
+          totalPages={totalPages}
+          loading={loading}
+          itemLabel="unit"
+          onPageChange={list.setPage}
+          onPageSizeChange={list.setPageSize}
+        />
+      ) : null}
     </div>
   );
 }

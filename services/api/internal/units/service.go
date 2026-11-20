@@ -127,6 +127,15 @@ type UnitFilter struct {
 	Order        string
 }
 
+type ModelFilter struct {
+	Query      string
+	ActiveOnly bool
+	Page       int
+	Limit      int
+	Sort       string
+	Order      string
+}
+
 type UnitModelInput struct {
 	Manufacturer string
 	Model        string
@@ -199,12 +208,12 @@ type MeterReadingInput struct {
 }
 
 type Repository interface {
-	ListUnitModels(ctx context.Context, q string, activeOnly bool, page, limit int) ([]UnitModel, int, error)
+	ListUnitModels(ctx context.Context, filter ModelFilter) ([]UnitModel, int, error)
 	GetUnitModel(ctx context.Context, id int64) (UnitModel, error)
 	CreateUnitModel(ctx context.Context, model UnitModel) (UnitModel, error)
 	UpdateUnitModel(ctx context.Context, model UnitModel) (UnitModel, error)
 
-	ListEngineModels(ctx context.Context, q string, activeOnly bool, page, limit int) ([]EngineModel, int, error)
+	ListEngineModels(ctx context.Context, filter ModelFilter) ([]EngineModel, int, error)
 	GetEngineModel(ctx context.Context, id int64) (EngineModel, error)
 	CreateEngineModel(ctx context.Context, model EngineModel) (EngineModel, error)
 	UpdateEngineModel(ctx context.Context, model EngineModel) (EngineModel, error)
@@ -231,9 +240,15 @@ func NewService(repo Repository, logger *slog.Logger) *Service {
 	return &Service{repo: repo, logger: logger}
 }
 
-func (s *Service) ListUnitModels(ctx context.Context, q string, activeOnly bool, page, limit int) ([]UnitModel, int, error) {
-	page, limit = normalizePage(page, limit)
-	return s.repo.ListUnitModels(ctx, strings.TrimSpace(q), activeOnly, page, limit)
+func (s *Service) ListUnitModels(ctx context.Context, filter ModelFilter) ([]UnitModel, int, error) {
+	filter.Query = strings.TrimSpace(filter.Query)
+	filter.Page, filter.Limit = normalizePage(filter.Page, filter.Limit)
+	filter.Sort = strings.ToLower(strings.TrimSpace(filter.Sort))
+	if !allowedUnitModelSort(filter.Sort) {
+		filter.Sort = "manufacturer"
+	}
+	filter.Order = normalizeOrder(filter.Order)
+	return s.repo.ListUnitModels(ctx, filter)
 }
 
 func (s *Service) CreateUnitModel(ctx context.Context, input UnitModelInput) (UnitModel, error) {
@@ -279,9 +294,15 @@ func (s *Service) UpdateUnitModel(ctx context.Context, id int64, patch UnitModel
 	return s.repo.UpdateUnitModel(ctx, existing)
 }
 
-func (s *Service) ListEngineModels(ctx context.Context, q string, activeOnly bool, page, limit int) ([]EngineModel, int, error) {
-	page, limit = normalizePage(page, limit)
-	return s.repo.ListEngineModels(ctx, strings.TrimSpace(q), activeOnly, page, limit)
+func (s *Service) ListEngineModels(ctx context.Context, filter ModelFilter) ([]EngineModel, int, error) {
+	filter.Query = strings.TrimSpace(filter.Query)
+	filter.Page, filter.Limit = normalizePage(filter.Page, filter.Limit)
+	filter.Sort = strings.ToLower(strings.TrimSpace(filter.Sort))
+	if !allowedEngineModelSort(filter.Sort) {
+		filter.Sort = "manufacturer"
+	}
+	filter.Order = normalizeOrder(filter.Order)
+	return s.repo.ListEngineModels(ctx, filter)
 }
 
 func (s *Service) CreateEngineModel(ctx context.Context, input EngineModelInput) (EngineModel, error) {
@@ -342,13 +363,10 @@ func (s *Service) ListUnits(ctx context.Context, filter UnitFilter) ([]Unit, int
 		filter.Order = "asc"
 	}
 	filter.Sort = strings.ToLower(filter.Sort)
-	filter.Order = strings.ToLower(filter.Order)
 	if !allowedSort(filter.Sort) {
 		filter.Sort = "code"
 	}
-	if filter.Order != "desc" {
-		filter.Order = "asc"
-	}
+	filter.Order = normalizeOrder(filter.Order)
 	return s.repo.ListUnits(ctx, filter)
 }
 
@@ -604,11 +622,36 @@ func normalizePage(page, limit int) (int, int) {
 
 func allowedSort(value string) bool {
 	switch value {
-	case "code", "unit_type", "site_location", "current_hm", "current_km", "is_active":
+	case "code", "unit_type", "model", "site_location", "current_hm", "current_km", "is_active", "is_breakdown":
 		return true
 	default:
 		return false
 	}
+}
+
+func allowedUnitModelSort(value string) bool {
+	switch value {
+	case "manufacturer", "model", "category", "is_active", "updated_at":
+		return true
+	default:
+		return false
+	}
+}
+
+func allowedEngineModelSort(value string) bool {
+	switch value {
+	case "manufacturer", "model", "fuel_type", "displacement_cc", "is_active", "updated_at":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeOrder(value string) string {
+	if strings.ToLower(strings.TrimSpace(value)) == "desc" {
+		return "desc"
+	}
+	return "asc"
 }
 
 func boolValue(value *bool, fallback bool) bool {

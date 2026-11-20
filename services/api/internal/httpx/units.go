@@ -16,11 +16,11 @@ import (
 
 // UnitService is the application surface used by unit-master HTTP handlers.
 type UnitService interface {
-	ListUnitModels(ctx context.Context, q string, activeOnly bool, page, limit int) ([]units.UnitModel, int, error)
+	ListUnitModels(ctx context.Context, filter units.ModelFilter) ([]units.UnitModel, int, error)
 	CreateUnitModel(ctx context.Context, input units.UnitModelInput) (units.UnitModel, error)
 	UpdateUnitModel(ctx context.Context, id int64, patch units.UnitModelPatch) (units.UnitModel, error)
 
-	ListEngineModels(ctx context.Context, q string, activeOnly bool, page, limit int) ([]units.EngineModel, int, error)
+	ListEngineModels(ctx context.Context, filter units.ModelFilter) ([]units.EngineModel, int, error)
 	CreateEngineModel(ctx context.Context, input units.EngineModelInput) (units.EngineModel, error)
 	UpdateEngineModel(ctx context.Context, id int64, patch units.EngineModelPatch) (units.EngineModel, error)
 
@@ -118,12 +118,15 @@ type meterReadingRequest struct {
 }
 
 func (h *UnitHandler) ListUnitModels(c *gin.Context) {
-	page, limit, err := parsePagination(c)
-	if err != nil {
-		writeUnitError(c, http.StatusBadRequest, "invalid_pagination", err.Error(), nil)
-		return
-	}
-	items, total, err := h.service.ListUnitModels(c.Request.Context(), c.Query("q"), parseBool(c.Query("active_only")), page, limit)
+	page, limit := parsePagination(c)
+	items, total, err := h.service.ListUnitModels(c.Request.Context(), units.ModelFilter{
+		Query:      c.Query("q"),
+		ActiveOnly: parseBool(c.Query("active_only")),
+		Page:       page,
+		Limit:      limit,
+		Sort:       c.Query("sort"),
+		Order:      c.Query("order"),
+	})
 	if err != nil {
 		h.writeError(c, err, "list unit models")
 		return
@@ -176,12 +179,15 @@ func (h *UnitHandler) UpdateUnitModel(c *gin.Context) {
 }
 
 func (h *UnitHandler) ListEngineModels(c *gin.Context) {
-	page, limit, err := parsePagination(c)
-	if err != nil {
-		writeUnitError(c, http.StatusBadRequest, "invalid_pagination", err.Error(), nil)
-		return
-	}
-	items, total, err := h.service.ListEngineModels(c.Request.Context(), c.Query("q"), parseBool(c.Query("active_only")), page, limit)
+	page, limit := parsePagination(c)
+	items, total, err := h.service.ListEngineModels(c.Request.Context(), units.ModelFilter{
+		Query:      c.Query("q"),
+		ActiveOnly: parseBool(c.Query("active_only")),
+		Page:       page,
+		Limit:      limit,
+		Sort:       c.Query("sort"),
+		Order:      c.Query("order"),
+	})
 	if err != nil {
 		h.writeError(c, err, "list engine models")
 		return
@@ -236,11 +242,7 @@ func (h *UnitHandler) UpdateEngineModel(c *gin.Context) {
 }
 
 func (h *UnitHandler) ListUnits(c *gin.Context) {
-	page, limit, err := parsePagination(c)
-	if err != nil {
-		writeUnitError(c, http.StatusBadRequest, "invalid_pagination", err.Error(), nil)
-		return
-	}
+	page, limit := parsePagination(c)
 	active, err := parseOptionalBool(c.Query("is_active"))
 	if err != nil {
 		writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter is_active tidak valid", nil)
@@ -426,24 +428,21 @@ func writeUnitError(c *gin.Context, status int, code, message string, fields map
 	c.JSON(status, gin.H{"error": errorBody})
 }
 
-func parsePagination(c *gin.Context) (int, int, error) {
-	page := 1
-	limit := units.DefaultLimit
-	if raw := c.Query("page"); raw != "" {
-		value, err := strconv.Atoi(raw)
-		if err != nil || value < 1 {
-			return 0, 0, errors.New("page harus bilangan positif")
-		}
-		page = value
+func parsePagination(c *gin.Context) (int, int) {
+	page := parsePositiveInt(c.Query("page"), 1)
+	limit := parsePositiveInt(c.Query("limit"), units.DefaultLimit)
+	if limit > units.MaxPageLimit {
+		limit = units.MaxPageLimit
 	}
-	if raw := c.Query("limit"); raw != "" {
-		value, err := strconv.Atoi(raw)
-		if err != nil || value < 1 || value > units.MaxPageLimit {
-			return 0, 0, errors.New("limit harus antara 1 dan 100")
-		}
-		limit = value
+	return page, limit
+}
+
+func parsePositiveInt(raw string, fallback int) int {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || value < 1 {
+		return fallback
 	}
-	return page, limit, nil
+	return value
 }
 
 func parseOptionalBool(raw string) (*bool, error) {

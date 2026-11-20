@@ -34,14 +34,14 @@ const unitSelect = `
 	LEFT JOIN engine_models em ON em.id = u.engine_model_id
 `
 
-func (r *PostgresRepository) ListUnitModels(ctx context.Context, q string, activeOnly bool, page, limit int) ([]UnitModel, int, error) {
+func (r *PostgresRepository) ListUnitModels(ctx context.Context, filter ModelFilter) ([]UnitModel, int, error) {
 	args := make([]any, 0, 3)
 	where := []string{"1 = 1"}
-	if q != "" {
-		args = append(args, "%"+q+"%")
+	if filter.Query != "" {
+		args = append(args, "%"+filter.Query+"%")
 		where = append(where, fmt.Sprintf("(manufacturer ILIKE $%d OR model ILIKE $%d OR COALESCE(category, '') ILIKE $%d)", len(args), len(args), len(args)))
 	}
-	if activeOnly {
+	if filter.ActiveOnly {
 		where = append(where, "is_active = true")
 	}
 
@@ -50,13 +50,19 @@ func (r *PostgresRepository) ListUnitModels(ctx context.Context, q string, activ
 		return nil, 0, fmt.Errorf("count unit models: %w", err)
 	}
 
-	args = append(args, limit, (page-1)*limit)
+	args = append(args, filter.Limit, (filter.Page-1)*filter.Limit)
+	orderColumn := unitModelSortColumn(filter.Sort)
+	orderDirection := "ASC"
+	if filter.Order == "desc" {
+		orderDirection = "DESC"
+	}
+
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, manufacturer, model, COALESCE(category, ''), COALESCE(notes, ''),
 		       is_active, created_at, updated_at
 		FROM unit_models
 		WHERE `+strings.Join(where, " AND ")+`
-		ORDER BY manufacturer ASC, model ASC
+		ORDER BY `+orderColumn+` `+orderDirection+`, id ASC
 		LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)),
 		args...)
 	if err != nil {
@@ -132,14 +138,14 @@ func (r *PostgresRepository) UpdateUnitModel(ctx context.Context, model UnitMode
 	return model, nil
 }
 
-func (r *PostgresRepository) ListEngineModels(ctx context.Context, q string, activeOnly bool, page, limit int) ([]EngineModel, int, error) {
+func (r *PostgresRepository) ListEngineModels(ctx context.Context, filter ModelFilter) ([]EngineModel, int, error) {
 	args := make([]any, 0, 3)
 	where := []string{"1 = 1"}
-	if q != "" {
-		args = append(args, "%"+q+"%")
+	if filter.Query != "" {
+		args = append(args, "%"+filter.Query+"%")
 		where = append(where, fmt.Sprintf("(manufacturer ILIKE $%d OR model ILIKE $%d OR COALESCE(fuel_type, '') ILIKE $%d)", len(args), len(args), len(args)))
 	}
-	if activeOnly {
+	if filter.ActiveOnly {
 		where = append(where, "is_active = true")
 	}
 
@@ -148,13 +154,19 @@ func (r *PostgresRepository) ListEngineModels(ctx context.Context, q string, act
 		return nil, 0, fmt.Errorf("count engine models: %w", err)
 	}
 
-	args = append(args, limit, (page-1)*limit)
+	args = append(args, filter.Limit, (filter.Page-1)*filter.Limit)
+	orderColumn := engineModelSortColumn(filter.Sort)
+	orderDirection := "ASC"
+	if filter.Order == "desc" {
+		orderDirection = "DESC"
+	}
+
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, manufacturer, model, COALESCE(fuel_type, ''), displacement_cc,
 		       COALESCE(notes, ''), is_active, created_at, updated_at
 		FROM engine_models
 		WHERE `+strings.Join(where, " AND ")+`
-		ORDER BY manufacturer ASC, model ASC
+		ORDER BY `+orderColumn+` `+orderDirection+`, id ASC
 		LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)),
 		args...)
 	if err != nil {
@@ -539,6 +551,8 @@ func unitSortColumn(value string) string {
 	switch value {
 	case "unit_type":
 		return "COALESCE(u.unit_type, '')"
+	case "model":
+		return "COALESCE(um.manufacturer, '') || ' ' || COALESCE(um.model, '')"
 	case "site_location":
 		return "COALESCE(u.site_location, '')"
 	case "current_hm":
@@ -547,8 +561,42 @@ func unitSortColumn(value string) string {
 		return "u.current_km"
 	case "is_active":
 		return "u.is_active"
+	case "is_breakdown":
+		return "u.is_breakdown"
 	default:
 		return "u.code"
+	}
+}
+
+func unitModelSortColumn(value string) string {
+	switch value {
+	case "model":
+		return "model"
+	case "category":
+		return "COALESCE(category, '')"
+	case "is_active":
+		return "is_active"
+	case "updated_at":
+		return "updated_at"
+	default:
+		return "manufacturer"
+	}
+}
+
+func engineModelSortColumn(value string) string {
+	switch value {
+	case "model":
+		return "model"
+	case "fuel_type":
+		return "COALESCE(fuel_type, '')"
+	case "displacement_cc":
+		return "displacement_cc"
+	case "is_active":
+		return "is_active"
+	case "updated_at":
+		return "updated_at"
+	default:
+		return "manufacturer"
 	}
 }
 

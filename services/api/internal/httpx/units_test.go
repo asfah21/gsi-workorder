@@ -15,12 +15,16 @@ import (
 )
 
 type fakeUnitService struct {
-	createUnitInput units.UnitInput
-	createUnitErr   error
-	readingErr      error
+	createUnitInput   units.UnitInput
+	createUnitErr     error
+	readingErr        error
+	listFilter        units.UnitFilter
+	unitModelFilter   units.ModelFilter
+	engineModelFilter units.ModelFilter
 }
 
-func (f *fakeUnitService) ListUnitModels(context.Context, string, bool, int, int) ([]units.UnitModel, int, error) {
+func (f *fakeUnitService) ListUnitModels(_ context.Context, filter units.ModelFilter) ([]units.UnitModel, int, error) {
+	f.unitModelFilter = filter
 	return []units.UnitModel{}, 0, nil
 }
 func (f *fakeUnitService) CreateUnitModel(context.Context, units.UnitModelInput) (units.UnitModel, error) {
@@ -29,7 +33,8 @@ func (f *fakeUnitService) CreateUnitModel(context.Context, units.UnitModelInput)
 func (f *fakeUnitService) UpdateUnitModel(context.Context, int64, units.UnitModelPatch) (units.UnitModel, error) {
 	return units.UnitModel{ID: 1}, nil
 }
-func (f *fakeUnitService) ListEngineModels(context.Context, string, bool, int, int) ([]units.EngineModel, int, error) {
+func (f *fakeUnitService) ListEngineModels(_ context.Context, filter units.ModelFilter) ([]units.EngineModel, int, error) {
+	f.engineModelFilter = filter
 	return []units.EngineModel{}, 0, nil
 }
 func (f *fakeUnitService) CreateEngineModel(context.Context, units.EngineModelInput) (units.EngineModel, error) {
@@ -38,7 +43,8 @@ func (f *fakeUnitService) CreateEngineModel(context.Context, units.EngineModelIn
 func (f *fakeUnitService) UpdateEngineModel(context.Context, int64, units.EngineModelPatch) (units.EngineModel, error) {
 	return units.EngineModel{ID: 1}, nil
 }
-func (f *fakeUnitService) ListUnits(context.Context, units.UnitFilter) ([]units.Unit, int, error) {
+func (f *fakeUnitService) ListUnits(_ context.Context, filter units.UnitFilter) ([]units.Unit, int, error) {
+	f.listFilter = filter
 	return []units.Unit{{ID: 1, Code: "LV-01"}}, 1, nil
 }
 func (f *fakeUnitService) GetUnit(context.Context, int64) (units.Unit, error) {
@@ -155,5 +161,40 @@ func TestMechanicCanAddMeterReading(t *testing.T) {
 
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestListUnitsInvalidPaginationFallsBack(t *testing.T) {
+	unitService := &fakeUnitService{}
+	router := unitTestRouter(auth.User{ID: 1, Role: auth.RoleAdmin, IsActive: true}, unitService)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/units?page=abc&limit=9999&sort=evil&order=sideways", nil)
+	request.Header.Set("Authorization", "Bearer good")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if unitService.listFilter.Page != 1 || unitService.listFilter.Limit != 100 {
+		t.Fatalf("filter = %#v", unitService.listFilter)
+	}
+}
+
+func TestListUnitModelsPassesSortAndPagination(t *testing.T) {
+	unitService := &fakeUnitService{}
+	router := unitTestRouter(auth.User{ID: 1, Role: auth.RoleAdmin, IsActive: true}, unitService)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/unit-models?page=2&limit=10&sort=model&order=desc", nil)
+	request.Header.Set("Authorization", "Bearer good")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	filter := unitService.unitModelFilter
+	if filter.Page != 2 || filter.Limit != 10 || filter.Sort != "model" || filter.Order != "desc" {
+		t.Fatalf("filter = %#v", filter)
 	}
 }

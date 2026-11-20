@@ -8,17 +8,21 @@ import (
 )
 
 type fakeRepository struct {
-	unitModel      UnitModel
-	unitModelErr   error
-	engineModel    EngineModel
-	engineModelErr error
-	createdUnit    Unit
-	createdUnitErr error
-	reading        MeterReading
-	readingErr     error
+	unitModel         UnitModel
+	unitModelErr      error
+	unitModelFilter   ModelFilter
+	engineModel       EngineModel
+	engineModelErr    error
+	engineModelFilter ModelFilter
+	unitFilter        UnitFilter
+	createdUnit       Unit
+	createdUnitErr    error
+	reading           MeterReading
+	readingErr        error
 }
 
-func (f *fakeRepository) ListUnitModels(context.Context, string, bool, int, int) ([]UnitModel, int, error) {
+func (f *fakeRepository) ListUnitModels(_ context.Context, filter ModelFilter) ([]UnitModel, int, error) {
+	f.unitModelFilter = filter
 	return nil, 0, nil
 }
 func (f *fakeRepository) GetUnitModel(context.Context, int64) (UnitModel, error) {
@@ -30,7 +34,8 @@ func (f *fakeRepository) CreateUnitModel(context.Context, UnitModel) (UnitModel,
 func (f *fakeRepository) UpdateUnitModel(context.Context, UnitModel) (UnitModel, error) {
 	return UnitModel{ID: 1}, nil
 }
-func (f *fakeRepository) ListEngineModels(context.Context, string, bool, int, int) ([]EngineModel, int, error) {
+func (f *fakeRepository) ListEngineModels(_ context.Context, filter ModelFilter) ([]EngineModel, int, error) {
+	f.engineModelFilter = filter
 	return nil, 0, nil
 }
 func (f *fakeRepository) GetEngineModel(context.Context, int64) (EngineModel, error) {
@@ -42,7 +47,8 @@ func (f *fakeRepository) CreateEngineModel(context.Context, EngineModel) (Engine
 func (f *fakeRepository) UpdateEngineModel(context.Context, EngineModel) (EngineModel, error) {
 	return EngineModel{ID: 1}, nil
 }
-func (f *fakeRepository) ListUnits(context.Context, UnitFilter) ([]Unit, int, error) {
+func (f *fakeRepository) ListUnits(_ context.Context, filter UnitFilter) ([]Unit, int, error) {
+	f.unitFilter = filter
 	return nil, 0, nil
 }
 func (f *fakeRepository) GetUnit(context.Context, int64) (Unit, error) {
@@ -155,5 +161,65 @@ func TestAddManualReadingPassesLowerValueToRepository(t *testing.T) {
 	}
 	if reading.ID != 5 {
 		t.Fatalf("reading = %#v", reading)
+	}
+}
+
+func TestListUnitsNormalizesInvalidListParams(t *testing.T) {
+	repo := &fakeRepository{}
+	service := NewService(repo, nil)
+	_, _, err := service.ListUnits(context.Background(), UnitFilter{
+		Page:  0,
+		Limit: 999,
+		Sort:  "'; drop table units; --",
+		Order: "sideways",
+	})
+	if err != nil {
+		t.Fatalf("ListUnits() error = %v", err)
+	}
+	if repo.unitFilter.Page != 1 || repo.unitFilter.Limit != MaxPageLimit {
+		t.Fatalf("pagination = %#v", repo.unitFilter)
+	}
+	if repo.unitFilter.Sort != "code" || repo.unitFilter.Order != "asc" {
+		t.Fatalf("sort = %#v", repo.unitFilter)
+	}
+}
+
+func TestListUnitModelsNormalizesInvalidListParams(t *testing.T) {
+	repo := &fakeRepository{}
+	service := NewService(repo, nil)
+	_, _, err := service.ListUnitModels(context.Background(), ModelFilter{
+		Page:  0,
+		Limit: 999,
+		Sort:  "not-a-column",
+		Order: "sideways",
+	})
+	if err != nil {
+		t.Fatalf("ListUnitModels() error = %v", err)
+	}
+	if repo.unitModelFilter.Page != 1 || repo.unitModelFilter.Limit != MaxPageLimit {
+		t.Fatalf("pagination = %#v", repo.unitModelFilter)
+	}
+	if repo.unitModelFilter.Sort != "manufacturer" || repo.unitModelFilter.Order != "asc" {
+		t.Fatalf("sort = %#v", repo.unitModelFilter)
+	}
+}
+
+func TestListEngineModelsNormalizesInvalidListParams(t *testing.T) {
+	repo := &fakeRepository{}
+	service := NewService(repo, nil)
+	_, _, err := service.ListEngineModels(context.Background(), ModelFilter{
+		Page:  0,
+		Limit: 999,
+		Sort:  "not-a-column",
+		Order: "sideways",
+	})
+	if err != nil {
+		t.Fatalf("ListEngineModels() error = %v", err)
+	}
+	if repo.engineModelFilter.Page != 1 || repo.engineModelFilter.Limit != MaxPageLimit {
+		t.Fatalf("pagination = %#v", repo.engineModelFilter)
+	}
+	if repo.engineModelFilter.Sort != "manufacturer" || repo.engineModelFilter.Order != "asc" {
+		t.Fatalf("sort = %#v", repo.engineModelFilter)
 	}
 }

@@ -5,17 +5,28 @@ import {
   CircleAlert,
   CircleCheck,
   Loader2,
+  Search,
   Settings2,
   ShieldCheck,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
 import { ActiveBadge } from "@/components/status-badges";
+import { TablePagination } from "@/components/table-pagination";
+import { TableSortHeader } from "@/components/table-sort-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -23,7 +34,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -35,6 +46,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useListParams } from "@/hooks/use-list-params";
 import { ApiError, proxyGet, proxyPost } from "@/lib/api-client";
 import type {
   DataResponse,
@@ -44,38 +56,151 @@ import type {
 } from "@/lib/types";
 import { formatDateTimeWita } from "@/lib/time";
 
+const unitModelSorts = [
+  "manufacturer",
+  "model",
+  "category",
+  "is_active",
+  "updated_at",
+] as const;
+const engineModelSorts = [
+  "manufacturer",
+  "model",
+  "fuel_type",
+  "displacement_cc",
+  "is_active",
+  "updated_at",
+] as const;
+
 export function MasterView() {
   const { user } = useSession();
-  const [unitModels, setUnitModels] = useState<UnitModel[]>([]);
-  const [engineModels, setEngineModels] = useState<EngineModel[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const canWrite = user.role === "admin" || user.role === "planner";
+  const searchParams = useSearchParams();
+  const umQ = searchParams.get("umQ") ?? "";
+  const emQ = searchParams.get("emQ") ?? "";
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const [units, engines] = await Promise.all([
-        proxyGet<ListResponse<UnitModel>>("/unit-models?limit=100"),
-        proxyGet<ListResponse<EngineModel>>("/engine-models?limit=100"),
-      ]);
-      setUnitModels(units.data);
-      setEngineModels(engines.data);
-    } catch (loadError) {
-      setError(
-        loadError instanceof ApiError
-          ? loadError.message
-          : "Master model tidak dapat dimuat.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const unitList = useListParams({
+    prefix: "um",
+    defaultSort: "manufacturer",
+    allowedSorts: unitModelSorts,
+  });
+  const engineList = useListParams({
+    prefix: "em",
+    defaultSort: "manufacturer",
+    allowedSorts: engineModelSorts,
+  });
+
+  const [unitModels, setUnitModels] = useState<UnitModel[]>([]);
+  const [unitTotal, setUnitTotal] = useState(0);
+  const [unitLoading, setUnitLoading] = useState(true);
+  const [unitError, setUnitError] = useState("");
+  const [engineModels, setEngineModels] = useState<EngineModel[]>([]);
+  const [engineTotal, setEngineTotal] = useState(0);
+  const [engineLoading, setEngineLoading] = useState(true);
+  const [engineError, setEngineError] = useState("");
+  const [umQuery, setUmQuery] = useState(umQ);
+  const [umQueryError, setUmQueryError] = useState("");
+  const [emQuery, setEmQuery] = useState(emQ);
+  const [emQueryError, setEmQueryError] = useState("");
+
+  const canWrite = user.role === "admin" || user.role === "planner";
+  const unitTotalPages = Math.max(1, Math.ceil(unitTotal / unitList.pageSize));
+  const engineTotalPages = Math.max(1, Math.ceil(engineTotal / engineList.pageSize));
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    setUmQuery(umQ);
+    setUmQueryError("");
+  }, [umQ]);
+
+  useEffect(() => {
+    setEmQuery(emQ);
+    setEmQueryError("");
+  }, [emQ]);
+
+  const loadUnitModels = useCallback(async () => {
+    setUnitLoading(true);
+    setUnitError("");
+    const params = new URLSearchParams({
+      page: String(unitList.page),
+      limit: String(unitList.pageSize),
+      sort: unitList.sort,
+      order: unitList.order,
+    });
+    if (umQ.trim()) params.set("q", umQ.trim());
+    try {
+      const result = await proxyGet<ListResponse<UnitModel>>(
+        `/unit-models?${params.toString()}`,
+      );
+      setUnitModels(result.data);
+      setUnitTotal(result.meta.total);
+    } catch (loadError) {
+      setUnitError(
+        loadError instanceof ApiError
+          ? loadError.message
+          : "Master unit model tidak dapat dimuat.",
+      );
+    } finally {
+      setUnitLoading(false);
+    }
+  }, [umQ, unitList.order, unitList.page, unitList.pageSize, unitList.sort]);
+
+  const loadEngineModels = useCallback(async () => {
+    setEngineLoading(true);
+    setEngineError("");
+    const params = new URLSearchParams({
+      page: String(engineList.page),
+      limit: String(engineList.pageSize),
+      sort: engineList.sort,
+      order: engineList.order,
+    });
+    if (emQ.trim()) params.set("q", emQ.trim());
+    try {
+      const result = await proxyGet<ListResponse<EngineModel>>(
+        `/engine-models?${params.toString()}`,
+      );
+      setEngineModels(result.data);
+      setEngineTotal(result.meta.total);
+    } catch (loadError) {
+      setEngineError(
+        loadError instanceof ApiError
+          ? loadError.message
+          : "Master engine model tidak dapat dimuat.",
+      );
+    } finally {
+      setEngineLoading(false);
+    }
+  }, [emQ, engineList.order, engineList.page, engineList.pageSize, engineList.sort]);
+
+  useEffect(() => {
+    void loadUnitModels();
+  }, [loadUnitModels]);
+
+  useEffect(() => {
+    void loadEngineModels();
+  }, [loadEngineModels]);
+
+  const submitUnitSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const term = umQuery.trim();
+    if (term.length > 100) {
+      setUmQueryError("Kata kunci maksimal 100 karakter.");
+      requestAnimationFrame(() => document.getElementById("um-search")?.focus());
+      return;
+    }
+    setUmQueryError("");
+    unitList.setFilters({ umQ: term || null });
+  };
+
+  const submitEngineSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const term = emQuery.trim();
+    if (term.length > 100) {
+      setEmQueryError("Kata kunci maksimal 100 karakter.");
+      requestAnimationFrame(() => document.getElementById("em-search")?.focus());
+      return;
+    }
+    setEmQueryError("");
+    engineList.setFilters({ emQ: term || null });
+  };
 
   return (
     <div className="space-y-8">
@@ -87,22 +212,14 @@ export function MasterView() {
         <div className="mt-3 flex flex-wrap gap-2">
           <Badge variant="secondary" className="h-6 gap-1.5 px-2.5">
             <Boxes className="size-3.5" aria-hidden="true" />
-            {unitModels.length} unit model
+            {unitTotal} unit model
           </Badge>
           <Badge variant="secondary" className="h-6 gap-1.5 px-2.5">
             <Settings2 className="size-3.5" aria-hidden="true" />
-            {engineModels.length} engine model
+            {engineTotal} engine model
           </Badge>
         </div>
       </div>
-
-      {error ? (
-        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
-          <CircleAlert aria-hidden="true" />
-          <AlertTitle>Master model tidak dapat dimuat</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
 
       {!canWrite ? (
         <Alert className="border-sky-500/30 bg-sky-500/5">
@@ -124,13 +241,64 @@ export function MasterView() {
           </p>
         </div>
         <div className="grid gap-4">
-          {canWrite ? <UnitModelForm onSaved={() => void load()} /> : null}
+          {canWrite ? <UnitModelForm onSaved={() => void loadUnitModels()} /> : null}
           <Card className="overflow-hidden">
             <CardHeader className="border-b">
-              <CardTitle>Daftar unit model</CardTitle>
-              <CardDescription>Referensi model untuk master unit.</CardDescription>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle>Daftar unit model</CardTitle>
+                  <CardDescription>Referensi model untuk master unit.</CardDescription>
+                </div>
+                <form
+                  role="search"
+                  onSubmit={submitUnitSearch}
+                  className="w-full sm:w-64"
+                >
+                  <label htmlFor="um-search" className="sr-only">
+                    Cari unit model
+                  </label>
+                  <div className="relative">
+                    <Search
+                      className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <Input
+                      id="um-search"
+                      name="umQ"
+                      type="search"
+                      value={umQuery}
+                      onChange={(event) => {
+                        setUmQuery(event.target.value);
+                        setUmQueryError("");
+                      }}
+                      aria-invalid={Boolean(umQueryError)}
+                      aria-describedby={umQueryError ? "um-search-error" : undefined}
+                      placeholder="Cari model..."
+                      enterKeyHint="search"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      className="pl-9"
+                    />
+                    <button type="submit" className="sr-only">
+                      Cari unit model
+                    </button>
+                  </div>
+                  {umQueryError ? (
+                    <FieldError id="um-search-error">{umQueryError}</FieldError>
+                  ) : null}
+                </form>
+              </div>
             </CardHeader>
-            {loading ? (
+
+            {unitError ? (
+              <div className="p-4">
+                <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+                  <CircleAlert aria-hidden="true" />
+                  <AlertTitle>Master unit model tidak dapat dimuat</AlertTitle>
+                  <AlertDescription>{unitError}</AlertDescription>
+                </Alert>
+              </div>
+            ) : unitLoading && unitModels.length === 0 ? (
               <TableSkeleton />
             ) : unitModels.length === 0 ? (
               <EmptyModels label="unit model" />
@@ -140,16 +308,52 @@ export function MasterView() {
                 tabIndex={0}
                 role="region"
                 aria-labelledby="unit-model-heading"
+                aria-busy={unitLoading}
               >
                 <table className="responsive-table">
                   <TableCaption className="sr-only">Daftar unit model</TableCaption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead scope="col">Manufacturer</TableHead>
-                      <TableHead scope="col">Model</TableHead>
-                      <TableHead scope="col">Kategori</TableHead>
-                      <TableHead scope="col">Status</TableHead>
-                      <TableHead scope="col">Diperbarui</TableHead>
+                      <TableSortHeader
+                        label="Manufacturer"
+                        sortKey="manufacturer"
+                        prefix="um"
+                        currentSort={unitList.sort}
+                        currentOrder={unitList.order}
+                        onSort={unitList.toggleSort}
+                      />
+                      <TableSortHeader
+                        label="Model"
+                        sortKey="model"
+                        prefix="um"
+                        currentSort={unitList.sort}
+                        currentOrder={unitList.order}
+                        onSort={unitList.toggleSort}
+                      />
+                      <TableSortHeader
+                        label="Kategori"
+                        sortKey="category"
+                        prefix="um"
+                        currentSort={unitList.sort}
+                        currentOrder={unitList.order}
+                        onSort={unitList.toggleSort}
+                      />
+                      <TableSortHeader
+                        label="Status"
+                        sortKey="is_active"
+                        prefix="um"
+                        currentSort={unitList.sort}
+                        currentOrder={unitList.order}
+                        onSort={unitList.toggleSort}
+                      />
+                      <TableSortHeader
+                        label="Diperbarui"
+                        sortKey="updated_at"
+                        prefix="um"
+                        currentSort={unitList.sort}
+                        currentOrder={unitList.order}
+                        onSort={unitList.toggleSort}
+                      />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -172,6 +376,21 @@ export function MasterView() {
                 </table>
               </div>
             )}
+
+            {unitTotal > 0 ? (
+              <CardFooter>
+                <TablePagination
+                  page={unitList.page}
+                  pageSize={unitList.pageSize}
+                  total={unitTotal}
+                  totalPages={unitTotalPages}
+                  loading={unitLoading}
+                  itemLabel="model unit"
+                  onPageChange={unitList.setPage}
+                  onPageSizeChange={unitList.setPageSize}
+                />
+              </CardFooter>
+            ) : null}
           </Card>
         </div>
       </section>
@@ -186,13 +405,64 @@ export function MasterView() {
           </p>
         </div>
         <div className="grid gap-4">
-          {canWrite ? <EngineModelForm onSaved={() => void load()} /> : null}
+          {canWrite ? <EngineModelForm onSaved={() => void loadEngineModels()} /> : null}
           <Card className="overflow-hidden">
             <CardHeader className="border-b">
-              <CardTitle>Daftar engine model</CardTitle>
-              <CardDescription>Referensi engine untuk master unit.</CardDescription>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle>Daftar engine model</CardTitle>
+                  <CardDescription>Referensi engine untuk master unit.</CardDescription>
+                </div>
+                <form
+                  role="search"
+                  onSubmit={submitEngineSearch}
+                  className="w-full sm:w-64"
+                >
+                  <label htmlFor="em-search" className="sr-only">
+                    Cari engine model
+                  </label>
+                  <div className="relative">
+                    <Search
+                      className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                    <Input
+                      id="em-search"
+                      name="emQ"
+                      type="search"
+                      value={emQuery}
+                      onChange={(event) => {
+                        setEmQuery(event.target.value);
+                        setEmQueryError("");
+                      }}
+                      aria-invalid={Boolean(emQueryError)}
+                      aria-describedby={emQueryError ? "em-search-error" : undefined}
+                      placeholder="Cari model..."
+                      enterKeyHint="search"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      className="pl-9"
+                    />
+                    <button type="submit" className="sr-only">
+                      Cari engine model
+                    </button>
+                  </div>
+                  {emQueryError ? (
+                    <FieldError id="em-search-error">{emQueryError}</FieldError>
+                  ) : null}
+                </form>
+              </div>
             </CardHeader>
-            {loading ? (
+
+            {engineError ? (
+              <div className="p-4">
+                <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+                  <CircleAlert aria-hidden="true" />
+                  <AlertTitle>Master engine model tidak dapat dimuat</AlertTitle>
+                  <AlertDescription>{engineError}</AlertDescription>
+                </Alert>
+              </div>
+            ) : engineLoading && engineModels.length === 0 ? (
               <TableSkeleton />
             ) : engineModels.length === 0 ? (
               <EmptyModels label="engine model" />
@@ -202,17 +472,61 @@ export function MasterView() {
                 tabIndex={0}
                 role="region"
                 aria-labelledby="engine-model-heading"
+                aria-busy={engineLoading}
               >
                 <table className="responsive-table">
                   <TableCaption className="sr-only">Daftar engine model</TableCaption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead scope="col">Manufacturer</TableHead>
-                      <TableHead scope="col">Model</TableHead>
-                      <TableHead scope="col">Bahan bakar</TableHead>
-                      <TableHead scope="col">Displacement</TableHead>
-                      <TableHead scope="col">Status</TableHead>
-                      <TableHead scope="col">Diperbarui</TableHead>
+                      <TableSortHeader
+                        label="Manufacturer"
+                        sortKey="manufacturer"
+                        prefix="em"
+                        currentSort={engineList.sort}
+                        currentOrder={engineList.order}
+                        onSort={engineList.toggleSort}
+                      />
+                      <TableSortHeader
+                        label="Model"
+                        sortKey="model"
+                        prefix="em"
+                        currentSort={engineList.sort}
+                        currentOrder={engineList.order}
+                        onSort={engineList.toggleSort}
+                      />
+                      <TableSortHeader
+                        label="Bahan bakar"
+                        sortKey="fuel_type"
+                        prefix="em"
+                        currentSort={engineList.sort}
+                        currentOrder={engineList.order}
+                        onSort={engineList.toggleSort}
+                      />
+                      <TableSortHeader
+                        label="Displacement"
+                        sortKey="displacement_cc"
+                        prefix="em"
+                        currentSort={engineList.sort}
+                        currentOrder={engineList.order}
+                        onSort={engineList.toggleSort}
+                        align="end"
+                      />
+                      <TableSortHeader
+                        label="Status"
+                        sortKey="is_active"
+                        prefix="em"
+                        currentSort={engineList.sort}
+                        currentOrder={engineList.order}
+                        onSort={engineList.toggleSort}
+                      />
+                      <TableSortHeader
+                        label="Diperbarui"
+                        sortKey="updated_at"
+                        prefix="em"
+                        currentSort={engineList.sort}
+                        currentOrder={engineList.order}
+                        onSort={engineList.toggleSort}
+                      />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -223,7 +537,7 @@ export function MasterView() {
                         </TableHead>
                         <TableCell data-label="Model" className="font-medium">{model.model}</TableCell>
                         <TableCell data-label="Bahan bakar">{model.fuel_type || "-"}</TableCell>
-                        <TableCell data-label="Displacement" className="font-mono tabular-nums">
+                        <TableCell data-label="Displacement" className="text-right font-mono tabular-nums">
                           {model.displacement_cc ? `${model.displacement_cc} cc` : "-"}
                         </TableCell>
                         <TableCell data-label="Status">
@@ -238,6 +552,21 @@ export function MasterView() {
                 </table>
               </div>
             )}
+
+            {engineTotal > 0 ? (
+              <CardFooter>
+                <TablePagination
+                  page={engineList.page}
+                  pageSize={engineList.pageSize}
+                  total={engineTotal}
+                  totalPages={engineTotalPages}
+                  loading={engineLoading}
+                  itemLabel="engine model"
+                  onPageChange={engineList.setPage}
+                  onPageSizeChange={engineList.setPageSize}
+                />
+              </CardFooter>
+            ) : null}
           </Card>
         </div>
       </section>
