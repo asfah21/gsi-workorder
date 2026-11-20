@@ -159,7 +159,7 @@ export function DashboardView() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader className="border-b">
-            <CardTitle>Kesehatan armada</CardTitle>
+            <CardTitle>Kesehatan Unit</CardTitle>
             <CardDescription>Perbandingan unit aktif dan breakdown.</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">

@@ -39,7 +39,7 @@ export function FleetStatusChart({
 }) {
   if (loading) {
     return (
-      <div className="space-y-4" role="status" aria-label="Memuat status armada">
+      <div className="space-y-4" role="status" aria-label="Memuat status Unit">
         <Skeleton className="mx-auto size-44 rounded-full" />
         <div className="grid gap-2">
           <Skeleton className="h-5 w-full" />
@@ -57,9 +57,9 @@ export function FleetStatusChart({
           <EmptyMedia variant="icon">
             <CircleAlert aria-hidden="true" />
           </EmptyMedia>
-          <EmptyTitle>Status armada tidak tersedia</EmptyTitle>
+          <EmptyTitle>Status Unit tidak tersedia</EmptyTitle>
           <EmptyDescription>
-            Ringkasan armada gagal dimuat. Coba muat ulang ringkasan.
+            Ringkasan Unit gagal dimuat. Coba muat ulang ringkasan.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -75,7 +75,7 @@ export function FleetStatusChart({
           </EmptyMedia>
           <EmptyTitle>Belum ada unit</EmptyTitle>
           <EmptyDescription>
-            Chart status armada muncul setelah unit ditambahkan ke master.
+            Chart status Unit muncul setelah unit ditambahkan ke master.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -90,7 +90,7 @@ export function FleetStatusChart({
     { status: "breakdown" as const, label: "Breakdown", value: breakdown },
     { status: "inactive" as const, label: "Nonaktif", value: inactive },
   ];
-  const summary = `Status armada dari ${unitsTotal} unit: ${healthy} aktif sehat, ${breakdown} breakdown, ${inactive} nonaktif.`;
+  const summary = `Status Unit dari ${unitsTotal} unit: ${healthy} aktif sehat, ${breakdown} breakdown, ${inactive} nonaktif.`;
 
   return (
     <div className="space-y-4">
