@@ -16,11 +16,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { roleLabels, useSession } from "@/components/app-shell";
+import { FleetStatusChart } from "@/components/fleet-status-chart";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, proxyGet } from "@/lib/api-client";
 import type { DashboardSummary, DataResponse } from "@/lib/types";
@@ -67,11 +67,6 @@ export function DashboardView() {
   useEffect(() => {
     void loadSummary();
   }, [loadSummary]);
-
-  const activeShare =
-    summary && summary.units_total > 0
-      ? Math.round((summary.units_active / summary.units_total) * 100)
-      : 0;
 
   return (
     <div className="space-y-6">
@@ -167,47 +162,13 @@ export function DashboardView() {
             <CardTitle>Kesehatan armada</CardTitle>
             <CardDescription>Perbandingan unit aktif dan breakdown.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5 pt-4">
-            {loading && !summary ? (
-              <div className="space-y-3">
-                <Skeleton className="h-9 w-24" />
-                <Skeleton className="h-2.5 w-full" />
-                <Skeleton className="h-16 w-full" />
-              </div>
-            ) : (
-              <>
-                <div className="flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-3xl font-semibold tabular-nums">
-                      {formatOptionalNumber(summary?.units_active)}
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">Unit aktif</p>
-                  </div>
-                  <Badge variant="secondary" className="h-6 px-2.5">
-                    {activeShare}% dari total
-                  </Badge>
-                </div>
-                <Progress
-                  value={activeShare}
-                  aria-label={`${activeShare}% unit aktif`}
-                  className="[&_[data-slot=progress-track]]:h-2.5 [&_[data-slot=progress-indicator]]:bg-emerald-500"
-                />
-                <dl className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-lg bg-muted/60 p-3">
-                    <dt className="text-muted-foreground">Breakdown</dt>
-                    <dd className="mt-1 font-semibold tabular-nums">
-                      {formatOptionalNumber(summary?.units_breakdown)}
-                    </dd>
-                  </div>
-                  <div className="rounded-lg bg-muted/60 p-3">
-                    <dt className="text-muted-foreground">Total unit</dt>
-                    <dd className="mt-1 font-semibold tabular-nums">
-                      {formatOptionalNumber(summary?.units_total)}
-                    </dd>
-                  </div>
-                </dl>
-              </>
-            )}
+          <CardContent className="pt-4">
+            <FleetStatusChart
+              unitsTotal={summary?.units_total ?? 0}
+              unitsActive={summary?.units_active ?? 0}
+              unitsBreakdown={summary?.units_breakdown ?? 0}
+              loading={loading && !summary}
+            />
           </CardContent>
         </Card>
 
