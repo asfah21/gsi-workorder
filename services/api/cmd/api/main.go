@@ -46,7 +46,7 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	logger.Info("starting api", "milestone", "m3", "app_timezone", cfg.AppTimezone)
+	logger.Info("starting api", "milestone", "m4", "app_timezone", cfg.AppTimezone)
 
 	if err := db.Migrate(cfg.DatabaseURL, cfg.MigrationsDir, logger); err != nil {
 		return err
