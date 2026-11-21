@@ -2,6 +2,7 @@
 
 import {
   Boxes,
+  CalendarClock,
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
@@ -91,6 +92,11 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
         href: "/workorders",
         label: "Work Order",
         icon: ClipboardCheck,
+      },
+      {
+        href: "/pm",
+        label: "Preventive Maintenance",
+        icon: CalendarClock,
       },
     ],
   },

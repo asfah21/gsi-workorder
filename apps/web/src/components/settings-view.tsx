@@ -32,6 +32,9 @@ const settingLabels: Record<string, string> = {
   p2h_auto_wo: "Auto-WO P2H",
   candidate_sla_hours: "SLA reminder (jam)",
   candidate_backfill_days: "Backfill (hari)",
+  pm_auto_wo: "Auto-WO PM",
+  pm_upcoming_days: "PM upcoming (hari)",
+  pm_due_soon_days: "PM due soon (hari)",
 };
 
 export function SettingsView() {
@@ -40,6 +43,9 @@ export function SettingsView() {
   const [autoWO, setAutoWO] = useState(false);
   const [slaHours, setSlaHours] = useState("24");
   const [backfillDays, setBackfillDays] = useState("30");
+  const [pmAutoWO, setPMAutoWO] = useState(false);
+  const [pmUpcomingDays, setPMUpcomingDays] = useState("30");
+  const [pmDueSoonDays, setPMDueSoonDays] = useState("7");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -62,6 +68,9 @@ export function SettingsView() {
         setAutoWO(result.p2h_auto_wo);
         setSlaHours(String(result.candidate_sla_hours));
         setBackfillDays(String(result.candidate_backfill_days));
+        setPMAutoWO(result.pm_auto_wo);
+        setPMUpcomingDays(String(result.pm_upcoming_days));
+        setPMDueSoonDays(String(result.pm_due_soon_days));
       })
       .catch((loadError) => {
         if (!cancelled) {
@@ -91,12 +100,18 @@ export function SettingsView() {
         p2h_auto_wo: autoWO,
         candidate_sla_hours: Number(slaHours),
         candidate_backfill_days: Number(backfillDays),
+        pm_auto_wo: pmAutoWO,
+        pm_upcoming_days: Number(pmUpcomingDays),
+        pm_due_soon_days: Number(pmDueSoonDays),
       });
       const result = response.data;
       setSettings(result);
       setAutoWO(result.p2h_auto_wo);
       setSlaHours(String(result.candidate_sla_hours));
       setBackfillDays(String(result.candidate_backfill_days));
+      setPMAutoWO(result.pm_auto_wo);
+      setPMUpcomingDays(String(result.pm_upcoming_days));
+      setPMDueSoonDays(String(result.pm_due_soon_days));
       setSuccess("Pengaturan disimpan dan perubahan dicatat di riwayat.");
     } catch (saveError) {
       if (saveError instanceof ApiError) {
@@ -204,6 +219,59 @@ export function SettingsView() {
                   </Alert>
                 ) : null}
 
+                <div className="border-t border-border pt-5">
+                  <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-4">
+                    <div>
+                      <p className="text-sm font-semibold">Auto-WO PM</p>
+                      <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+                        Hanya membuat WO otomatis bila setting global ini dan flag
+                        auto-generate pada plan sama-sama aktif. Default nonaktif.
+                      </p>
+                    </div>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={pmAutoWO}
+                        onChange={(event) => setPMAutoWO(event.target.checked)}
+                        className="size-4 rounded border-input accent-primary"
+                      />
+                      <span className="text-sm font-medium">{pmAutoWO ? "Aktif" : "Nonaktif"}</span>
+                    </label>
+                  </div>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <Field data-invalid={Boolean(fieldErrors.pm_upcoming_days)}>
+                      <FieldLabel htmlFor="pm-upcoming-days">PM upcoming (hari)</FieldLabel>
+                      <Input
+                        id="pm-upcoming-days"
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={pmUpcomingDays}
+                        onChange={(event) => setPMUpcomingDays(event.target.value)}
+                        aria-invalid={Boolean(fieldErrors.pm_upcoming_days)}
+                      />
+                      {fieldErrors.pm_upcoming_days ? (
+                        <FieldError>{fieldErrors.pm_upcoming_days}</FieldError>
+                      ) : null}
+                    </Field>
+                    <Field data-invalid={Boolean(fieldErrors.pm_due_soon_days)}>
+                      <FieldLabel htmlFor="pm-due-soon-days">PM due soon (hari)</FieldLabel>
+                      <Input
+                        id="pm-due-soon-days"
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={pmDueSoonDays}
+                        onChange={(event) => setPMDueSoonDays(event.target.value)}
+                        aria-invalid={Boolean(fieldErrors.pm_due_soon_days)}
+                      />
+                      {fieldErrors.pm_due_soon_days ? (
+                        <FieldError>{fieldErrors.pm_due_soon_days}</FieldError>
+                      ) : null}
+                    </Field>
+                  </div>
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field data-invalid={Boolean(fieldErrors.candidate_sla_hours)}>
                     <FieldLabel htmlFor="sla-hours">SLA reminder (jam)</FieldLabel>
@@ -262,9 +330,12 @@ export function SettingsView() {
             <CardDescription>Nilai aktif saat ini.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <SummaryRow label="Auto-WO" value={settings?.p2h_auto_wo ? "Aktif" : "Nonaktif"} />
+            <SummaryRow label="Auto-WO P2H" value={settings?.p2h_auto_wo ? "Aktif" : "Nonaktif"} />
             <SummaryRow label="SLA reminder" value={`${settings?.candidate_sla_hours ?? "-"} jam`} />
             <SummaryRow label="Backfill" value={`${settings?.candidate_backfill_days ?? "-"} hari`} />
+            <SummaryRow label="Auto-WO PM" value={settings?.pm_auto_wo ? "Aktif" : "Nonaktif"} />
+            <SummaryRow label="PM upcoming" value={`${settings?.pm_upcoming_days ?? "-"} hari`} />
+            <SummaryRow label="PM due soon" value={`${settings?.pm_due_soon_days ?? "-"} hari`} />
             <SummaryRow
               label="Terakhir diubah"
               value={settings ? formatDateTimeWita(settings.updated_at) : "-"}

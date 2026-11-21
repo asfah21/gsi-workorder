@@ -2,6 +2,7 @@
 
 import {
   Bell,
+  CalendarClock,
   CheckCircle2,
   Clock3,
   Loader2,
@@ -121,6 +122,8 @@ export function NotificationMenu() {
       router.push(`/wo-candidates?candidate=${item.ref_id}`);
     } else if (item.ref_type === "work_order") {
       router.push("/wo-candidates?status=all");
+    } else if (item.ref_type === "pm_schedule") {
+      router.push("/pm");
     }
   };
 
@@ -271,6 +274,9 @@ function NotificationIcon({ type }: { type: string }) {
   }
   if (type.includes("reminder")) {
     return <Clock3 className="size-4" aria-hidden="true" />;
+  }
+  if (type.includes("pm")) {
+    return <CalendarClock className="size-4" aria-hidden="true" />;
   }
   if (type.includes("assigned")) {
     return <Wrench className="size-4" aria-hidden="true" />;

@@ -166,6 +166,7 @@ export type WorkOrderRecord = {
   source: string;
   p2h_report_id?: number;
   candidate_id?: number;
+  pm_schedule_id?: number;
   title: string;
   description: string;
   priority: WorkOrderPriority;
@@ -215,10 +216,24 @@ export type WorkOrderAttachment = {
   created_at: string;
 };
 
+export type WorkOrderChecklistItem = {
+  id: number;
+  wo_id: number;
+  sequence: number;
+  component_id?: number;
+  component: string;
+  task: string;
+  standard: string;
+  result: "pending" | "ok" | "not_ok" | "na";
+  checked_by?: number;
+  checked_at?: string;
+};
+
 export type WorkOrderDetail = WorkOrderRecord & {
   findings: WorkOrderFinding[];
   updates: WorkOrderUpdate[];
   attachments: WorkOrderAttachment[];
+  checklist: WorkOrderChecklistItem[];
 };
 
 export type CandidateWorkOrder = {
@@ -274,8 +289,119 @@ export type AppSettings = {
   p2h_auto_wo: boolean;
   candidate_sla_hours: number;
   candidate_backfill_days: number;
+  pm_auto_wo: boolean;
+  pm_upcoming_days: number;
+  pm_due_soon_days: number;
   updated_at: string;
   history: SettingHistory[];
+};
+
+export type PMPlanStatus = "draft" | "active" | "inactive";
+export type PMIntervalRule = "first_reached" | "all_required";
+
+export type PMChecklistItem = {
+  id: number;
+  pm_plan_id: number;
+  sequence: number;
+  component_id?: number;
+  component: string;
+  task: string;
+  standard: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PMPlan = {
+  id: number;
+  name: string;
+  description: string;
+  unit_id?: number;
+  unit_code: string;
+  unit_model_id?: number;
+  unit_model_name: string;
+  status: PMPlanStatus;
+  effective_from: string;
+  effective_to?: string;
+  interval_hm?: number;
+  interval_km?: number;
+  interval_days?: number;
+  interval_rule: PMIntervalRule;
+  upcoming_days?: number;
+  due_soon_days?: number;
+  upcoming_hm?: number;
+  upcoming_km?: number;
+  due_soon_hm?: number;
+  due_soon_km?: number;
+  auto_generate_wo: boolean;
+  default_priority: WorkOrderPriority;
+  default_assignee_id?: number;
+  default_assignee_name: string;
+  default_supervisor_id?: number;
+  default_supervisor_name: string;
+  created_by?: number;
+  created_by_name: string;
+  checklist: PMChecklistItem[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type PMSchedule = {
+  id: number;
+  pm_plan_id: number;
+  plan_name: string;
+  unit_id: number;
+  unit_code: string;
+  unit_model_name: string;
+  cycle_no: number;
+  status: string;
+  bucket: string;
+  days_to_due?: number;
+  due_hm?: number;
+  due_km?: number;
+  due_date?: string;
+  last_completed_hm?: number;
+  last_completed_km?: number;
+  last_completed_at?: string;
+  override_reason: string;
+  overridden_at?: string;
+  skip_reason: string;
+  skipped_at?: string;
+  cancel_reason: string;
+  cancelled_at?: string;
+  work_order_id?: number;
+  work_order_code: string;
+  plan?: PMPlan;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PMComplianceRow = {
+  pm_plan_id: number;
+  plan_name: string;
+  target: string;
+  total: number;
+  completed: number;
+  on_time: number;
+  overdue: number;
+  missed: number;
+  completion_rate: number;
+  on_time_rate: number;
+};
+
+export type PMCompliance = {
+  rows: PMComplianceRow[];
+  total: number;
+  completed: number;
+  on_time: number;
+  overdue: number;
+  missed: number;
+  completion_rate: number;
+  on_time_rate: number;
+};
+
+export type PMGenerateResult = {
+  schedule: PMSchedule;
+  work_order: WorkOrderRecord;
 };
 
 export type SettingHistory = {

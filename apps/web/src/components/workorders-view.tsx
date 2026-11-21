@@ -73,6 +73,7 @@ import type {
   Unit,
   UserOption,
   WorkOrderAttachment,
+  WorkOrderChecklistItem,
   WorkOrderDetail,
   WorkOrderMaintenanceType,
   WorkOrderPriority,
@@ -164,7 +165,10 @@ export function WorkOrdersView() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [actionNote, setActionNote] = useState("");
+  const [readingHM, setReadingHM] = useState("");
+  const [readingKM, setReadingKM] = useState("");
   const [acting, setActing] = useState(false);
+  const [checklistBusy, setChecklistBusy] = useState<number | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -261,6 +265,8 @@ export function WorkOrdersView() {
     setDetailID(id);
     setDetail(null);
     setActionNote("");
+    setReadingHM("");
+    setReadingKM("");
     setComment("");
     setAttachment(null);
     if (canCreate) {
@@ -286,14 +292,34 @@ export function WorkOrdersView() {
         ...(nextStatus === "in_progress" && !detail.assignee_id
           ? { assignee_id: user.id }
           : {}),
+        ...(nextStatus === "done" && detail.source === "pm" && readingHM
+          ? { reading_hm: Number(readingHM) }
+          : {}),
+        ...(nextStatus === "done" && detail.source === "pm" && readingKM
+          ? { reading_km: Number(readingKM) }
+          : {}),
       });
       setSuccess(`Work order ${detail.code} dipindahkan ke ${statusLabels[nextStatus] || nextStatus}.`);
       setActionNote("");
       await refreshDetail(detail.id);
     } catch (actionError) {
-      setDetailError(actionError instanceof ApiError ? actionError.message : "Status work order tidak dapat diubah.");
+      setDetailError(apiErrorMessage(actionError, "Status work order tidak dapat diubah."));
     } finally {
       setActing(false);
+    }
+  };
+
+  const updateChecklistResult = async (item: WorkOrderChecklistItem, result: string) => {
+    if (!detail || checklistBusy !== null) return;
+    setChecklistBusy(item.id);
+    setDetailError("");
+    try {
+      await proxyPatch(`/workorders/${detail.id}/checklist/${item.id}`, { result });
+      await loadDetail(detail.id);
+    } catch (checklistError) {
+      setDetailError(apiErrorMessage(checklistError, "Checklist tidak dapat diperbarui."));
+    } finally {
+      setChecklistBusy(null);
     }
   };
 
@@ -518,6 +544,7 @@ export function WorkOrdersView() {
                 <NativeSelectOption value="">Semua sumber</NativeSelectOption>
                 <NativeSelectOption value="p2h">P2H</NativeSelectOption>
                 <NativeSelectOption value="manual">Manual</NativeSelectOption>
+                <NativeSelectOption value="pm">PM</NativeSelectOption>
               </NativeSelect>
             </Field>
             <div className="flex gap-2">
@@ -779,7 +806,16 @@ export function WorkOrdersView() {
 
                 <div className="grid grid-cols-2 gap-3 rounded-lg border border-border p-3 text-sm">
                   <Info label="Unit" value={detail.unit_code || "-"} />
-                  <Info label="Sumber" value={detail.source === "p2h" ? "P2H" : "Manual"} />
+                  <Info
+                    label="Sumber"
+                    value={
+                      detail.source === "p2h"
+                        ? "P2H"
+                        : detail.source === "pm"
+                          ? "Preventive Maintenance"
+                          : "Manual"
+                    }
+                  />
                   <Info label="Maintenance" value={maintenanceLabels[detail.maintenance_type] || detail.maintenance_type} />
                   <Info label="Assignee" value={detail.assignee_name || "Belum di-assign"} />
                   <Info label="Supervisor" value={detail.supervisor_name || "-"} />
@@ -849,6 +885,34 @@ export function WorkOrdersView() {
                 {canAct ? (
                   <div className="rounded-lg border border-border p-3">
                     <h3 className="text-sm font-semibold">Aksi status</h3>
+                    {detail.source === "pm" ? (
+                      <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                        <Field>
+                          <FieldLabel htmlFor="wo-reading-hm">Reading HM saat selesai</FieldLabel>
+                          <Input
+                            id="wo-reading-hm"
+                            type="number"
+                            min={0}
+                            step="0.1"
+                            value={readingHM}
+                            onChange={(event) => setReadingHM(event.target.value)}
+                            placeholder="Wajib jika plan memakai interval HM"
+                          />
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor="wo-reading-km">Reading KM saat selesai</FieldLabel>
+                          <Input
+                            id="wo-reading-km"
+                            type="number"
+                            min={0}
+                            step="0.1"
+                            value={readingKM}
+                            onChange={(event) => setReadingKM(event.target.value)}
+                            placeholder="Wajib jika plan memakai interval KM"
+                          />
+                        </Field>
+                      </div>
+                    ) : null}
                     <Field className="mt-2">
                       <FieldLabel htmlFor="wo-action-note">Catatan / alasan</FieldLabel>
                       <Textarea
@@ -885,6 +949,54 @@ export function WorkOrdersView() {
                           <XCircle aria-hidden="true" /> Cancel
                         </Button>
                       ) : null}
+                    </div>
+                  </div>
+                ) : null}
+
+                {detail.checklist.length > 0 ? (
+                  <div>
+                    <h3 className="text-sm font-semibold">Checklist PM</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Snapshot dari plan saat WO dibuat. Semua item harus dinilai sebelum WO PM selesai.
+                    </p>
+                    <div className="mt-2 overflow-x-auto rounded-lg border border-border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>#</TableHead>
+                            <TableHead>Task</TableHead>
+                            <TableHead>Standard</TableHead>
+                            <TableHead>Hasil</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {detail.checklist.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell>{item.sequence}</TableCell>
+                              <TableCell>
+                                <p>{item.task}</p>
+                                {item.component ? (
+                                  <p className="text-xs text-muted-foreground">{item.component}</p>
+                                ) : null}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">{item.standard || "-"}</TableCell>
+                              <TableCell>
+                                <NativeSelect
+                                  value={item.result}
+                                  onChange={(event) => void updateChecklistResult(item, event.target.value)}
+                                  disabled={checklistBusy !== null || detail.status === "done" || detail.status === "cancelled"}
+                                  className="h-8 min-w-28 text-xs"
+                                >
+                                  <NativeSelectOption value="pending">Pending</NativeSelectOption>
+                                  <NativeSelectOption value="ok">OK</NativeSelectOption>
+                                  <NativeSelectOption value="not_ok">Not OK</NativeSelectOption>
+                                  <NativeSelectOption value="na">N/A</NativeSelectOption>
+                                </NativeSelect>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
                   </div>
                 ) : null}
@@ -981,6 +1093,12 @@ export function WorkOrdersView() {
       </Sheet>
     </div>
   );
+}
+
+function apiErrorMessage(error: unknown, fallback: string) {
+  if (!(error instanceof ApiError)) return fallback;
+  const details = Object.values(error.fields).filter(Boolean);
+  return details.length > 0 ? `${error.message} ${details.join(" ")}` : error.message;
 }
 
 function Info({ label, value }: { label: string; value: string }) {
