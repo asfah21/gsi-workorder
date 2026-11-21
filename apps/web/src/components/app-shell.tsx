@@ -275,7 +275,7 @@ function AppShellFrame({
             <div className="flex min-w-0 items-center gap-2">
               <Link
                 href="/dashboard"
-                className="flex min-w-0 items-center gap-2 lg:hidden"
+                className={`${isMobile ? "flex" : "hidden"} min-w-0 items-center gap-2`}
               >
                 <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
                   <Wrench className="size-4" aria-hidden="true" />

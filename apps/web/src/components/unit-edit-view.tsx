@@ -92,7 +92,7 @@ export function UnitEditView({ unitId }: { unitId: number }) {
 
   if (loading || !unit) {
     return (
-      <div className="max-w-3xl space-y-6">
+      <div className="space-y-6">
         <div>
           <Skeleton className="h-4 w-16" />
           <Skeleton className="mt-3 h-8 w-40" />
@@ -103,7 +103,7 @@ export function UnitEditView({ unitId }: { unitId: number }) {
   }
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="space-y-4">
       <Card>
         <CardContent>
           <Link

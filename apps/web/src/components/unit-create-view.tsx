@@ -37,7 +37,7 @@ export function UnitCreateView() {
   }
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="space-y-4">
       <Card>
         <CardContent>
           <Link
