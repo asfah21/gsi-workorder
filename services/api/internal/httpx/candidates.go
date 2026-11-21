@@ -138,7 +138,10 @@ func (h *CandidateHandler) Skip(c *gin.Context) {
 	}
 	item, err := h.service.Skip(c.Request.Context(), id, actor.ID, candidates.SkipInput{Reason: request.Reason})
 	if err != nil {
-		h.writeError(c, err, "skip candidate")
+		// A missing or too-short skip reason is a request validation error
+		// (400), not an unprocessable entity. Keep other candidate endpoints
+		// on the shared 422 validation mapping.
+		h.writeErrorWithValidationStatus(c, err, "skip candidate", http.StatusBadRequest)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": newCandidateResponse(item)})
@@ -181,16 +184,20 @@ func (h *CandidateHandler) Bulk(c *gin.Context) {
 }
 
 func (h *CandidateHandler) writeError(c *gin.Context, err error, operation string) {
+	h.writeErrorWithValidationStatus(c, err, operation, http.StatusUnprocessableEntity)
+}
+
+func (h *CandidateHandler) writeErrorWithValidationStatus(c *gin.Context, err error, operation string, validationStatus int) {
 	var validation *candidates.ValidationError
 	switch {
 	case errors.As(err, &validation):
-		writeUnitError(c, http.StatusUnprocessableEntity, "validation_error", "Data usulan tidak valid", validation.Fields)
+		writeUnitError(c, validationStatus, "validation_error", "Data usulan tidak valid", validation.Fields)
 	case errors.Is(err, candidates.ErrNotFound):
 		writeUnitError(c, http.StatusNotFound, "candidate_not_found", "Usulan tidak ditemukan", nil)
 	case errors.Is(err, candidates.ErrConflict):
 		writeUnitError(c, http.StatusConflict, "candidate_conflict", "Usulan sudah diputuskan atau tidak lagi pending", nil)
 	case errors.Is(err, candidates.ErrValidation):
-		writeUnitError(c, http.StatusUnprocessableEntity, "validation_error", "Data usulan tidak valid", nil)
+		writeUnitError(c, validationStatus, "validation_error", "Data usulan tidak valid", nil)
 	default:
 		h.logger.Error("candidate operation failed", "operation", operation, "error", err)
 		writeUnitError(c, http.StatusInternalServerError, "internal_error", "Terjadi kesalahan internal", nil)
