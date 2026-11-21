@@ -38,6 +38,7 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Table,
   TableBody,
   TableCaption,
   TableCell,
@@ -203,23 +204,34 @@ export function MasterView() {
   };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Master unit</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Model unit dan engine yang dipakai pada master unit.
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Badge variant="secondary" className="h-6 gap-1.5 px-2.5">
-            <Boxes className="size-3.5" aria-hidden="true" />
-            {unitTotal} unit model
-          </Badge>
-          <Badge variant="secondary" className="h-6 gap-1.5 px-2.5">
-            <Settings2 className="size-3.5" aria-hidden="true" />
-            {engineTotal} engine model
-          </Badge>
-        </div>
-      </div>
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold">Master unit</h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Model unit dan engine yang dipakai pada master unit.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <nav aria-label="Breadcrumb" className="hidden items-center gap-2 text-sm sm:flex">
+              <span className="text-muted-foreground">Dashboard</span>
+              <span className="text-muted-foreground" aria-hidden="true">
+                /
+              </span>
+              <span aria-current="page">Master unit</span>
+            </nav>
+            <Badge variant="secondary" className="h-6 gap-1.5 px-2.5">
+              <Boxes className="size-3.5" aria-hidden="true" />
+              {unitTotal} unit model
+            </Badge>
+            <Badge variant="secondary" className="h-6 gap-1.5 px-2.5">
+              <Settings2 className="size-3.5" aria-hidden="true" />
+              {engineTotal} engine model
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
 
       {!canWrite ? (
         <Alert className="border-sky-500/30 bg-sky-500/5">
@@ -242,7 +254,7 @@ export function MasterView() {
         </div>
         <div className="grid gap-4">
           {canWrite ? <UnitModelForm onSaved={() => void loadUnitModels()} /> : null}
-          <Card className="overflow-hidden">
+          <Card className="gap-0 overflow-hidden">
             <CardHeader className="border-b">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -303,14 +315,8 @@ export function MasterView() {
             ) : unitModels.length === 0 ? (
               <EmptyModels label="unit model" />
             ) : (
-              <div
-                className="responsive-table-wrapper"
-                tabIndex={0}
-                role="region"
-                aria-labelledby="unit-model-heading"
-                aria-busy={unitLoading}
-              >
-                <table className="responsive-table">
+              <div aria-busy={unitLoading}>
+                <Table>
                   <TableCaption className="sr-only">Daftar unit model</TableCaption>
                   <TableHeader>
                     <TableRow>
@@ -359,26 +365,26 @@ export function MasterView() {
                   <TableBody>
                     {unitModels.map((model) => (
                       <TableRow key={model.id}>
-                        <TableHead scope="row" data-label="Manufacturer" className="whitespace-normal">
+                        <TableHead scope="row" className="whitespace-normal">
                           {model.manufacturer}
                         </TableHead>
-                        <TableCell data-label="Model" className="font-medium">{model.model}</TableCell>
-                        <TableCell data-label="Kategori">{model.category || "-"}</TableCell>
-                        <TableCell data-label="Status">
+                        <TableCell className="font-medium">{model.model}</TableCell>
+                        <TableCell>{model.category || "-"}</TableCell>
+                        <TableCell>
                           <ActiveBadge active={model.is_active} />
                         </TableCell>
-                        <TableCell data-label="Diperbarui" className="text-muted-foreground">
+                        <TableCell className="text-muted-foreground">
                           {formatDateTimeWita(model.updated_at)}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
-                </table>
+                </Table>
               </div>
             )}
 
             {unitTotal > 0 ? (
-              <CardFooter>
+              <CardFooter className="border-t">
                 <TablePagination
                   page={unitList.page}
                   pageSize={unitList.pageSize}
@@ -406,7 +412,7 @@ export function MasterView() {
         </div>
         <div className="grid gap-4">
           {canWrite ? <EngineModelForm onSaved={() => void loadEngineModels()} /> : null}
-          <Card className="overflow-hidden">
+          <Card className="gap-0 overflow-hidden">
             <CardHeader className="border-b">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -467,14 +473,8 @@ export function MasterView() {
             ) : engineModels.length === 0 ? (
               <EmptyModels label="engine model" />
             ) : (
-              <div
-                className="responsive-table-wrapper"
-                tabIndex={0}
-                role="region"
-                aria-labelledby="engine-model-heading"
-                aria-busy={engineLoading}
-              >
-                <table className="responsive-table">
+              <div aria-busy={engineLoading}>
+                <Table>
                   <TableCaption className="sr-only">Daftar engine model</TableCaption>
                   <TableHeader>
                     <TableRow>
@@ -532,29 +532,29 @@ export function MasterView() {
                   <TableBody>
                     {engineModels.map((model) => (
                       <TableRow key={model.id}>
-                        <TableHead scope="row" data-label="Manufacturer" className="whitespace-normal">
+                        <TableHead scope="row" className="whitespace-normal">
                           {model.manufacturer}
                         </TableHead>
-                        <TableCell data-label="Model" className="font-medium">{model.model}</TableCell>
-                        <TableCell data-label="Bahan bakar">{model.fuel_type || "-"}</TableCell>
-                        <TableCell data-label="Displacement" className="text-right font-mono tabular-nums">
+                        <TableCell className="font-medium">{model.model}</TableCell>
+                        <TableCell>{model.fuel_type || "-"}</TableCell>
+                        <TableCell className="text-right tabular-nums">
                           {model.displacement_cc ? `${model.displacement_cc} cc` : "-"}
                         </TableCell>
-                        <TableCell data-label="Status">
+                        <TableCell>
                           <ActiveBadge active={model.is_active} />
                         </TableCell>
-                        <TableCell data-label="Diperbarui" className="text-muted-foreground">
+                        <TableCell className="text-muted-foreground">
                           {formatDateTimeWita(model.updated_at)}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
-                </table>
+                </Table>
               </div>
             )}
 
             {engineTotal > 0 ? (
-              <CardFooter>
+              <CardFooter className="border-t">
                 <TablePagination
                   page={engineList.page}
                   pageSize={engineList.pageSize}
@@ -622,7 +622,7 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
         <CardTitle>Tambah unit model</CardTitle>
         <CardDescription>Tambahkan referensi model unit baru.</CardDescription>
       </CardHeader>
-      <CardContent className="pt-4">
+      <CardContent>
         <form onSubmit={(event) => void submit(event)} className="space-y-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field>
@@ -671,7 +671,7 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
               />
             </Field>
           </div>
-          <label className="flex min-h-11 items-center gap-3 text-sm">
+          <label className="flex h-9 w-fit items-center gap-2 text-sm">
             <input
               type="checkbox"
               name="is_active"
@@ -705,7 +705,7 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
               </AlertDescription>
             </Alert>
           ) : null}
-          <Button type="submit" disabled={pending} className="h-11 px-4">
+          <Button type="submit" disabled={pending}>
             {pending ? (
               <>
                 <Loader2 className="animate-spin" aria-hidden="true" />
@@ -772,7 +772,7 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
         <CardTitle>Tambah engine model</CardTitle>
         <CardDescription>Tambahkan referensi engine baru.</CardDescription>
       </CardHeader>
-      <CardContent className="pt-4">
+      <CardContent>
         <form onSubmit={(event) => void submit(event)} className="space-y-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field>
@@ -834,7 +834,7 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
               />
             </Field>
           </div>
-          <label className="flex min-h-11 items-center gap-3 text-sm">
+          <label className="flex h-9 w-fit items-center gap-2 text-sm">
             <input
               type="checkbox"
               name="is_active"
@@ -868,7 +868,7 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
               </AlertDescription>
             </Alert>
           ) : null}
-          <Button type="submit" disabled={pending} className="h-11 px-4">
+          <Button type="submit" disabled={pending}>
             {pending ? (
               <>
                 <Loader2 className="animate-spin" aria-hidden="true" />
@@ -886,9 +886,9 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
 
 function TableSkeleton() {
   return (
-    <div className="space-y-2 p-4" role="status" aria-label="Memuat master model">
+    <div className="space-y-2 px-6 py-4" role="status" aria-label="Memuat master model">
       {Array.from({ length: 4 }).map((_, index) => (
-        <Skeleton key={index} className="h-11 w-full" />
+        <Skeleton key={index} className="h-12 w-full" />
       ))}
     </div>
   );

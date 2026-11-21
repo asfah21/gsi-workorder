@@ -38,7 +38,7 @@ export function TableSortHeader({
         data-sort-button={prefix ? `${prefix}:${sortKey}` : sortKey}
         onClick={() => onSort(sortKey)}
         className={cn(
-          "inline-flex min-h-11 w-full items-center gap-1.5 text-left font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          "inline-flex h-9 w-full items-center gap-1.5 text-left font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
           align === "end" ? "justify-end" : "justify-start",
         )}
       >

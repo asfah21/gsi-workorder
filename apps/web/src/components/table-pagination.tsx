@@ -43,7 +43,7 @@ export function TablePagination({
       : `${start}–${end} dari ${total} ${itemLabel}`;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-muted-foreground" aria-live="polite">
         {range} · Halaman {page} dari {safeTotalPages}
       </p>
@@ -56,7 +56,7 @@ export function TablePagination({
           value={String(pageSize)}
           onChange={(event) => onPageSizeChange(Number(event.target.value))}
           disabled={loading}
-          className="w-24"
+          className="w-20"
         >
           {PAGE_SIZE_OPTIONS.map((size) => (
             <NativeSelectOption key={size} value={String(size)}>
@@ -69,21 +69,19 @@ export function TablePagination({
           variant="outline"
           disabled={loading || page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="h-10 px-3"
           aria-label="Halaman sebelumnya"
         >
           <ChevronLeft aria-hidden="true" />
-          Sebelumnya
+          <span className="hidden sm:inline">Sebelumnya</span>
         </Button>
         <Button
           type="button"
           variant="outline"
           disabled={loading || page >= safeTotalPages}
           onClick={() => onPageChange(page + 1)}
-          className="h-10 px-3"
           aria-label="Halaman berikutnya"
         >
-          Berikutnya
+          <span className="hidden sm:inline">Berikutnya</span>
           <ChevronRight aria-hidden="true" />
         </Button>
       </div>
