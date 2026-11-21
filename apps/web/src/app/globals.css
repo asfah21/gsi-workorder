@@ -177,6 +177,10 @@ html[data-sidebar-type="true"] [data-slot="sidebar"][data-collapsible="icon"] [d
   padding-inline: 0.375rem;
 }
 
+html[data-sidebar-type="true"] [data-slot="sidebar"][data-collapsible="icon"] [data-slot="sidebar-menu"] {
+  align-items: center;
+}
+
 html[data-sidebar-type="true"] [data-slot="sidebar"][data-collapsible="icon"] [data-slot="sidebar-menu-button"] {
   justify-content: center;
 }

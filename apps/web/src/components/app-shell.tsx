@@ -268,9 +268,9 @@ function AppShellFrame({
       <SidebarInset
         id="konten"
         tabIndex={-1}
-        className="m-2 overflow-hidden rounded-none border border-border bg-background md:rounded-xl md:shadow-sm"
+        className="m-2 rounded-none border border-border bg-background md:rounded-xl md:shadow-sm"
       >
-        <header className="sticky top-0 z-20 min-h-14 border-b border-border bg-background">
+        <header className="sticky top-0 z-20 min-h-14 border-b border-border bg-background md:rounded-t-xl">
           <div className="flex flex-wrap items-center justify-between gap-2 p-2">
             <div className="flex min-w-0 items-center gap-2">
               <Link
