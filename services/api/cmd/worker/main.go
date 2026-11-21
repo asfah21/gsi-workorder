@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -42,13 +44,13 @@ func main() {
 			}
 			return
 		case "sync-p2h":
-			if err := runP2HSync(logger, false); err != nil {
+			if err := runP2HSync(logger, false, os.Args[2:]); err != nil {
 				logger.Error("P2H sync failed", "error", err)
 				os.Exit(1)
 			}
 			return
 		case "sync-full":
-			if err := runP2HSync(logger, true); err != nil {
+			if err := runP2HSync(logger, true, os.Args[2:]); err != nil {
 				logger.Error("full P2H sync failed", "error", err)
 				os.Exit(1)
 			}
@@ -117,7 +119,13 @@ func run(logger *slog.Logger) error {
 	}
 
 	if cfg.P2HSyncEnabled() {
-		syncService := newP2HSyncService(cfg, pool, logger)
+		p2hSource := "jsonrpc"
+		if cfg.OdooDB == "" || cfg.OdooServiceLogin == "" || cfg.OdooServicePassword == "" {
+			p2hSource = "rest"
+			logger.Warn("P2H JSON-RPC detail disabled: ODOO_DB or service credentials missing; using REST")
+		}
+		logger.Info("P2H sync source selected", "source", p2hSource)
+		syncService := newP2HSyncService(cfg, pool, logger, p2hSource)
 		var p2hLock sync.Mutex
 		runP2H := func() {
 			if !p2hLock.TryLock() {
@@ -194,7 +202,17 @@ func newUserSyncService(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logg
 	)
 }
 
-func runP2HSync(logger *slog.Logger, forceDetails bool) error {
+func runP2HSync(logger *slog.Logger, forceDetails bool, args []string) error {
+	flags := flag.NewFlagSet("p2h-sync", flag.ContinueOnError)
+	sourceFlag := flags.String("source", "jsonrpc", "detail source: jsonrpc or rest")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	source, err := normalizeP2HSource(*sourceFlag)
+	if err != nil {
+		return err
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -202,6 +220,10 @@ func runP2HSync(logger *slog.Logger, forceDetails bool) error {
 	if !cfg.P2HSyncEnabled() {
 		return fmt.Errorf("P2H sync config incomplete: set ODOO_TOKEN or ODOO_SERVICE_LOGIN/ODOO_SERVICE_PASSWORD")
 	}
+	if source == "jsonrpc" && (cfg.OdooDB == "" || cfg.OdooServiceLogin == "" || cfg.OdooServicePassword == "") {
+		return fmt.Errorf("JSON-RPC detail requires ODOO_DB, ODOO_SERVICE_LOGIN, and ODOO_SERVICE_PASSWORD; use --source=rest to keep the old detail API")
+	}
+	logger.Info("P2H sync starting", "source", source, "force_details", forceDetails)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Hour)
 	defer cancel()
@@ -212,7 +234,18 @@ func runP2HSync(logger *slog.Logger, forceDetails bool) error {
 	}
 	defer pool.Close()
 
-	return newP2HSyncService(cfg, pool, logger).Sync(ctx, forceDetails)
+	return newP2HSyncService(cfg, pool, logger, source).Sync(ctx, forceDetails)
+}
+
+func normalizeP2HSource(raw string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "jsonrpc":
+		return "jsonrpc", nil
+	case "rest":
+		return "rest", nil
+	default:
+		return "", fmt.Errorf("invalid --source %q: use jsonrpc or rest", raw)
+	}
 }
 
 func runCandidateReminders(logger *slog.Logger) error {
@@ -230,10 +263,10 @@ func runCandidateReminders(logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	return newP2HSyncService(cfg, pool, logger).SendReminders(ctx)
+	return newP2HSyncService(cfg, pool, logger, "rest").SendReminders(ctx)
 }
 
-func newP2HSyncService(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger) *p2h.SyncService {
+func newP2HSyncService(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logger, source string) *p2h.SyncService {
 	client := p2h.NewClient(
 		cfg.OdooBaseURL,
 		cfg.OdooTimeout,
@@ -242,7 +275,18 @@ func newP2HSyncService(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 		cfg.OdooServicePassword,
 	)
 	repo := p2h.NewRepository(pool, cfg.AppLocation)
-	return p2h.NewSyncService(client, repo, cfg.SyncConcurrency, cfg.AppLocation, logger)
+
+	var detail p2h.DetailLoader
+	if source == "jsonrpc" {
+		detail = p2h.NewJSONRPCClient(
+			cfg.OdooBaseURL,
+			cfg.OdooDB,
+			cfg.OdooServiceLogin,
+			cfg.OdooServicePassword,
+			120*time.Second,
+		)
+	}
+	return p2h.NewSyncServiceWithDetail(client, detail, repo, cfg.SyncConcurrency, cfg.AppLocation, logger)
 }
 
 func health(logger *slog.Logger) error {

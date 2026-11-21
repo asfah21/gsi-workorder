@@ -329,6 +329,18 @@ func (f *fakeP2HClient) Get(_ context.Context, id int64) (p2h.Report, error) {
 	return report, nil
 }
 
+func (f *fakeP2HClient) LoadDetails(_ context.Context, ids []int64) ([]p2h.Report, error) {
+	reports := make([]p2h.Report, 0, len(ids))
+	for _, id := range ids {
+		report, ok := f.details[id]
+		if !ok {
+			return nil, fmt.Errorf("missing report %d", id)
+		}
+		reports = append(reports, report)
+	}
+	return reports, nil
+}
+
 func TestM2SyncServiceIdempotent(t *testing.T) {
 	databaseURL := os.Getenv("TEST_DATABASE_URL")
 	if databaseURL == "" {
@@ -376,7 +388,7 @@ func TestM2SyncServiceIdempotent(t *testing.T) {
 	}
 	client := &fakeP2HClient{reports: reports, details: details}
 	repo := p2h.NewRepository(pool, loc)
-	service := p2h.NewSyncService(client, repo, 2, loc, nil)
+	service := p2h.NewSyncServiceWithDetail(client, client, repo, 2, loc, nil)
 
 	if err := service.Sync(ctx, false); err != nil {
 		t.Fatal(err)

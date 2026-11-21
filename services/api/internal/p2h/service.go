@@ -2,8 +2,10 @@ package p2h
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,8 +19,15 @@ type OdooClient interface {
 	Get(ctx context.Context, id int64) (Report, error)
 }
 
+// DetailLoader fetches report headers and findings in batches. The REST client
+// uses Get; the JSON-RPC client uses LoadDetails so it can avoid photo fields.
+type DetailLoader interface {
+	LoadDetails(ctx context.Context, ids []int64) ([]Report, error)
+}
+
 type SyncService struct {
 	client      OdooClient
+	detail      DetailLoader
 	repo        *Repository
 	logger      *slog.Logger
 	concurrency int
@@ -26,6 +35,10 @@ type SyncService struct {
 }
 
 func NewSyncService(client OdooClient, repo *Repository, concurrency int, loc *time.Location, logger *slog.Logger) *SyncService {
+	return NewSyncServiceWithDetail(client, nil, repo, concurrency, loc, logger)
+}
+
+func NewSyncServiceWithDetail(client OdooClient, detail DetailLoader, repo *Repository, concurrency int, loc *time.Location, logger *slog.Logger) *SyncService {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -37,6 +50,7 @@ func NewSyncService(client OdooClient, repo *Repository, concurrency int, loc *t
 	}
 	return &SyncService{
 		client:      client,
+		detail:      detail,
 		repo:        repo,
 		logger:      logger,
 		concurrency: concurrency,
@@ -60,6 +74,7 @@ func (s *SyncService) Sync(ctx context.Context, forceDetails bool) error {
 	}
 	defer release()
 
+	startedAt := time.Now()
 	runID, err := s.repo.StartSyncRun(ctx, "p2h")
 	if err != nil {
 		return err
@@ -140,11 +155,112 @@ func (s *SyncService) Sync(ctx context.Context, forceDetails bool) error {
 		"findings", counters.Findings,
 		"candidates", counters.Candidates,
 		"work_orders", counters.WorkOrders,
+		"duration_ms", time.Since(startedAt).Milliseconds(),
 	)
 	return nil
 }
 
 func (s *SyncService) syncDetails(ctx context.Context, ids map[int64]struct{}, settings SettingsValues, counters *SyncCounters) (int, error) {
+	if s.detail != nil {
+		return s.syncDetailsBatch(ctx, ids, settings, counters)
+	}
+	return s.syncDetailsREST(ctx, ids, settings, counters)
+}
+
+func (s *SyncService) syncDetailsBatch(ctx context.Context, ids map[int64]struct{}, settings SettingsValues, counters *SyncCounters) (int, error) {
+	allIDs := make([]int64, 0, len(ids))
+	for id := range ids {
+		allIDs = append(allIDs, id)
+	}
+	sort.Slice(allIDs, func(i, j int) bool { return allIDs[i] < allIDs[j] })
+
+	total := len(allIDs)
+	processed := 0
+	var details int
+	var findings int
+	var candidates int
+	var workOrders int
+	var firstErr error
+	errorCount := 0
+	applyCounters := func() {
+		counters.Findings += findings
+		counters.Candidates += candidates
+		counters.WorkOrders += workOrders
+	}
+
+	recordError := func(err error) {
+		errorCount++
+		if firstErr == nil {
+			firstErr = err
+		}
+		s.logger.Error("sync P2H detail failed", "error", err)
+	}
+
+	for start := 0; start < len(allIDs); start += jsonRPCDetailBatchSize {
+		if err := ctx.Err(); err != nil {
+			applyCounters()
+			return details, err
+		}
+		end := start + jsonRPCDetailBatchSize
+		if end > len(allIDs) {
+			end = len(allIDs)
+		}
+		batch := allIDs[start:end]
+
+		reports, err := s.detail.LoadDetails(ctx, batch)
+		if err != nil {
+			recordError(fmt.Errorf("load P2H detail batch: %w", err))
+			if errors.Is(err, ErrUnauthorized) || errors.Is(err, ErrNotConfigured) {
+				applyCounters()
+				return details, firstErr
+			}
+			processed += len(batch)
+			continue
+		}
+
+		seen := make(map[int64]struct{}, len(reports))
+		for _, report := range reports {
+			seen[report.OdooReportID] = struct{}{}
+			if _, err := s.repo.UpsertMetadata(ctx, report); err != nil {
+				recordError(fmt.Errorf("upsert P2H report %d detail metadata: %w", report.OdooReportID, err))
+				continue
+			}
+			result, err := s.repo.SaveDetail(ctx, report, settings, time.Now())
+			if err != nil {
+				recordError(fmt.Errorf("save P2H report %d: %w", report.OdooReportID, err))
+				continue
+			}
+			details++
+			findings += result.Findings
+			if result.Candidate != nil {
+				candidates++
+				if result.Candidate.AutoWO {
+					workOrders++
+				}
+			}
+		}
+		for _, id := range batch {
+			if _, ok := seen[id]; !ok {
+				recordError(fmt.Errorf("P2H report %d is missing from detail batch", id))
+			}
+		}
+
+		processed += len(batch)
+		if processed%100 == 0 || processed == total {
+			s.logger.Info("P2H detail progress",
+				"processed", processed,
+				"total", total,
+				"details", details,
+				"errors", errorCount,
+			)
+		}
+	}
+
+	applyCounters()
+	return details, firstErr
+}
+
+func (s *SyncService) syncDetailsREST(ctx context.Context, ids map[int64]struct{}, settings SettingsValues, counters *SyncCounters) (int, error) {
 	jobs := make(chan int64)
 	limiter := time.NewTicker(time.Second)
 	defer limiter.Stop()
