@@ -3,6 +3,7 @@
 import {
   Boxes,
   CircleAlert,
+  ClipboardCheck,
   ClipboardList,
   LayoutDashboard,
   ListChecks,
@@ -86,6 +87,11 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
         label: "Usulan WO",
         icon: ListChecks,
         roles: ["admin", "planner"],
+      },
+      {
+        href: "/workorders",
+        label: "Work Order",
+        icon: ClipboardCheck,
       },
     ],
   },

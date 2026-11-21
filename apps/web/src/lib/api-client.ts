@@ -15,13 +15,14 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = init?.body instanceof FormData;
   const response = await fetch(path, {
     ...init,
     credentials: "same-origin",
     cache: "no-store",
     headers: {
       Accept: "application/json",
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.body && !isFormData ? { "Content-Type": "application/json" } : {}),
       ...init?.headers,
     },
   });
@@ -67,5 +68,12 @@ export function proxyPatch<T>(path: string, body: unknown): Promise<T> {
   return request(`/api/proxy${path}`, {
     method: "PATCH",
     body: JSON.stringify(body),
+  });
+}
+
+export function proxyUpload<T>(path: string, formData: FormData): Promise<T> {
+  return request(`/api/proxy${path}`, {
+    method: "POST",
+    body: formData,
   });
 }

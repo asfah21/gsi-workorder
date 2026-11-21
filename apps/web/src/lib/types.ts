@@ -143,21 +143,74 @@ export type WOCandidate = {
   created_at: string;
 };
 
+export type WorkOrderPriority = "low" | "medium" | "high" | "critical";
+export type WorkOrderMaintenanceType =
+  | "preventive"
+  | "corrective"
+  | "breakdown"
+  | "inspection";
+
 export type WorkOrderRecord = {
   id: number;
   code: string;
   unit_id?: number;
+  unit_code: string;
   source: string;
   p2h_report_id?: number;
   candidate_id?: number;
   title: string;
   description: string;
-  priority: "low" | "medium" | "high" | "critical";
+  priority: WorkOrderPriority;
   status: string;
+  maintenance_type: WorkOrderMaintenanceType;
   assignee_id?: number;
+  assignee_name: string;
+  supervisor_id?: number;
+  supervisor_name: string;
   created_by?: number;
+  created_by_name: string;
+  due_date?: string;
+  started_at?: string;
+  closed_at?: string;
   created_at: string;
   updated_at: string;
+};
+
+export type WorkOrderFinding = {
+  id: number;
+  odoo_line_id: number;
+  question_id?: number;
+  component: string;
+  category: string;
+  condition: string;
+  remark: string;
+};
+
+export type WorkOrderUpdate = {
+  id: number;
+  wo_id: number;
+  user_id?: number;
+  user_name: string;
+  note: string;
+  status_from: string;
+  status_to: string;
+  created_at: string;
+};
+
+export type WorkOrderAttachment = {
+  id: number;
+  wo_id: number;
+  file_path: string;
+  mime: string;
+  size_bytes: number;
+  uploaded_by?: number;
+  created_at: string;
+};
+
+export type WorkOrderDetail = WorkOrderRecord & {
+  findings: WorkOrderFinding[];
+  updates: WorkOrderUpdate[];
+  attachments: WorkOrderAttachment[];
 };
 
 export type CandidateWorkOrder = {

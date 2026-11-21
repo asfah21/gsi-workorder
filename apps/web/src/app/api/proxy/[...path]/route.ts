@@ -23,6 +23,7 @@ const ALLOWED_PREFIXES = new Set([
   "p2h",
   "notifications",
   "settings",
+  "workorders",
 ]);
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH"]);
 
@@ -73,16 +74,17 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<NextR
     return errorResponse(401, "unauthorized", "Sesi tidak valid");
   }
 
-  const body = request.method === "GET" ? undefined : await request.text();
+  const body = request.method === "GET" ? undefined : await request.arrayBuffer();
+  const contentType = request.headers.get("content-type") || undefined;
   const target = new URL(`/api/${path.join("/")}`, apiBaseUrl());
   target.search = request.nextUrl.search;
 
-  let upstream = await send(target, request.method, accessToken, body);
+  let upstream = await send(target, request.method, accessToken, body, contentType);
   if (upstream.status === 401 && refreshToken && !refreshed) {
     refreshed = await refreshSession(refreshToken);
     if (refreshed) {
       accessToken = refreshed.access_token;
-      upstream = await send(target, request.method, accessToken, body);
+      upstream = await send(target, request.method, accessToken, body, contentType);
     }
   }
 
@@ -92,12 +94,15 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<NextR
     return response;
   }
 
-  const text = upstream.status === 204 ? "" : await upstream.text();
-  const response = new NextResponse(text || null, {
+  const buffer = upstream.status === 204 ? null : await upstream.arrayBuffer();
+  const response = new NextResponse(buffer, {
     status: upstream.status,
     headers: {
       "Content-Type": upstream.headers.get("content-type") || "application/json; charset=utf-8",
       "Cache-Control": "no-store",
+      ...(upstream.headers.get("content-disposition")
+        ? { "Content-Disposition": upstream.headers.get("content-disposition") as string }
+        : {}),
     },
   });
   if (refreshed) {
@@ -110,14 +115,15 @@ async function send(
   target: URL,
   method: string,
   accessToken: string,
-  body: string | undefined,
+  body: ArrayBuffer | undefined,
+  contentType: string | undefined,
 ): Promise<Response> {
   return fetch(target, {
     method,
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${accessToken}`,
-      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(contentType ? { "Content-Type": contentType } : {}),
     },
     body,
     cache: "no-store",

@@ -26,7 +26,7 @@ Fakta M0:
 | Auto-WO P2H | default `false`; hanya jika setting `true` |
 | Timezone saat ini | `APP_TIMEZONE` default `Asia/Makassar` dan divalidasi saat startup; `.env.example` dan `docker-compose.yml` masih memakai `TZ=Asia/Jakarta`. Target proses `TZ=UTC` + `APP_TIMEZONE=Asia/Makassar`; perubahan config butuh approval terpisah |
 
-**Fase saat ini (status per 2026-11-21):** M1 dan M2 sudah **accepted**. Verifikasi lokal M1/M2 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL M2) lulus. Sync Odoo nyata diverifikasi pada 2026-11-21: 4.454 report, 8.519 finding, 2.501 kandidat unik (587 pending, 1.914 archived), `work_orders` hasil sync = 0, dan `raw` tanpa foto. Sync kedua idempoten. Kontrak skip divalidasi sebagai 400 dan bulk tetap 422. M3 belum dimulai dan tetap diblokir sampai instruksi eksplisit.
+**Fase saat ini (status per 2026-11-21):** M1 dan M2 sudah **accepted**. Verifikasi lokal M1/M2 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL M2) lulus. Sync Odoo nyata diverifikasi pada 2026-11-21: 4.454 report, 8.519 finding, 2.501 kandidat unik (587 pending, 1.914 archived), `work_orders` hasil sync = 0, dan `raw` tanpa foto. Sync kedua idempoten. Kontrak skip divalidasi sebagai 400 dan bulk tetap 422. M3 baseline sudah diimplementasikan di repo: WO manual, lifecycle, assignment/supervisor, `maintenance_type`, `started_at`, `wo_updates`, lampiran JPG/PNG, dan waiting_part dengan alasan + audit; status **menunggu acceptance server**.
 
 > **Verification note:** runtime Docker/Linux M0 dan sync Odoo nyata sudah terverifikasi di server UAT. Route auth, unit, P2H, candidate, notification, dan settings sudah terdaftar dan diuji di router API. Jangan mengubah migrasi atau kode M0.
 >
