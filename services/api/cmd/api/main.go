@@ -22,6 +22,7 @@ import (
 	"gsi-workorder/internal/settings"
 	"gsi-workorder/internal/store"
 	"gsi-workorder/internal/units"
+	"gsi-workorder/internal/users"
 	"gsi-workorder/internal/workorders"
 )
 
@@ -86,6 +87,7 @@ func run(logger *slog.Logger) error {
 	settingsService := settings.NewService(settings.NewRepository(pool))
 	p2hService := p2h.NewReportService(p2h.NewRepository(pool, cfg.AppLocation))
 	workOrderService := workorders.NewRepository(pool, cfg.AppLocation)
+	userDirectoryService := users.NewRepository(pool)
 
 	server := &http.Server{
 		Addr: ":" + cfg.Port,
@@ -95,6 +97,7 @@ func run(logger *slog.Logger) error {
 			Settings:      settingsService,
 			P2H:           p2hService,
 			WorkOrders:    workOrderService,
+			Users:         userDirectoryService,
 			UploadDir:     cfg.UploadDir,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,

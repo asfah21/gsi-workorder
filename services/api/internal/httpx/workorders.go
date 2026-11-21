@@ -64,6 +64,8 @@ type updateWorkOrderRequest struct {
 	MaintenanceType *string `json:"maintenance_type"`
 	AssigneeID      *int64  `json:"assignee_id"`
 	SupervisorID    *int64  `json:"supervisor_id"`
+	ClearAssignee   bool    `json:"clear_assignee"`
+	ClearSupervisor bool    `json:"clear_supervisor"`
 	Title           *string `json:"title"`
 	Description     *string `json:"description"`
 }
@@ -178,6 +180,8 @@ func (h *WorkOrderHandler) Update(c *gin.Context) {
 		MaintenanceType: request.MaintenanceType,
 		AssigneeID:      request.AssigneeID,
 		SupervisorID:    request.SupervisorID,
+		ClearAssignee:   request.ClearAssignee,
+		ClearSupervisor: request.ClearSupervisor,
 		Title:           request.Title,
 		Description:     request.Description,
 	})

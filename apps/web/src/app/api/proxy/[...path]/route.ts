@@ -24,6 +24,7 @@ const ALLOWED_PREFIXES = new Set([
   "notifications",
   "settings",
   "workorders",
+  "users",
 ]);
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH"]);
 

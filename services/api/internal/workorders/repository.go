@@ -64,6 +64,8 @@ type PatchInput struct {
 	MaintenanceType *string
 	AssigneeID      *int64
 	SupervisorID    *int64
+	ClearAssignee   bool
+	ClearSupervisor bool
 	Title           *string
 	Description     *string
 }
@@ -404,7 +406,12 @@ func (r *Repository) Update(ctx context.Context, id int64, actor Actor, input Pa
 		}
 		item.MaintenanceType = maintenanceType
 	}
-	if input.AssigneeID != nil {
+	if input.ClearAssignee {
+		if actor.Role == "mechanic" {
+			return WorkOrder{}, ErrForbidden
+		}
+		item.AssigneeID = nil
+	} else if input.AssigneeID != nil {
 		if actor.Role == "mechanic" && *input.AssigneeID != actor.ID {
 			return WorkOrder{}, ErrForbidden
 		}
@@ -413,7 +420,12 @@ func (r *Repository) Update(ctx context.Context, id int64, actor Actor, input Pa
 		}
 		item.AssigneeID = input.AssigneeID
 	}
-	if input.SupervisorID != nil {
+	if input.ClearSupervisor {
+		if actor.Role == "mechanic" {
+			return WorkOrder{}, ErrForbidden
+		}
+		item.SupervisorID = nil
+	} else if input.SupervisorID != nil {
 		if actor.Role == "mechanic" {
 			return WorkOrder{}, ErrForbidden
 		}
@@ -421,6 +433,9 @@ func (r *Repository) Update(ctx context.Context, id int64, actor Actor, input Pa
 			return WorkOrder{}, err
 		}
 		item.SupervisorID = input.SupervisorID
+	}
+	if (statusTo == "in_progress" || statusTo == "waiting_part") && item.AssigneeID == nil {
+		return WorkOrder{}, &ValidationError{Fields: map[string]string{"assignee_id": "Assignee wajib diisi untuk status ini."}}
 	}
 
 	if _, err := tx.Exec(ctx, `

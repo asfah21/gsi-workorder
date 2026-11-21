@@ -71,6 +71,7 @@ import type {
   DataResponse,
   ListResponse,
   Unit,
+  UserOption,
   WorkOrderAttachment,
   WorkOrderDetail,
   WorkOrderMaintenanceType,
@@ -167,6 +168,8 @@ export function WorkOrdersView() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [createError, setCreateError] = useState("");
   const [createBusy, setCreateBusy] = useState(false);
   const [createForm, setCreateForm] = useState({
@@ -176,7 +179,12 @@ export function WorkOrdersView() {
     priority: "medium",
     maintenance_type: "corrective",
     due_date: "",
+    assignee_id: "",
+    supervisor_id: "",
   });
+  const [assigneeDraft, setAssigneeDraft] = useState("");
+  const [supervisorDraft, setSupervisorDraft] = useState("");
+  const [assignmentBusy, setAssignmentBusy] = useState(false);
 
   const [comment, setComment] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -184,6 +192,21 @@ export function WorkOrdersView() {
 
   const canCreate = user.role === "admin" || user.role === "planner";
   const canCancel = user.role === "admin" || user.role === "planner";
+
+  const loadUsers = useCallback(async () => {
+    if (users.length > 0 || usersLoading) return;
+    setUsersLoading(true);
+    try {
+      const result = await proxyGet<ListResponse<UserOption>>(
+        "/users?roles=admin,planner,mechanic&limit=1000",
+      );
+      setUsers(result.data);
+    } catch (loadError) {
+      setCreateError(loadError instanceof ApiError ? loadError.message : "Daftar user tidak dapat dimuat.");
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [users.length, usersLoading]);
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -224,6 +247,8 @@ export function WorkOrdersView() {
     try {
       const result = await proxyGet<DataResponse<WorkOrderDetail>>(`/workorders/${id}`);
       setDetail(result.data);
+      setAssigneeDraft(result.data.assignee_id ? String(result.data.assignee_id) : "");
+      setSupervisorDraft(result.data.supervisor_id ? String(result.data.supervisor_id) : "");
     } catch (loadError) {
       setDetail(null);
       setDetailError(loadError instanceof ApiError ? loadError.message : "Detail work order tidak dapat dimuat.");
@@ -238,6 +263,9 @@ export function WorkOrdersView() {
     setActionNote("");
     setComment("");
     setAttachment(null);
+    if (canCreate) {
+      void loadUsers();
+    }
     void loadDetail(id);
   };
 
@@ -309,6 +337,7 @@ export function WorkOrdersView() {
   const openCreate = async () => {
     setCreateOpen(true);
     setCreateError("");
+    void loadUsers();
     if (units.length === 0) {
       try {
         const result = await proxyGet<ListResponse<Unit>>(
@@ -334,6 +363,12 @@ export function WorkOrdersView() {
         priority: createForm.priority,
         maintenance_type: createForm.maintenance_type,
         due_date: createForm.due_date,
+        ...(createForm.assignee_id
+          ? { assignee_id: Number(createForm.assignee_id) }
+          : {}),
+        ...(createForm.supervisor_id
+          ? { supervisor_id: Number(createForm.supervisor_id) }
+          : {}),
       });
       setCreateOpen(false);
       setCreateForm({
@@ -343,6 +378,8 @@ export function WorkOrdersView() {
         priority: "medium",
         maintenance_type: "corrective",
         due_date: "",
+        assignee_id: "",
+        supervisor_id: "",
       });
       setSuccess(`Work order ${result.data.code} dibuat.`);
       await loadList();
@@ -354,8 +391,44 @@ export function WorkOrdersView() {
     }
   };
 
+  const saveAssignment = async () => {
+    if (!detail || assignmentBusy) return;
+    if (!assigneeDraft && !supervisorDraft && !detail.assignee_id && !detail.supervisor_id) {
+      setDetailError("Pilih assignee atau supervisor terlebih dahulu.");
+      return;
+    }
+    setAssignmentBusy(true);
+    setDetailError("");
+    try {
+      await proxyPatch(`/workorders/${detail.id}`, {
+        ...(assigneeDraft
+          ? { assignee_id: Number(assigneeDraft) }
+          : { clear_assignee: true }),
+        ...(supervisorDraft
+          ? { supervisor_id: Number(supervisorDraft) }
+          : { clear_supervisor: true }),
+      });
+      setSuccess("Penugasan work order diperbarui.");
+      await refreshDetail(detail.id);
+    } catch (assignmentError) {
+      setDetailError(
+        assignmentError instanceof ApiError
+          ? assignmentError.message
+          : "Penugasan tidak dapat diperbarui.",
+      );
+    } finally {
+      setAssignmentBusy(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / list.pageSize));
   const canAct = detail && ["open", "in_progress", "waiting_part"].includes(detail.status);
+  const assigneeOptions = users.filter((item) =>
+    ["admin", "planner", "mechanic"].includes(item.role),
+  );
+  const supervisorOptions = users.filter((item) =>
+    ["admin", "planner"].includes(item.role),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -630,6 +703,40 @@ export function WorkOrdersView() {
                 onChange={(event) => setCreateForm((current) => ({ ...current, due_date: event.target.value }))}
               />
             </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="create-assignee">Assignee</FieldLabel>
+                <NativeSelect
+                  id="create-assignee"
+                  value={createForm.assignee_id}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, assignee_id: event.target.value }))}
+                  disabled={usersLoading}
+                >
+                  <NativeSelectOption value="">Belum di-assign</NativeSelectOption>
+                  {assigneeOptions.map((item) => (
+                    <NativeSelectOption key={item.id} value={String(item.id)}>
+                      {item.name} ({item.role})
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="create-supervisor">Supervisor</FieldLabel>
+                <NativeSelect
+                  id="create-supervisor"
+                  value={createForm.supervisor_id}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, supervisor_id: event.target.value }))}
+                  disabled={usersLoading}
+                >
+                  <NativeSelectOption value="">Belum ada supervisor</NativeSelectOption>
+                  {supervisorOptions.map((item) => (
+                    <NativeSelectOption key={item.id} value={String(item.id)}>
+                      {item.name} ({item.role})
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+            </div>
             {createError ? <FieldError>{createError}</FieldError> : null}
             <SheetFooter className="px-0">
               <Button type="submit" disabled={createBusy}>
@@ -680,6 +787,57 @@ export function WorkOrdersView() {
                   <Info label="Mulai" value={formatDateTimeWita(detail.started_at)} />
                   <Info label="Selesai" value={formatDateTimeWita(detail.closed_at)} />
                 </div>
+
+                {canCreate ? (
+                  <div className="rounded-lg border border-border p-3">
+                    <h3 className="text-sm font-semibold">Penugasan</h3>
+                    <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                      <Field>
+                        <FieldLabel htmlFor="detail-assignee">Assignee</FieldLabel>
+                        <NativeSelect
+                          id="detail-assignee"
+                          value={assigneeDraft}
+                          onChange={(event) => setAssigneeDraft(event.target.value)}
+                          disabled={usersLoading}
+                        >
+                          <NativeSelectOption value="">Belum di-assign</NativeSelectOption>
+                          {assigneeOptions.map((item) => (
+                            <NativeSelectOption key={item.id} value={String(item.id)}>
+                              {item.name} ({item.role})
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="detail-supervisor">Supervisor</FieldLabel>
+                        <NativeSelect
+                          id="detail-supervisor"
+                          value={supervisorDraft}
+                          onChange={(event) => setSupervisorDraft(event.target.value)}
+                          disabled={usersLoading}
+                        >
+                          <NativeSelectOption value="">Belum ada supervisor</NativeSelectOption>
+                          {supervisorOptions.map((item) => (
+                            <NativeSelectOption key={item.id} value={String(item.id)}>
+                              {item.name} ({item.role})
+                            </NativeSelectOption>
+                          ))}
+                        </NativeSelect>
+                      </Field>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="mt-3"
+                      onClick={() => void saveAssignment()}
+                      disabled={assignmentBusy || usersLoading || (!assigneeDraft && !supervisorDraft && !detail.assignee_id && !detail.supervisor_id)}
+                    >
+                      {assignmentBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+                      Simpan penugasan
+                    </Button>
+                  </div>
+                ) : null}
 
                 {detail.description ? (
                   <div>

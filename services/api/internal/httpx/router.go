@@ -30,6 +30,7 @@ type M2Services struct {
 	Settings      SettingsService
 	P2H           P2HService
 	WorkOrders    WorkOrderService
+	Users         UserDirectoryService
 	UploadDir     string
 }
 
@@ -106,6 +107,12 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 			p2hHandler := NewP2HHandler(m2.P2H, logger)
 			authorized.GET("/p2h/reports", p2hHandler.ListReports)
 			authorized.GET("/p2h/reports/:id", p2hHandler.GetReport)
+		}
+		if m2.Users != nil {
+			userHandler := NewUserDirectoryHandler(m2.Users, logger)
+			userReaders := authorized.Group("")
+			userReaders.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner))
+			userReaders.GET("/users", userHandler.List)
 		}
 		if m2.WorkOrders != nil {
 			workOrderHandler := NewWorkOrderHandler(m2.WorkOrders, logger, m2.UploadDir)

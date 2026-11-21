@@ -143,6 +143,14 @@ export type WOCandidate = {
   created_at: string;
 };
 
+export type UserOption = {
+  id: number;
+  nik: string;
+  name: string;
+  role: Role;
+  is_active: boolean;
+};
+
 export type WorkOrderPriority = "low" | "medium" | "high" | "critical";
 export type WorkOrderMaintenanceType =
   | "preventive"
