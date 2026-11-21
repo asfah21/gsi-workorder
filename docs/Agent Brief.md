@@ -136,7 +136,7 @@ Fakta M0:
 * [x] PM history/compliance dari WO; belum ada material plan/requirement (M5/M6).
 * [x] Tidak ada interval hardcoded.
 
-> Catatan M4: implementasi dan integration test PostgreSQL lulus lokal. Acceptance server (migration `version=7`, job worker 07:00 WITA, dan uji UI) masih pending.
+> Catatan M4: implementasi dan integration test PostgreSQL lulus lokal. Acceptance server (migration `version=7`, job worker 07:00 WITA, dan uji UI) masih pending. Evaluasi PM dapat dijalankan manual dengan `docker compose exec worker /app/worker evaluate-pm`.
 
 ### M5 — Sparepart & Inventory
 
