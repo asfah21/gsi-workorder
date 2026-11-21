@@ -363,7 +363,7 @@ function AppShellFrame({
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder="Cari unit..."
                     enterKeyHint="search"
-                    className="pl-9"
+                    className="pl-9 text-sm leading-5"
                   />
                 </div>
               </form>
