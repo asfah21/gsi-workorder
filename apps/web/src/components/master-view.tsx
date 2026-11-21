@@ -206,7 +206,7 @@ export function MasterView() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardContent className="flex flex-wrap items-center justify-between gap-4">
+        <CardContent className="flex flex-row flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold">Master unit</h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">

@@ -59,7 +59,7 @@ export function ProfileMenu({
           <SheetTitle className="mt-3 text-lg">{displayName}</SheetTitle>
           <SheetDescription>
             <span className="block">{roleLabel}</span>
-            <span className="block font-mono">{user.nik}</span>
+            <span className="block">{user.nik}</span>
             {user.email ? (
               <span className="block truncate">{user.email}</span>
             ) : null}

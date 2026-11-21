@@ -280,11 +280,11 @@ function AppShellFrame({
                 <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
                   <Wrench className="size-4" aria-hidden="true" />
                 </span>
-                <span className="min-w-0">
+                <span className="hidden min-w-0 sm:block">
                   <span className="block truncate text-sm font-semibold">
                     GSI Work Order
                   </span>
-                  <span className="hidden truncate text-xs text-muted-foreground sm:block">
+                  <span className="block truncate text-xs text-muted-foreground">
                     Maintenance &amp; Unit
                   </span>
                 </span>

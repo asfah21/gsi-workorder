@@ -200,7 +200,7 @@ export function DashboardView() {
             </CardTitle>
             <CardDescription>Data master saat ini.</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
+          <CardContent className="grid grid-cols-2 gap-2">
             <Insight
               icon={Truck}
               label="Total unit"
@@ -221,7 +221,7 @@ export function DashboardView() {
             />
             <Insight
               icon={Activity}
-              label="Reading 30 hari"
+              label="Reading 30d"
               value={summary?.readings_last_30_days}
               loading={loading && !summary}
             />
@@ -243,8 +243,8 @@ export function DashboardView() {
               {loading && !summary ? <Skeleton className="h-4 w-8" /> : `${readiness}%`}
             </Badge>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-6 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+          <CardContent className="flex flex-1 flex-col justify-between gap-4">
+            <div className="grid flex-1 items-center gap-6 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
               <div className="flex flex-col justify-center rounded-xl border border-border bg-muted/30 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Kesiapan
@@ -282,6 +282,16 @@ export function DashboardView() {
                   color="var(--chart-4)"
                 />
               </div>
+            </div>
+            <div className="flex items-center justify-between gap-2 border-t pt-4 text-xs text-muted-foreground">
+              <span>Data sesuai master unit saat ini.</span>
+              <Link
+                href="/units"
+                className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
+              >
+                Lihat unit
+                <ArrowRight className="size-3.5" aria-hidden="true" />
+              </Link>
             </div>
           </CardContent>
         </Card>
@@ -463,15 +473,15 @@ function Insight({
   loading: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/20 p-3">
-      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        <Icon className="size-3.5" aria-hidden="true" />
+    <div className="rounded-lg border border-border bg-muted/20 p-2.5">
+      <div className="flex items-center gap-1.5 whitespace-nowrap text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+        <Icon className="size-3.5 shrink-0" aria-hidden="true" />
         {label}
       </div>
       {loading ? (
-        <Skeleton className="mt-2 h-6 w-16" />
+        <Skeleton className="mt-1 h-5 w-14" />
       ) : (
-        <p className="mt-2 text-2xl font-semibold tabular-nums">
+        <p className="mt-1 text-lg font-semibold tabular-nums">
           {formatOptionalNumber(value)}
         </p>
       )}
