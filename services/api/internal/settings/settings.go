@@ -15,9 +15,14 @@ const (
 	KeyP2HAutoWO             = "p2h_auto_wo"
 	KeyCandidateSLAHours     = "candidate_sla_hours"
 	KeyCandidateBackfillDays = "candidate_backfill_days"
+	KeyPMAutoWO              = "pm_auto_wo"
+	KeyPMUpcomingDays        = "pm_upcoming_days"
+	KeyPMDueSoonDays         = "pm_due_soon_days"
 
 	defaultCandidateSLAHours     = 24
 	defaultCandidateBackfillDays = 30
+	defaultPMUpcomingDays        = 30
+	defaultPMDueSoonDays         = 7
 )
 
 var (
@@ -51,6 +56,9 @@ type Snapshot struct {
 	P2HAutoWO             bool      `json:"p2h_auto_wo"`
 	CandidateSLAHours     int       `json:"candidate_sla_hours"`
 	CandidateBackfillDays int       `json:"candidate_backfill_days"`
+	PMAutoWO              bool      `json:"pm_auto_wo"`
+	PMUpcomingDays        int       `json:"pm_upcoming_days"`
+	PMDueSoonDays         int       `json:"pm_due_soon_days"`
 	UpdatedAt             time.Time `json:"updated_at"`
 	History               []History `json:"history"`
 }
@@ -59,6 +67,9 @@ type Patch struct {
 	P2HAutoWO             *bool
 	CandidateSLAHours     *int
 	CandidateBackfillDays *int
+	PMAutoWO              *bool
+	PMUpcomingDays        *int
+	PMDueSoonDays         *int
 }
 
 type Repository struct {
@@ -74,7 +85,14 @@ func (r *Repository) Get(ctx context.Context) (Snapshot, error) {
 		SELECT key, COALESCE(value, ''), COALESCE(updated_at, now())
 		FROM app_settings
 		WHERE key = ANY($1)
-	`, []string{KeyP2HAutoWO, KeyCandidateSLAHours, KeyCandidateBackfillDays})
+	`, []string{
+		KeyP2HAutoWO,
+		KeyCandidateSLAHours,
+		KeyCandidateBackfillDays,
+		KeyPMAutoWO,
+		KeyPMUpcomingDays,
+		KeyPMDueSoonDays,
+	})
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("get settings: %w", err)
 	}
@@ -96,6 +114,9 @@ func (r *Repository) Get(ctx context.Context) (Snapshot, error) {
 		P2HAutoWO:             parseBool(values[KeyP2HAutoWO].Value, false),
 		CandidateSLAHours:     parseInt(values[KeyCandidateSLAHours].Value, defaultCandidateSLAHours),
 		CandidateBackfillDays: parseInt(values[KeyCandidateBackfillDays].Value, defaultCandidateBackfillDays),
+		PMAutoWO:              parseBool(values[KeyPMAutoWO].Value, false),
+		PMUpcomingDays:        parseInt(values[KeyPMUpcomingDays].Value, defaultPMUpcomingDays),
+		PMDueSoonDays:         parseInt(values[KeyPMDueSoonDays].Value, defaultPMDueSoonDays),
 		UpdatedAt:             latestTime(values),
 	}
 	history, err := r.History(ctx, 50)
@@ -213,6 +234,23 @@ func normalizePatch(patch Patch) ([]change, map[string]string) {
 			fields["candidate_backfill_days"] = "Harus antara 0 dan 3650 hari."
 		} else {
 			changes = append(changes, change{Key: KeyCandidateBackfillDays, Value: strconv.Itoa(*patch.CandidateBackfillDays)})
+		}
+	}
+	if patch.PMAutoWO != nil {
+		changes = append(changes, change{Key: KeyPMAutoWO, Value: strconv.FormatBool(*patch.PMAutoWO)})
+	}
+	if patch.PMUpcomingDays != nil {
+		if *patch.PMUpcomingDays < 1 || *patch.PMUpcomingDays > 365 {
+			fields["pm_upcoming_days"] = "Harus antara 1 dan 365 hari."
+		} else {
+			changes = append(changes, change{Key: KeyPMUpcomingDays, Value: strconv.Itoa(*patch.PMUpcomingDays)})
+		}
+	}
+	if patch.PMDueSoonDays != nil {
+		if *patch.PMDueSoonDays < 1 || *patch.PMDueSoonDays > 365 {
+			fields["pm_due_soon_days"] = "Harus antara 1 dan 365 hari."
+		} else {
+			changes = append(changes, change{Key: KeyPMDueSoonDays, Value: strconv.Itoa(*patch.PMDueSoonDays)})
 		}
 	}
 	return changes, fields

@@ -32,6 +32,9 @@ type settingsPatchRequest struct {
 	P2HAutoWO             *bool `json:"p2h_auto_wo"`
 	CandidateSLAHours     *int  `json:"candidate_sla_hours"`
 	CandidateBackfillDays *int  `json:"candidate_backfill_days"`
+	PMAutoWO              *bool `json:"pm_auto_wo"`
+	PMUpcomingDays        *int  `json:"pm_upcoming_days"`
+	PMDueSoonDays         *int  `json:"pm_due_soon_days"`
 }
 
 func (h *SettingsHandler) Get(c *gin.Context) {
@@ -58,6 +61,9 @@ func (h *SettingsHandler) Update(c *gin.Context) {
 		P2HAutoWO:             request.P2HAutoWO,
 		CandidateSLAHours:     request.CandidateSLAHours,
 		CandidateBackfillDays: request.CandidateBackfillDays,
+		PMAutoWO:              request.PMAutoWO,
+		PMUpcomingDays:        request.PMUpcomingDays,
+		PMDueSoonDays:         request.PMDueSoonDays,
 	})
 	if err != nil {
 		h.writeError(c, err, "update settings")

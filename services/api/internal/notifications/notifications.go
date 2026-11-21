@@ -21,11 +21,12 @@ type Notification struct {
 }
 
 type CreateInput struct {
-	Type    string
-	Title   string
-	Body    string
-	RefType string
-	RefID   *int64
+	Type      string
+	Title     string
+	Body      string
+	RefType   string
+	RefID     *int64
+	DedupeKey string
 }
 
 type Repository struct {
@@ -92,21 +93,25 @@ func CreateForUsers(ctx context.Context, tx pgx.Tx, userIDs []int64, input Creat
 	batch := &pgx.Batch{}
 	for _, userID := range ids {
 		batch.Queue(`
-			INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id)
-			VALUES ($1, $2, $3, $4, $5, $6)
-		`, userID, input.Type, input.Title, input.Body, input.RefType, input.RefID)
+			INSERT INTO notifications (user_id, type, title, body, ref_type, ref_id, dedupe_key)
+			VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''))
+			ON CONFLICT DO NOTHING
+		`, userID, input.Type, input.Title, input.Body, input.RefType, input.RefID, input.DedupeKey)
 	}
 	results := tx.SendBatch(ctx, batch)
+	inserted := 0
 	for range ids {
-		if _, err := results.Exec(); err != nil {
+		tag, err := results.Exec()
+		if err != nil {
 			_ = results.Close()
 			return 0, fmt.Errorf("insert notification: %w", err)
 		}
+		inserted += int(tag.RowsAffected())
 	}
 	if err := results.Close(); err != nil {
 		return 0, fmt.Errorf("close notification batch: %w", err)
 	}
-	return len(ids), nil
+	return inserted, nil
 }
 
 func (r *Repository) List(ctx context.Context, userID int64, page, limit int, unreadOnly bool) ([]Notification, int, int, error) {

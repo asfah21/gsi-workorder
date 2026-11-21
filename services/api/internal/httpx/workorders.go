@@ -28,6 +28,7 @@ type WorkOrderService interface {
 	CreateManual(ctx context.Context, actor workorders.Actor, input workorders.CreateManualInput) (workorders.WorkOrder, error)
 	Update(ctx context.Context, id int64, actor workorders.Actor, input workorders.PatchInput) (workorders.WorkOrder, error)
 	AddUpdate(ctx context.Context, id int64, actor workorders.Actor, note string) (workorders.UpdateRow, error)
+	UpdateChecklistItem(ctx context.Context, id, itemID int64, actor workorders.Actor, result string) (workorders.ChecklistItem, error)
 	AddAttachment(ctx context.Context, id int64, actor workorders.Actor, filePath, mime string, size int) (workorders.Attachment, error)
 	GetAttachment(ctx context.Context, id, attachmentID int64, actor workorders.Actor) (workorders.Attachment, error)
 }
@@ -57,17 +58,23 @@ type createWorkOrderRequest struct {
 }
 
 type updateWorkOrderRequest struct {
-	Status          string  `json:"status"`
-	Note            string  `json:"note"`
-	Reason          string  `json:"reason"`
-	Priority        *string `json:"priority"`
-	MaintenanceType *string `json:"maintenance_type"`
-	AssigneeID      *int64  `json:"assignee_id"`
-	SupervisorID    *int64  `json:"supervisor_id"`
-	ClearAssignee   bool    `json:"clear_assignee"`
-	ClearSupervisor bool    `json:"clear_supervisor"`
-	Title           *string `json:"title"`
-	Description     *string `json:"description"`
+	Status          string   `json:"status"`
+	Note            string   `json:"note"`
+	Reason          string   `json:"reason"`
+	Priority        *string  `json:"priority"`
+	MaintenanceType *string  `json:"maintenance_type"`
+	AssigneeID      *int64   `json:"assignee_id"`
+	SupervisorID    *int64   `json:"supervisor_id"`
+	ClearAssignee   bool     `json:"clear_assignee"`
+	ClearSupervisor bool     `json:"clear_supervisor"`
+	Title           *string  `json:"title"`
+	Description     *string  `json:"description"`
+	HMReading       *float64 `json:"reading_hm"`
+	KMReading       *float64 `json:"reading_km"`
+}
+
+type checklistResultRequest struct {
+	Result string `json:"result"`
 }
 
 type workOrderNoteRequest struct {
@@ -184,6 +191,8 @@ func (h *WorkOrderHandler) Update(c *gin.Context) {
 		ClearSupervisor: request.ClearSupervisor,
 		Title:           request.Title,
 		Description:     request.Description,
+		HMReading:       request.HMReading,
+		KMReading:       request.KMReading,
 	})
 	if err != nil {
 		h.writeError(c, err, "update work order")
@@ -212,6 +221,33 @@ func (h *WorkOrderHandler) AddUpdate(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"data": item})
+}
+
+func (h *WorkOrderHandler) UpdateChecklistItem(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	itemID, err := strconv.ParseInt(c.Param("item_id"), 10, 64)
+	if err != nil || itemID <= 0 {
+		writeUnitError(c, http.StatusBadRequest, "invalid_id", "ID checklist tidak valid", nil)
+		return
+	}
+	actor, ok := workOrderActor(c)
+	if !ok {
+		return
+	}
+	var request checklistResultRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_request", "Body checklist tidak valid", nil)
+		return
+	}
+	item, err := h.service.UpdateChecklistItem(c.Request.Context(), id, itemID, actor, request.Result)
+	if err != nil {
+		h.writeError(c, err, "update work-order checklist")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": item})
 }
 
 func (h *WorkOrderHandler) UploadAttachment(c *gin.Context) {

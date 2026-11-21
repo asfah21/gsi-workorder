@@ -31,6 +31,7 @@ type M2Services struct {
 	P2H           P2HService
 	WorkOrders    WorkOrderService
 	Users         UserDirectoryService
+	PM            PMService
 	UploadDir     string
 }
 
@@ -127,8 +128,30 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 			workOrderWriters := authorized.Group("")
 			workOrderWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner, auth.RoleMechanic))
 			workOrderWriters.PATCH("/workorders/:id", workOrderHandler.Update)
+			workOrderWriters.PATCH("/workorders/:id/checklist/:item_id", workOrderHandler.UpdateChecklistItem)
 			workOrderWriters.POST("/workorders/:id/updates", workOrderHandler.AddUpdate)
 			workOrderWriters.POST("/workorders/:id/attachments", workOrderHandler.UploadAttachment)
+		}
+		if m2.PM != nil {
+			pmHandler := NewPMHandler(m2.PM, logger)
+			authorized.GET("/pm/plans", pmHandler.ListPlans)
+			authorized.GET("/pm/plans/:id", pmHandler.GetPlan)
+			authorized.GET("/pm/plans/:id/checklist-items", pmHandler.ListChecklistItems)
+			authorized.GET("/pm/schedules", pmHandler.ListSchedules)
+			authorized.GET("/pm/schedules/:id", pmHandler.GetSchedule)
+			authorized.GET("/pm/due", pmHandler.Due)
+			authorized.GET("/pm/compliance", pmHandler.Compliance)
+
+			pmWriters := authorized.Group("")
+			pmWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner))
+			pmWriters.POST("/pm/plans", pmHandler.CreatePlan)
+			pmWriters.PATCH("/pm/plans/:id", pmHandler.UpdatePlan)
+			pmWriters.POST("/pm/plans/:id/status", pmHandler.SetPlanStatus)
+			pmWriters.POST("/pm/plans/:id/checklist-items", pmHandler.CreateChecklistItem)
+			pmWriters.POST("/pm/schedules/:id/generate-wo", pmHandler.GenerateWO)
+			pmWriters.POST("/pm/schedules/:id/override-due", pmHandler.OverrideDue)
+			pmWriters.POST("/pm/schedules/:id/skip", pmHandler.Skip)
+			pmWriters.POST("/pm/schedules/:id/cancel", pmHandler.Cancel)
 		}
 		if m2.Notifications != nil {
 			notificationHandler := NewNotificationHandler(m2.Notifications, logger)

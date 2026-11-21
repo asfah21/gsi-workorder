@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"gsi-workorder/internal/pmcalc"
 )
 
 var (
@@ -68,6 +70,8 @@ type PatchInput struct {
 	ClearSupervisor bool
 	Title           *string
 	Description     *string
+	HMReading       *float64
+	KMReading       *float64
 }
 
 type UpdateRow struct {
@@ -101,11 +105,25 @@ type Finding struct {
 	Remark     string `json:"remark"`
 }
 
+type ChecklistItem struct {
+	ID          int64      `json:"id"`
+	WOID        int64      `json:"wo_id"`
+	Sequence    int        `json:"sequence"`
+	ComponentID *int64     `json:"component_id,omitempty"`
+	Component   string     `json:"component"`
+	Task        string     `json:"task"`
+	Standard    string     `json:"standard"`
+	Result      string     `json:"result"`
+	CheckedBy   *int64     `json:"checked_by,omitempty"`
+	CheckedAt   *time.Time `json:"checked_at,omitempty"`
+}
+
 type Detail struct {
 	WorkOrder
-	Findings    []Finding    `json:"findings"`
-	Updates     []UpdateRow  `json:"updates"`
-	Attachments []Attachment `json:"attachments"`
+	Findings    []Finding       `json:"findings"`
+	Updates     []UpdateRow     `json:"updates"`
+	Attachments []Attachment    `json:"attachments"`
+	Checklist   []ChecklistItem `json:"checklist"`
 }
 
 type Repository struct {
@@ -122,7 +140,7 @@ func NewRepository(pool *pgxpool.Pool, loc *time.Location) *Repository {
 
 const workOrderSelect = `
 	SELECT w.id, w.code, w.unit_id, COALESCE(u.code, ''), w.source,
-	       w.p2h_report_id, w.candidate_id, w.title, COALESCE(w.description, ''),
+	       w.p2h_report_id, w.candidate_id, w.pm_schedule_id, w.title, COALESCE(w.description, ''),
 	       COALESCE(w.priority, 'medium'), w.status,
 	       COALESCE(w.maintenance_type, 'corrective'),
 	       w.assignee_id, COALESCE(a.name, ''),
@@ -235,7 +253,17 @@ func (r *Repository) Get(ctx context.Context, id int64, actor Actor) (Detail, er
 	if err != nil {
 		return Detail{}, err
 	}
-	return Detail{WorkOrder: item, Findings: findings, Updates: updates, Attachments: attachments}, nil
+	checklist, err := r.checklist(ctx, id)
+	if err != nil {
+		return Detail{}, err
+	}
+	return Detail{
+		WorkOrder:   item,
+		Findings:    findings,
+		Updates:     updates,
+		Attachments: attachments,
+		Checklist:   checklist,
+	}, nil
 }
 
 func (r *Repository) CreateManual(ctx context.Context, actor Actor, input CreateManualInput) (WorkOrder, error) {
@@ -456,6 +484,23 @@ func (r *Repository) Update(ctx context.Context, id int64, actor Actor, input Pa
 		return WorkOrder{}, fmt.Errorf("update work order %d: %w", id, err)
 	}
 
+	if statusFrom != statusTo {
+		switch statusTo {
+		case "done":
+			if item.Source == "pm" && item.PMScheduleID != nil {
+				if err := r.completePMSchedule(ctx, tx, item, input, now); err != nil {
+					return WorkOrder{}, err
+				}
+			}
+		case "cancelled":
+			if item.Source == "pm" && item.PMScheduleID != nil {
+				if err := r.restorePMSchedule(ctx, tx, *item.PMScheduleID, now); err != nil {
+					return WorkOrder{}, err
+				}
+			}
+		}
+	}
+
 	if note == "" {
 		note = changeSummary(original, item)
 	}
@@ -527,6 +572,74 @@ func (r *Repository) AddAttachment(ctx context.Context, id int64, actor Actor, f
 		return Attachment{}, fmt.Errorf("add work-order attachment: %w", err)
 	}
 	return attachment, nil
+}
+
+func (r *Repository) UpdateChecklistItem(ctx context.Context, id, itemID int64, actor Actor, result string) (ChecklistItem, error) {
+	item, err := r.getWorkOrder(ctx, r.pool, id)
+	if err != nil {
+		return ChecklistItem{}, err
+	}
+	if !canModify(actor, item) {
+		return ChecklistItem{}, ErrForbidden
+	}
+	if item.Status == "done" || item.Status == "cancelled" {
+		return ChecklistItem{}, ErrConflict
+	}
+	result = strings.TrimSpace(result)
+	switch result {
+	case "pending", "ok", "not_ok", "na":
+	default:
+		return ChecklistItem{}, &ValidationError{Fields: map[string]string{"result": "Hasil checklist tidak valid."}}
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return ChecklistItem{}, fmt.Errorf("begin checklist update: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var checklist ChecklistItem
+	var checkedAt pgtype.Timestamptz
+	err = tx.QueryRow(ctx, `
+		UPDATE work_order_checklist_items
+		SET result = $3::text,
+		    checked_by = CASE WHEN $3::text = 'pending' THEN NULL::bigint ELSE $4::bigint END,
+		    checked_at = CASE WHEN $3::text = 'pending' THEN NULL::timestamptz ELSE now() END,
+		    updated_at = now()
+		WHERE id = $2 AND wo_id = $1
+		RETURNING id, wo_id, sequence, component_id, task, COALESCE(standard, ''),
+		          result, checked_by, checked_at
+	`, id, itemID, result, actor.ID).Scan(
+		&checklist.ID, &checklist.WOID, &checklist.Sequence, &checklist.ComponentID,
+		&checklist.Task, &checklist.Standard, &checklist.Result, &checklist.CheckedBy,
+		&checkedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ChecklistItem{}, ErrNotFound
+	}
+	if err != nil {
+		return ChecklistItem{}, fmt.Errorf("update work-order checklist: %w", err)
+	}
+	if checkedAt.Valid {
+		value := checkedAt.Time
+		checklist.CheckedAt = &value
+	}
+	if checklist.ComponentID != nil {
+		_ = tx.QueryRow(ctx, `
+			SELECT TRIM(COALESCE(code, '') || CASE WHEN name IS NULL THEN '' ELSE ' - ' || name END)
+			FROM components WHERE id = $1
+		`, *checklist.ComponentID).Scan(&checklist.Component)
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO wo_updates (wo_id, user_id, note)
+		VALUES ($1, $2, $3)
+	`, id, actor.ID, fmt.Sprintf("Checklist #%d: %s", checklist.Sequence, checklist.Task)); err != nil {
+		return ChecklistItem{}, fmt.Errorf("append checklist update: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return ChecklistItem{}, fmt.Errorf("commit checklist update: %w", err)
+	}
+	return checklist, nil
 }
 
 func (r *Repository) GetAttachment(ctx context.Context, id, attachmentID int64, actor Actor) (Attachment, error) {
@@ -646,13 +759,40 @@ func (r *Repository) attachments(ctx context.Context, woID int64) ([]Attachment,
 	return items, rows.Err()
 }
 
+func (r *Repository) checklist(ctx context.Context, woID int64) ([]ChecklistItem, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT c.id, c.wo_id, c.sequence, c.component_id,
+		       TRIM(COALESCE(comp.code, '') || CASE WHEN comp.name IS NULL THEN '' ELSE ' - ' || comp.name END),
+		       c.task, COALESCE(c.standard, ''), c.result, c.checked_by, c.checked_at
+		FROM work_order_checklist_items c
+		LEFT JOIN components comp ON comp.id = c.component_id
+		WHERE c.wo_id = $1
+		ORDER BY c.sequence ASC, c.id ASC
+	`, woID)
+	if err != nil {
+		return nil, fmt.Errorf("list work-order checklist: %w", err)
+	}
+	defer rows.Close()
+	items := make([]ChecklistItem, 0)
+	for rows.Next() {
+		var item ChecklistItem
+		if err := rows.Scan(&item.ID, &item.WOID, &item.Sequence, &item.ComponentID,
+			&item.Component, &item.Task, &item.Standard, &item.Result,
+			&item.CheckedBy, &item.CheckedAt); err != nil {
+			return nil, fmt.Errorf("scan work-order checklist: %w", err)
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func scanWorkOrder(row interface{ Scan(...any) error }) (WorkOrder, error) {
 	var item WorkOrder
 	var due pgtype.Date
 	var started, closed pgtype.Timestamptz
 	err := row.Scan(
 		&item.ID, &item.Code, &item.UnitID, &item.UnitCode, &item.Source,
-		&item.P2HReportID, &item.CandidateID, &item.Title, &item.Description,
+		&item.P2HReportID, &item.CandidateID, &item.PMScheduleID, &item.Title, &item.Description,
 		&item.Priority, &item.Status, &item.MaintenanceType,
 		&item.AssigneeID, &item.AssigneeName, &item.SupervisorID, &item.SupervisorName,
 		&item.CreatedBy, &item.CreatedByName, &due, &started,
@@ -801,6 +941,246 @@ func validateTransition(item WorkOrder, actor Actor, input PatchInput, note stri
 		return ErrConflict
 	}
 	return nil
+}
+
+func (r *Repository) completePMSchedule(
+	ctx context.Context,
+	tx pgx.Tx,
+	item WorkOrder,
+	input PatchInput,
+	now time.Time,
+) error {
+	if item.UnitID == nil {
+		return &ValidationError{Fields: map[string]string{"unit_id": "Unit PM tidak ditemukan."}}
+	}
+
+	var (
+		planID                 int64
+		unitID                 int64
+		cycleNo                int
+		hasHM, hasKM, hasDays  bool
+		intervalHM, intervalKM float64
+		intervalDays           int
+		planStatus             string
+		effectiveTo            pgtype.Date
+	)
+	err := tx.QueryRow(ctx, `
+		SELECT p.id, s.unit_id, s.cycle_no,
+		       p.interval_hm IS NOT NULL, COALESCE(p.interval_hm, 0),
+		       p.interval_km IS NOT NULL, COALESCE(p.interval_km, 0),
+		       p.interval_days IS NOT NULL, COALESCE(p.interval_days, 0),
+		       p.status, p.effective_to
+		FROM pm_schedules s
+		JOIN pm_plans p ON p.id = s.pm_plan_id
+		WHERE s.id = $1
+		FOR UPDATE OF s, p
+	`, *item.PMScheduleID).Scan(
+		&planID, &unitID, &cycleNo,
+		&hasHM, &intervalHM, &hasKM, &intervalKM, &hasDays, &intervalDays,
+		&planStatus, &effectiveTo,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return &ValidationError{Fields: map[string]string{"pm_schedule_id": "Schedule PM tidak ditemukan."}}
+	}
+	if err != nil {
+		return fmt.Errorf("load PM schedule for completion: %w", err)
+	}
+
+	var pending int
+	if err := tx.QueryRow(ctx, `
+		SELECT count(*) FROM work_order_checklist_items
+		WHERE wo_id = $1 AND result = 'pending'
+	`, item.ID).Scan(&pending); err != nil {
+		return fmt.Errorf("count pending PM checklist: %w", err)
+	}
+	if pending > 0 {
+		return &ValidationError{Fields: map[string]string{"checklist": "Checklist PM belum selesai."}}
+	}
+
+	var currentHM, currentKM float64
+	if err := tx.QueryRow(ctx, `
+		SELECT current_hm, current_km FROM units WHERE id = $1 FOR UPDATE
+	`, unitID).Scan(&currentHM, &currentKM); err != nil {
+		return fmt.Errorf("load PM unit readings: %w", err)
+	}
+	if hasHM && input.HMReading == nil {
+		return &ValidationError{Fields: map[string]string{"reading_hm": "Reading HM wajib diisi untuk menyelesaikan PM."}}
+	}
+	if hasKM && input.KMReading == nil {
+		return &ValidationError{Fields: map[string]string{"reading_km": "Reading KM wajib diisi untuk menyelesaikan PM."}}
+	}
+	if input.HMReading != nil {
+		if *input.HMReading < 0 {
+			return &ValidationError{Fields: map[string]string{"reading_hm": "Reading HM tidak valid."}}
+		}
+		if *input.HMReading < currentHM {
+			return &ValidationError{Fields: map[string]string{"reading_hm": "Reading HM lebih rendah dari reading terakhir."}}
+		}
+		currentHM = *input.HMReading
+		if err := insertPMReading(ctx, tx, unitID, "hm", *input.HMReading, now, item.ID); err != nil {
+			return err
+		}
+	}
+	if input.KMReading != nil {
+		if *input.KMReading < 0 {
+			return &ValidationError{Fields: map[string]string{"reading_km": "Reading KM tidak valid."}}
+		}
+		if *input.KMReading < currentKM {
+			return &ValidationError{Fields: map[string]string{"reading_km": "Reading KM lebih rendah dari reading terakhir."}}
+		}
+		currentKM = *input.KMReading
+		if err := insertPMReading(ctx, tx, unitID, "km", *input.KMReading, now, item.ID); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE pm_schedules
+		SET status = 'completed',
+		    last_completed_hm = $2,
+		    last_completed_km = $3,
+		    last_completed_at = $4,
+		    updated_at = now()
+		WHERE id = $1
+	`, *item.PMScheduleID, currentHM, currentKM, now); err != nil {
+		return fmt.Errorf("complete PM schedule: %w", err)
+	}
+
+	if planStatus != "active" {
+		return nil
+	}
+	today := dateOnlyIn(now, r.loc)
+	if effectiveTo.Valid && dateOnlyIn(effectiveTo.Time, r.loc).Before(today) {
+		return nil
+	}
+
+	var dueHM, dueKM *float64
+	var dueDate *time.Time
+	if hasHM {
+		value := currentHM + intervalHM
+		dueHM = &value
+	}
+	if hasKM {
+		value := currentKM + intervalKM
+		dueKM = &value
+	}
+	if hasDays {
+		value := today.AddDate(0, 0, intervalDays)
+		dueDate = &value
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO pm_schedules (
+			pm_plan_id, unit_id, cycle_no, status, due_hm, due_km, due_date,
+			last_completed_hm, last_completed_km, last_completed_at
+		)
+		VALUES ($1, $2, $3, 'scheduled', $4, $5, $6, $7, $8, $9)
+		ON CONFLICT DO NOTHING
+	`, planID, unitID, cycleNo+1, dueHM, dueKM, nullDate(dueDate),
+		currentHM, currentKM, now); err != nil {
+		return fmt.Errorf("create next PM cycle: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) restorePMSchedule(ctx context.Context, tx pgx.Tx, scheduleID int64, now time.Time) error {
+	var (
+		unitID                    int64
+		dueHM, dueKM              *float64
+		dueDate                   pgtype.Date
+		intervalRule              string
+		upcomingDays, dueSoonDays *int
+		upcomingHM, upcomingKM    *float64
+		dueSoonHM, dueSoonKM      *float64
+		currentHM, currentKM      float64
+	)
+	err := tx.QueryRow(ctx, `
+		SELECT s.unit_id, s.due_hm, s.due_km, s.due_date,
+		       p.interval_rule, p.upcoming_days, p.due_soon_days,
+		       p.upcoming_hm, p.upcoming_km, p.due_soon_hm, p.due_soon_km,
+		       u.current_hm, u.current_km
+		FROM pm_schedules s
+		JOIN pm_plans p ON p.id = s.pm_plan_id
+		JOIN units u ON u.id = s.unit_id
+		WHERE s.id = $1
+		FOR UPDATE OF s
+	`, scheduleID).Scan(
+		&unitID, &dueHM, &dueKM, &dueDate, &intervalRule, &upcomingDays,
+		&dueSoonDays, &upcomingHM, &upcomingKM, &dueSoonHM, &dueSoonKM,
+		&currentHM, &currentKM,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("load PM schedule for cancellation: %w", err)
+	}
+
+	var dueDateValue *time.Time
+	if dueDate.Valid {
+		value := dueDate.Time
+		dueDateValue = &value
+	}
+	result := pmcalc.Evaluate(pmcalc.Plan{
+		IntervalRule: intervalRule,
+		UpcomingDays: upcomingDays,
+		DueSoonDays:  dueSoonDays,
+		UpcomingHM:   upcomingHM,
+		UpcomingKM:   upcomingKM,
+		DueSoonHM:    dueSoonHM,
+		DueSoonKM:    dueSoonKM,
+	}, pmcalc.Schedule{
+		DueHM:   dueHM,
+		DueKM:   dueKM,
+		DueDate: dueDateValue,
+	}, currentHM, currentKM, dateOnlyIn(now, r.loc))
+
+	status := "scheduled"
+	if result.Overdue {
+		status = "overdue"
+	} else if result.Due {
+		status = "due"
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE pm_schedules SET status = $2, updated_at = now() WHERE id = $1
+	`, scheduleID, status); err != nil {
+		return fmt.Errorf("restore PM schedule after cancellation: %w", err)
+	}
+	return nil
+}
+
+func insertPMReading(ctx context.Context, tx pgx.Tx, unitID int64, readingType string, value float64, recordedAt time.Time, woID int64) error {
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO unit_meter_readings (
+			unit_id, reading_type, value, recorded_at, source_type, source_id, notes
+		)
+		VALUES ($1, $2, $3, $4, 'wo', $5, 'PM completion')
+		ON CONFLICT DO NOTHING
+	`, unitID, readingType, value, recordedAt, woID); err != nil {
+		return fmt.Errorf("insert PM %s reading: %w", readingType, err)
+	}
+	column := "current_hm"
+	stamp := "hm_updated_at"
+	if readingType == "km" {
+		column = "current_km"
+		stamp = "km_updated_at"
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE units
+		SET `+column+` = GREATEST(`+column+`, $2),
+		    `+stamp+` = CASE WHEN $2 >= `+column+` THEN $3 ELSE `+stamp+` END
+		WHERE id = $1
+	`, unitID, value, recordedAt); err != nil {
+		return fmt.Errorf("update unit %s reading: %w", readingType, err)
+	}
+	return nil
+}
+
+func dateOnlyIn(value time.Time, loc *time.Location) time.Time {
+	if loc == nil {
+		loc = time.UTC
+	}
+	in := value.In(loc)
+	return time.Date(in.Year(), in.Month(), in.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 func ensureUnit(ctx context.Context, q interface {

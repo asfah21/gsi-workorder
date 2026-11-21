@@ -19,6 +19,7 @@ import (
 	"gsi-workorder/internal/notifications"
 	"gsi-workorder/internal/odoo"
 	"gsi-workorder/internal/p2h"
+	"gsi-workorder/internal/pm"
 	"gsi-workorder/internal/settings"
 	"gsi-workorder/internal/store"
 	"gsi-workorder/internal/units"
@@ -87,6 +88,7 @@ func run(logger *slog.Logger) error {
 	settingsService := settings.NewService(settings.NewRepository(pool))
 	p2hService := p2h.NewReportService(p2h.NewRepository(pool, cfg.AppLocation))
 	workOrderService := workorders.NewRepository(pool, cfg.AppLocation)
+	pmService := pm.NewRepository(pool, cfg.AppLocation)
 	userDirectoryService := users.NewRepository(pool)
 
 	server := &http.Server{
@@ -98,6 +100,7 @@ func run(logger *slog.Logger) error {
 			P2H:           p2hService,
 			WorkOrders:    workOrderService,
 			Users:         userDirectoryService,
+			PM:            pmService,
 			UploadDir:     cfg.UploadDir,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,

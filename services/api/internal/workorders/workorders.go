@@ -24,6 +24,7 @@ type CreateInput struct {
 	UnitID          *int64
 	P2HReportID     *int64
 	CandidateID     *int64
+	PMScheduleID    *int64
 	Title           string
 	Description     string
 	Priority        string
@@ -45,6 +46,7 @@ type WorkOrder struct {
 	Source          string     `json:"source"`
 	P2HReportID     *int64     `json:"p2h_report_id,omitempty"`
 	CandidateID     *int64     `json:"candidate_id,omitempty"`
+	PMScheduleID    *int64     `json:"pm_schedule_id,omitempty"`
 	Title           string     `json:"title"`
 	Description     string     `json:"description"`
 	Priority        string     `json:"priority"`
@@ -106,6 +108,7 @@ func Create(ctx context.Context, q Querier, input CreateInput) (WorkOrder, error
 		Source:          input.Source,
 		P2HReportID:     input.P2HReportID,
 		CandidateID:     input.CandidateID,
+		PMScheduleID:    input.PMScheduleID,
 		Title:           input.Title,
 		Description:     input.Description,
 		Priority:        input.Priority,
@@ -118,15 +121,15 @@ func Create(ctx context.Context, q Querier, input CreateInput) (WorkOrder, error
 	}
 	if err := q.QueryRow(ctx, `
 		INSERT INTO work_orders (
-			code, unit_id, source, p2h_report_id, candidate_id, title, description,
-			priority, status, maintenance_type, assignee_id, supervisor_id,
-			due_date, created_by
+			code, unit_id, source, p2h_report_id, candidate_id, pm_schedule_id,
+			title, description, priority, status, maintenance_type, assignee_id,
+			supervisor_id, due_date, created_by
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING id, created_at, updated_at
 	`, code, input.UnitID, input.Source, input.P2HReportID, input.CandidateID,
-		input.Title, input.Description, input.Priority, input.Status,
-		input.MaintenanceType, input.AssigneeID, input.SupervisorID,
+		input.PMScheduleID, input.Title, input.Description, input.Priority,
+		input.Status, input.MaintenanceType, input.AssigneeID, input.SupervisorID,
 		nullDate(input.DueDate), input.CreatedBy).Scan(&order.ID, &order.CreatedAt, &order.UpdatedAt); err != nil {
 		return WorkOrder{}, fmt.Errorf("insert work order: %w", err)
 	}
