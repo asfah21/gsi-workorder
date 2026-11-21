@@ -146,7 +146,7 @@ export function DashboardView() {
                 <p className="text-sm text-muted-foreground">
                   {today || "Ringkasan hari ini"}
                 </p>
-                <h1 className="mt-1 text-xl font-semibold">
+                <h1 className="mt-1 text-xl font-medium">
                   Selamat datang, {user.name || user.nik || "Pengguna"}
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
@@ -200,7 +200,7 @@ export function DashboardView() {
             </CardTitle>
             <CardDescription>Data master saat ini.</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2">
+          <CardContent className="grid grid-cols-2 gap-1.5">
             <Insight
               icon={Truck}
               label="Total unit"
@@ -230,7 +230,7 @@ export function DashboardView() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-8">
+        <Card className="lg:col-span-8 lg:min-h-[475px]">
           <CardHeader className="flex flex-row items-start justify-between gap-3 border-b">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -473,7 +473,7 @@ function Insight({
   loading: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/20 p-2.5">
+    <div className="rounded-lg border border-border bg-muted/20 p-2">
       <div className="flex items-center gap-1.5 whitespace-nowrap text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
         <Icon className="size-3.5 shrink-0" aria-hidden="true" />
         {label}
@@ -542,7 +542,7 @@ function StatCard({
   href: string;
 }) {
   return (
-    <Card className={className}>
+    <Card className={`min-h-[142px] ${className ?? ""}`}>
       <CardContent className="flex flex-1 flex-col gap-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
