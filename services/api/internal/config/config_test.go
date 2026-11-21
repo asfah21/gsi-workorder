@@ -28,6 +28,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("ODOO_TOKEN", "")
 	t.Setenv("SYNC_INTERVAL", "")
 	t.Setenv("SYNC_CONCURRENCY", "")
+	t.Setenv("UPLOAD_DIR", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -65,6 +66,9 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.SyncConcurrency != 4 {
 		t.Fatalf("SyncConcurrency = %d, want 4", cfg.SyncConcurrency)
+	}
+	if cfg.UploadDir != defaultUploadDir {
+		t.Fatalf("UploadDir = %q, want %q", cfg.UploadDir, defaultUploadDir)
 	}
 	if cfg.P2HSyncEnabled() {
 		t.Fatal("P2HSyncEnabled() = true without token or service credentials")

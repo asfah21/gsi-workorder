@@ -22,6 +22,7 @@ import (
 	"gsi-workorder/internal/settings"
 	"gsi-workorder/internal/store"
 	"gsi-workorder/internal/units"
+	"gsi-workorder/internal/workorders"
 )
 
 func main() {
@@ -43,7 +44,7 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	logger.Info("starting api", "milestone", "m2", "app_timezone", cfg.AppTimezone)
+	logger.Info("starting api", "milestone", "m3", "app_timezone", cfg.AppTimezone)
 
 	if err := db.Migrate(cfg.DatabaseURL, cfg.MigrationsDir, logger); err != nil {
 		return err
@@ -84,6 +85,7 @@ func run(logger *slog.Logger) error {
 	notificationService := notifications.NewService(notifications.NewRepository(pool))
 	settingsService := settings.NewService(settings.NewRepository(pool))
 	p2hService := p2h.NewReportService(p2h.NewRepository(pool, cfg.AppLocation))
+	workOrderService := workorders.NewRepository(pool, cfg.AppLocation)
 
 	server := &http.Server{
 		Addr: ":" + cfg.Port,
@@ -92,6 +94,8 @@ func run(logger *slog.Logger) error {
 			Notifications: notificationService,
 			Settings:      settingsService,
 			P2H:           p2hService,
+			WorkOrders:    workOrderService,
+			UploadDir:     cfg.UploadDir,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,

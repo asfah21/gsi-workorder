@@ -69,20 +69,29 @@ type candidateResponse struct {
 }
 
 type workOrderResponse struct {
-	ID          int64     `json:"id"`
-	Code        string    `json:"code"`
-	UnitID      *int64    `json:"unit_id,omitempty"`
-	Source      string    `json:"source"`
-	P2HReportID *int64    `json:"p2h_report_id,omitempty"`
-	CandidateID *int64    `json:"candidate_id,omitempty"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Priority    string    `json:"priority"`
-	Status      string    `json:"status"`
-	AssigneeID  *int64    `json:"assignee_id,omitempty"`
-	CreatedBy   *int64    `json:"created_by,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID              int64      `json:"id"`
+	Code            string     `json:"code"`
+	UnitID          *int64     `json:"unit_id,omitempty"`
+	UnitCode        string     `json:"unit_code"`
+	Source          string     `json:"source"`
+	P2HReportID     *int64     `json:"p2h_report_id,omitempty"`
+	CandidateID     *int64     `json:"candidate_id,omitempty"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	Priority        string     `json:"priority"`
+	Status          string     `json:"status"`
+	MaintenanceType string     `json:"maintenance_type"`
+	AssigneeID      *int64     `json:"assignee_id,omitempty"`
+	AssigneeName    string     `json:"assignee_name"`
+	SupervisorID    *int64     `json:"supervisor_id,omitempty"`
+	SupervisorName  string     `json:"supervisor_name"`
+	CreatedBy       *int64     `json:"created_by,omitempty"`
+	CreatedByName   string     `json:"created_by_name"`
+	DueDate         *time.Time `json:"due_date,omitempty"`
+	StartedAt       *time.Time `json:"started_at,omitempty"`
+	ClosedAt        *time.Time `json:"closed_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 type approveResponse struct {
@@ -176,20 +185,29 @@ func newCandidateResponses(items []candidates.Candidate) []candidateResponse {
 
 func newWorkOrderResponse(order workorders.WorkOrder) workOrderResponse {
 	return workOrderResponse{
-		ID:          order.ID,
-		Code:        order.Code,
-		UnitID:      order.UnitID,
-		Source:      order.Source,
-		P2HReportID: order.P2HReportID,
-		CandidateID: order.CandidateID,
-		Title:       order.Title,
-		Description: order.Description,
-		Priority:    order.Priority,
-		Status:      order.Status,
-		AssigneeID:  order.AssigneeID,
-		CreatedBy:   order.CreatedBy,
-		CreatedAt:   order.CreatedAt,
-		UpdatedAt:   order.UpdatedAt,
+		ID:              order.ID,
+		Code:            order.Code,
+		UnitID:          order.UnitID,
+		UnitCode:        order.UnitCode,
+		Source:          order.Source,
+		P2HReportID:     order.P2HReportID,
+		CandidateID:     order.CandidateID,
+		Title:           order.Title,
+		Description:     order.Description,
+		Priority:        order.Priority,
+		Status:          order.Status,
+		MaintenanceType: order.MaintenanceType,
+		AssigneeID:      order.AssigneeID,
+		AssigneeName:    order.AssigneeName,
+		SupervisorID:    order.SupervisorID,
+		SupervisorName:  order.SupervisorName,
+		CreatedBy:       order.CreatedBy,
+		CreatedByName:   order.CreatedByName,
+		DueDate:         order.DueDate,
+		StartedAt:       order.StartedAt,
+		ClosedAt:        order.ClosedAt,
+		CreatedAt:       order.CreatedAt,
+		UpdatedAt:       order.UpdatedAt,
 	}
 }
 

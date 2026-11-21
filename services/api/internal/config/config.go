@@ -13,6 +13,7 @@ const (
 	defaultPort          = "8080"
 	defaultMigrationsDir = "migrations"
 	defaultAppTimezone   = "Asia/Makassar"
+	defaultUploadDir     = "/data/uploads"
 	shutdownTimeout      = 10 * time.Second
 	minimumJWTSecretLen  = 32
 	odooRequestTimeout   = 10 * time.Second
@@ -24,6 +25,7 @@ type Config struct {
 	Port            string
 	MigrationsDir   string
 	ShutdownTimeout time.Duration
+	UploadDir       string
 
 	// Authentication and Odoo.
 	JWTSecret   string
@@ -127,11 +129,17 @@ func Load() (Config, error) {
 		syncConcurrency = parsed
 	}
 
+	uploadDir := strings.TrimSpace(os.Getenv("UPLOAD_DIR"))
+	if uploadDir == "" {
+		uploadDir = defaultUploadDir
+	}
+
 	return Config{
 		DatabaseURL:     databaseURL,
 		Port:            port,
 		MigrationsDir:   migrationsDir,
 		ShutdownTimeout: shutdownTimeout,
+		UploadDir:       uploadDir,
 
 		JWTSecret:       jwtSecret,
 		OdooBaseURL:     strings.TrimRight(odooBaseURL, "/"),

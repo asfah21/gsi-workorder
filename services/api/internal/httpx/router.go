@@ -29,6 +29,8 @@ type M2Services struct {
 	Notifications NotificationService
 	Settings      SettingsService
 	P2H           P2HService
+	WorkOrders    WorkOrderService
+	UploadDir     string
 }
 
 // NewRouterWithM2 registers M2 P2H/candidate/notification/settings routes.
@@ -104,6 +106,22 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 			p2hHandler := NewP2HHandler(m2.P2H, logger)
 			authorized.GET("/p2h/reports", p2hHandler.ListReports)
 			authorized.GET("/p2h/reports/:id", p2hHandler.GetReport)
+		}
+		if m2.WorkOrders != nil {
+			workOrderHandler := NewWorkOrderHandler(m2.WorkOrders, logger, m2.UploadDir)
+			authorized.GET("/workorders", workOrderHandler.List)
+			authorized.GET("/workorders/:id", workOrderHandler.Get)
+			authorized.GET("/workorders/:id/attachments/:attachment_id", workOrderHandler.DownloadAttachment)
+
+			workOrderCreators := authorized.Group("")
+			workOrderCreators.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner))
+			workOrderCreators.POST("/workorders", workOrderHandler.Create)
+
+			workOrderWriters := authorized.Group("")
+			workOrderWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner, auth.RoleMechanic))
+			workOrderWriters.PATCH("/workorders/:id", workOrderHandler.Update)
+			workOrderWriters.POST("/workorders/:id/updates", workOrderHandler.AddUpdate)
+			workOrderWriters.POST("/workorders/:id/attachments", workOrderHandler.UploadAttachment)
 		}
 		if m2.Notifications != nil {
 			notificationHandler := NewNotificationHandler(m2.Notifications, logger)
