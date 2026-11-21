@@ -426,7 +426,7 @@ export function CandidatesView() {
                     setQueryError("");
                   }}
                   placeholder="Nama P2H, unit, foreman, atau lokasi"
-                  className="pl-9"
+                  className="pl-9 text-sm leading-5"
                   aria-invalid={Boolean(queryError)}
                 />
               </div>

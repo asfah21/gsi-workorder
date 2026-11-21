@@ -289,7 +289,7 @@ export function MasterView() {
                       enterKeyHint="search"
                       autoCapitalize="none"
                       spellCheck={false}
-                      className="pl-9"
+                      className="pl-9 text-sm leading-5"
                     />
                     <button type="submit" className="sr-only">
                       Cari unit model
@@ -447,7 +447,7 @@ export function MasterView() {
                       enterKeyHint="search"
                       autoCapitalize="none"
                       spellCheck={false}
-                      className="pl-9"
+                      className="pl-9 text-sm leading-5"
                     />
                     <button type="submit" className="sr-only">
                       Cari engine model

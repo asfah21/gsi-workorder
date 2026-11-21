@@ -225,7 +225,7 @@ export function UnitsView() {
                     aria-invalid={Boolean(queryError)}
                     aria-describedby={queryError ? "unit-search-error" : undefined}
                     placeholder="Kode, nopol, lokasi, atau merk"
-                    className="pl-9"
+                    className="pl-9 text-sm leading-5"
                   />
                 </div>
                 {queryError ? (

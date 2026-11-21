@@ -418,7 +418,7 @@ export function WorkOrdersView() {
                   value={queryInput}
                   onChange={(event) => setQueryInput(event.target.value)}
                   placeholder="Kode, judul, atau unit"
-                  className="pl-9"
+                  className="pl-9 text-sm leading-5"
                 />
               </div>
             </Field>

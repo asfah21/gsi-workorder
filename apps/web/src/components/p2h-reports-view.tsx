@@ -221,7 +221,7 @@ export function P2HReportsView() {
                     setQueryError("");
                   }}
                   placeholder="Nama P2H, unit, foreman, atau lokasi"
-                  className="pl-9"
+                  className="pl-9 text-sm leading-5"
                 />
               </div>
               {queryError ? <FieldError>{queryError}</FieldError> : null}
