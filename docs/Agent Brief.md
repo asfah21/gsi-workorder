@@ -24,13 +24,13 @@ Fakta M0:
 | Seed setting | `p2h_auto_wo=false`, `candidate_sla_hours=24`, `candidate_backfill_days=30` |
 | Kandidat P2H | status `pending/approved/skipped/auto_created/archived`, kolom `notified_at` |
 | Auto-WO P2H | default `false`; hanya jika setting `true` |
-| Timezone saat ini | `.env.example` masih `TZ=Asia/Jakarta`; target baru WITA, perubahan config butuh approval terpisah |
+| Timezone saat ini | `APP_TIMEZONE` default `Asia/Makassar` dan divalidasi saat startup; `.env.example` dan `docker-compose.yml` masih memakai `TZ=Asia/Jakarta`. Target proses `TZ=UTC` + `APP_TIMEZONE=Asia/Makassar`; perubahan config butuh approval terpisah |
 
-**Fase saat ini:** dokumentasi rev. 3 (PM, material, sparepart, inventory, unit history, reporting, WITA). **Belum ada kode M1.** Jangan mulai M1 atau milestone lain tanpa instruksi eksplisit.
+**Fase saat ini (status per 2026-11-21):** M1 dan M2 sudah diimplementasikan di repo. Verifikasi lokal M1/M2 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL M2) tercatat lulus pada 2026-11-21. M2 berstatus **implemented, menunggu acceptance Odoo nyata**; sync `/api/p2h` belum terverifikasi karena endpoint mengembalikan 401 tanpa kredensial service. M3 belum dimulai dan tetap diblokir sampai instruksi eksplisit.
 
-> **Verification gap:** verifikasi runtime M0 di server Linux masih pending. Inspeksi workspace saat ini hanya menemukan `/healthz` pada router API; route auth/P2H belum terlihat. Anggap M1/M2 sebagai implementasi fitur baseline (auth/user sync/P2H) sampai runtime server dikonfirmasi; jangan menganggap route sudah ada. Jangan mengubah migrasi atau kode M0.
+> **Verification gap:** runtime Docker/Linux M0 dan sync Odoo nyata masih pending. Route auth, unit, P2H, candidate, notification, dan settings sudah terdaftar di router API; jangan menyimpulkan endpoint Odoo live sudah terverifikasi. Jangan mengubah migrasi atau kode M0.
 >
-> **README:** tabel status milestone di README adalah konteks M0/operasional dan masih memakai urutan lama; untuk M1+ gunakan roadmap PRD §12 / Brief §4. Jangan mengubah README tanpa approval.
+> **README:** README masih menyatakan status M0 dan hanya mencantumkan migrasi `000001`/`000002`; kondisi ini belum mencerminkan M1/M2. Untuk status engineering gunakan Brief ini; jangan mengubah README tanpa approval.
 
 ---
 
@@ -67,6 +67,14 @@ Fakta M0:
 | Usage/history | §3.6 | `work_order_sparepart_usage`, view history | M6/M7 | Actual usage only |
 | Dashboard/report | §3.7, §9 | view/query | M7 | WITA buckets; no static totals |
 | Timezone | §3.8, §8 | semua timestamp/date | M1+ | UTC storage; WITA display/scheduler |
+
+### 3b. Frontend
+
+- **Stack:** Next.js `15.5.29` App Router, React `19.1.0`, TypeScript, Tailwind CSS v4, shadcn/ui style `base-vega`; font Geist dibundel lokal.
+- **Workflow:** gunakan skill `nextjs-15`. Port/parity dari template `next-shadcn-dashboard`; target visual `https://demos.shadcndashboard.dev/?mode=dark`.
+- **Dependency:** dependency baru hanya boleh shadcn/base-vega, Recharts, `next-themes` bila diperlukan, dan Geist. Baseline yang sudah ada (`@base-ui/react`, `lucide-react`, `class-variance-authority`, `cn`) dipertahankan; jangan menambah library UI/state/chart lain tanpa approval. Saat ini `next-themes` belum dipakai; tema memakai script lokal dan `theme-toggle`.
+- **Data:** jangan commit mock/demo data. Gunakan data API nyata; state loading/empty/error harus ditangani.
+- **Selesai bila:** `npm run lint` dan `npm run build` lulus; screenshot desktop + mobile, dark + light, dibandingkan dengan demo target; tidak ada regresi shell/tabel/form M1/M2.
 
 ---
 
@@ -255,6 +263,10 @@ Detail: `docs/Timezone.md`.
 * [ ] Tidak ada hardcoded timezone/offset.
 * [ ] RBAC dicek di server, bukan hanya UI.
 * [ ] Audit pelaku/waktu tercatat.
+* [ ] Frontend: `npm run lint` dan `npm run build` lulus.
+* [ ] Screenshot desktop + mobile, dark + light, dibandingkan dengan demo target; shell/tabel/form tidak meregresi M1/M2.
+* [ ] Tidak ada mock/demo data yang di-commit; loading/empty/error state memakai data/API nyata.
+* [ ] Tidak ada dependency UI baru tanpa approval; versi Next/React/Tailwind/shadcn sesuai §3b.
 * [ ] Migrasi M0 tidak berubah; migration baru additive.
 * [ ] Test/build/lint lulus; tidak ada secret di repo.
 
