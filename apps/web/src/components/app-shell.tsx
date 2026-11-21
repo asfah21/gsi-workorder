@@ -374,9 +374,12 @@ function AppShellFrame({
             {children}
           </div>
           <div className="container mx-auto w-full pt-6">
-            <footer className="flex flex-col gap-1 border-t border-border/60 pt-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <p className="font-medium text-foreground/70">Maintenance &amp; Unit</p>
-              <p>Operasional WITA · PT GSI</p>
+            <footer className="flex items-center justify-center border-t border-border/60 pt-4 text-xs text-muted-foreground sm:justify-between">
+              <p className="hidden sm:block">
+                © 2026 - PT Gunung Samudera Internasional.
+              </p>
+              <p className="sm:hidden">© 2026 - PT GSI</p>
+              <p className="hidden text-muted-foreground/70 sm:block">AZV - V.0.1.1</p>
             </footer>
           </div>
         </div>
