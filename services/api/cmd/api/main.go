@@ -12,10 +12,14 @@ import (
 	"time"
 
 	"gsi-workorder/internal/auth"
+	"gsi-workorder/internal/candidates"
 	"gsi-workorder/internal/config"
 	"gsi-workorder/internal/db"
 	"gsi-workorder/internal/httpx"
+	"gsi-workorder/internal/notifications"
 	"gsi-workorder/internal/odoo"
+	"gsi-workorder/internal/p2h"
+	"gsi-workorder/internal/settings"
 	"gsi-workorder/internal/store"
 	"gsi-workorder/internal/units"
 )
@@ -39,7 +43,7 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	logger.Info("starting api", "milestone", "m1c", "app_timezone", cfg.AppTimezone)
+	logger.Info("starting api", "milestone", "m2", "app_timezone", cfg.AppTimezone)
 
 	if err := db.Migrate(cfg.DatabaseURL, cfg.MigrationsDir, logger); err != nil {
 		return err
@@ -76,10 +80,19 @@ func run(logger *slog.Logger) error {
 	}
 
 	unitService := units.NewService(units.NewPostgresRepository(pool), logger)
+	candidateService := candidates.NewService(candidates.NewRepository(pool, cfg.AppLocation))
+	notificationService := notifications.NewService(notifications.NewRepository(pool))
+	settingsService := settings.NewService(settings.NewRepository(pool))
+	p2hService := p2h.NewReportService(p2h.NewRepository(pool, cfg.AppLocation))
 
 	server := &http.Server{
-		Addr:              ":" + cfg.Port,
-		Handler:           httpx.NewRouterWithUnits(logger, checker, authService, unitService),
+		Addr: ":" + cfg.Port,
+		Handler: httpx.NewRouterWithM2(logger, checker, authService, unitService, httpx.M2Services{
+			Candidates:    candidateService,
+			Notifications: notificationService,
+			Settings:      settingsService,
+			P2H:           p2hService,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}

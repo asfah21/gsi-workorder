@@ -25,6 +25,9 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("ODOO_SERVICE_LOGIN", "")
 	t.Setenv("ODOO_SERVICE_PASSWORD", "")
 	t.Setenv("ODOO_EMPLOYEE_NIK_FIELD", "")
+	t.Setenv("ODOO_TOKEN", "")
+	t.Setenv("SYNC_INTERVAL", "")
+	t.Setenv("SYNC_CONCURRENCY", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -56,6 +59,47 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.UserSyncEnabled() {
 		t.Fatal("UserSyncEnabled() = true without worker JSON-RPC settings")
+	}
+	if cfg.SyncInterval.String() != "15m0s" {
+		t.Fatalf("SyncInterval = %s, want 15m0s", cfg.SyncInterval)
+	}
+	if cfg.SyncConcurrency != 4 {
+		t.Fatalf("SyncConcurrency = %d, want 4", cfg.SyncConcurrency)
+	}
+	if cfg.P2HSyncEnabled() {
+		t.Fatal("P2HSyncEnabled() = true without token or service credentials")
+	}
+}
+
+func TestLoadP2HSettings(t *testing.T) {
+	setRequiredEnv(t)
+	t.Setenv("ODOO_TOKEN", "server-token")
+	t.Setenv("SYNC_INTERVAL", "5m")
+	t.Setenv("SYNC_CONCURRENCY", "2")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.P2HSyncEnabled() {
+		t.Fatal("P2HSyncEnabled() = false, want true with ODOO_TOKEN")
+	}
+	if cfg.SyncInterval.String() != "5m0s" || cfg.SyncConcurrency != 2 {
+		t.Fatalf("unexpected sync config: %s/%d", cfg.SyncInterval, cfg.SyncConcurrency)
+	}
+}
+
+func TestLoadRejectsInvalidSyncSettings(t *testing.T) {
+	setRequiredEnv(t)
+	t.Setenv("SYNC_INTERVAL", "30s")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() expected an error for SYNC_INTERVAL below 1m")
+	}
+
+	t.Setenv("SYNC_INTERVAL", "15m")
+	t.Setenv("SYNC_CONCURRENCY", "5")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() expected an error for SYNC_CONCURRENCY above 4")
 	}
 }
 
