@@ -276,11 +276,12 @@ function AppShellFrame({
                               aria-label={item.label}
                               aria-current={active ? "page" : undefined}
                               onClick={closeMobileNav}
+                              className="cursor-pointer"
                             />
                           }
                           isActive={active}
                           tooltip={item.label}
-                          className="h-9 gap-3 rounded-md px-3 text-sm font-medium data-active:bg-primary data-active:text-background data-active:hover:bg-primary data-active:hover:text-background"
+                          className="h-9 select-none gap-3 rounded-md px-3 text-sm font-medium data-active:bg-primary data-active:text-background data-active:hover:bg-primary data-active:hover:text-background"
                         >
                           <item.icon className="size-4" aria-hidden="true" />
                           <span className="hide-menu min-w-0 flex-1 truncate">
