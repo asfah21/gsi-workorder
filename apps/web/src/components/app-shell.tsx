@@ -34,7 +34,6 @@ import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -296,18 +295,6 @@ function AppShellFrame({
             );
           })}
         </SidebarContent>
-
-        <SidebarFooter className="p-2 pb-4">
-          <div className="hide-menu rounded-xl border border-sidebar-border bg-sidebar-accent/60 p-3">
-            <p className="text-xs font-semibold uppercase text-muted-foreground">
-              Milestone 2
-            </p>
-            <p className="mt-1 text-sm font-medium">P2H &amp; usulan WO</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Sinkron P2H, kandidat, dan notifikasi.
-            </p>
-          </div>
-        </SidebarFooter>
       </Sidebar>
 
       <SidebarInset
@@ -387,20 +374,9 @@ function AppShellFrame({
             {children}
           </div>
           <div className="container mx-auto w-full pt-6">
-            <footer className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-              <p>GSI Work Order · Milestone 2</p>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <p>Operasional WITA · PT GSI</p>
-                <span aria-hidden="true">·</span>
-                <a
-                  href="https://shadcndashboard.dev/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  UI reference: Shadcn Dashboard
-                </a>
-              </div>
+            <footer className="flex flex-col gap-1 border-t border-border/60 pt-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <p className="font-medium text-foreground/70">Maintenance &amp; Unit</p>
+              <p>Operasional WITA · PT GSI</p>
             </footer>
           </div>
         </div>
