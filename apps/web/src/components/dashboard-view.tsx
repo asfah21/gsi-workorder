@@ -239,17 +239,15 @@ export function DashboardView() {
               </CardTitle>
               <CardDescription>Komposisi status unit dari master.</CardDescription>
             </div>
-            <Badge variant="outline" className="tabular-nums">
+            <Badge variant="outline">
               {loading && !summary ? <Skeleton className="h-4 w-8" /> : `${readiness}%`}
             </Badge>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col justify-between gap-4">
             <div className="grid flex-1 items-center gap-6 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
               <div className="flex flex-col justify-center rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Kesiapan
-                </p>
-                <p className="mt-2 text-3xl font-semibold tabular-nums">
+                <p className="type-overline text-muted-foreground">Kesiapan</p>
+                <p className="mt-2 text-2xl font-semibold">
                   {loading && !summary ? (
                     <Skeleton className="h-9 w-20" />
                   ) : (
@@ -406,7 +404,7 @@ export function DashboardView() {
                         </TableCell>
                         <TableCell>{modelLabel(unit)}</TableCell>
                         <TableCell>{unit.site_location || "-"}</TableCell>
-                        <TableCell className="text-right tabular-nums">
+                        <TableCell className="text-right">
                           {unit.hm_updated_at ? formatNumber(unit.current_hm) : "-"}
                         </TableCell>
                         <TableCell>
@@ -454,7 +452,7 @@ export function DashboardView() {
         </Card>
       </div>
 
-      <p className="text-xs leading-5 text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Modul P2H, work order, PM, dan inventory belum termasuk Milestone 1.
       </p>
     </div>
@@ -474,14 +472,14 @@ function Insight({
 }) {
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-2">
-      <div className="flex items-center gap-1.5 whitespace-nowrap text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="type-overline-xs flex items-center gap-1.5 whitespace-nowrap text-muted-foreground">
         <Icon className="size-3.5 shrink-0" aria-hidden="true" />
         {label}
       </div>
       {loading ? (
         <Skeleton className="mt-1 h-5 w-14" />
       ) : (
-        <p className="mt-1 text-lg font-semibold tabular-nums">
+        <p className="mt-1 text-2xl font-semibold">
           {formatOptionalNumber(value)}
         </p>
       )}
@@ -512,7 +510,7 @@ function StatusBar({
           />
           {label}
         </span>
-        <span className="font-medium tabular-nums">{formatNumber(value)}</span>
+        <span className="font-medium">{formatNumber(value)}</span>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
         <div
@@ -550,7 +548,7 @@ function StatCard({
             {loading ? (
               <Skeleton className="mt-2 h-8 w-16" />
             ) : (
-              <p className="mt-2 text-2xl font-semibold tabular-nums">
+              <p className="mt-2 text-2xl font-semibold">
                 {formatOptionalNumber(value)}
               </p>
             )}

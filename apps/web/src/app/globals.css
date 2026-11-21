@@ -149,6 +149,21 @@
   }
 }
 
+@utility type-overline {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+@utility type-overline-xs {
+  font-size: 0.6875rem;
+  line-height: 1.4286;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
 html[data-card-shadow="false"] [data-slot="card"] {
   @apply border shadow-none ring-0;
 }

@@ -245,7 +245,7 @@ export function MasterView() {
 
       <section aria-labelledby="unit-model-heading" className="space-y-4">
         <div>
-          <h2 id="unit-model-heading" className="text-lg font-semibold tracking-tight">
+          <h2 id="unit-model-heading" className="text-base font-medium">
             Unit model
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -403,7 +403,7 @@ export function MasterView() {
 
       <section aria-labelledby="engine-model-heading" className="space-y-4">
         <div>
-          <h2 id="engine-model-heading" className="text-lg font-semibold tracking-tight">
+          <h2 id="engine-model-heading" className="text-base font-medium">
             Engine model
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -537,7 +537,7 @@ export function MasterView() {
                         </TableHead>
                         <TableCell className="font-medium">{model.model}</TableCell>
                         <TableCell>{model.fuel_type || "-"}</TableCell>
-                        <TableCell className="text-right tabular-nums">
+                        <TableCell className="text-right">
                           {model.displacement_cc ? `${model.displacement_cc} cc` : "-"}
                         </TableCell>
                         <TableCell>

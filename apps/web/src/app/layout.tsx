@@ -1,21 +1,32 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import Script from "next/script";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
 
-const geistSans = Geist({
-  subsets: ["latin"],
-  display: "swap",
+const Geist = localFont({
+  src: "./fonts/Geist-Variable.woff2",
   variable: "--font-geist",
+  weight: "100 900",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  display: "swap",
+const GeistMono = localFont({
+  src: "./fonts/GeistMono-Variable.woff2",
   variable: "--font-geist-mono",
+  weight: "100 900",
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: [
+    "ui-monospace",
+    "SFMono-Regular",
+    "Menlo",
+    "Monaco",
+    "Consolas",
+    "monospace",
+  ],
 });
 
 export const metadata: Metadata = {
@@ -39,7 +50,7 @@ export default function RootLayout({
       suppressHydrationWarning
       data-card-shadow="false"
       data-sidebar-type="true"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${Geist.variable} ${GeistMono.variable}`}
     >
       <body className="font-sans">
         <Script id="gsi-theme-init" strategy="beforeInteractive">

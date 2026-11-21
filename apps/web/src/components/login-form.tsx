@@ -99,7 +99,7 @@ export function LoginForm() {
             <h1 id="login-heading" className="text-xl font-semibold">
               Masuk ke Work Order
             </h1>
-            <p id="login-help" className="mt-2 text-sm leading-6 text-muted-foreground">
+            <p id="login-help" className="mt-2 text-sm text-muted-foreground">
               Gunakan akun Odoo yang sudah terdaftar di aplikasi.
             </p>
           </div>
@@ -113,7 +113,7 @@ export function LoginForm() {
             noValidate
           >
             <Field data-invalid={Boolean(fieldErrors.nik)}>
-              <FieldLabel htmlFor="nik" className="font-normal text-muted-foreground">
+              <FieldLabel htmlFor="nik" className="text-muted-foreground">
                 NIK / Login <span aria-hidden="true" className="text-destructive">*</span>
               </FieldLabel>
               <Input
@@ -141,7 +141,7 @@ export function LoginForm() {
             </Field>
 
             <Field data-invalid={Boolean(fieldErrors.password)}>
-              <FieldLabel htmlFor="password" className="font-normal text-muted-foreground">
+              <FieldLabel htmlFor="password" className="text-muted-foreground">
                 Password <span aria-hidden="true" className="text-destructive">*</span>
               </FieldLabel>
               <div className="relative">
@@ -206,7 +206,7 @@ export function LoginForm() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-xs leading-5 text-muted-foreground">
+          <p className="mt-6 text-center text-xs text-muted-foreground">
             Akses internal PT GSI. Hubungi admin bila akun belum terdaftar.
           </p>
         </div>

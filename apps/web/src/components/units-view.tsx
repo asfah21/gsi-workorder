@@ -423,10 +423,10 @@ export function UnitsView() {
                       </TableHead>
                       <TableCell>{modelLabel(unit)}</TableCell>
                       <TableCell>{unit.site_location || "-"}</TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="text-right">
                         {unit.hm_updated_at ? formatNumber(unit.current_hm) : "-"}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="text-right">
                         {unit.km_updated_at ? formatNumber(unit.current_km) : "-"}
                       </TableCell>
                       <TableCell>

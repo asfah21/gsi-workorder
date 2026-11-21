@@ -127,10 +127,10 @@ export function FleetStatusChart({
           </PieChart>
         </ChartContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-semibold tabular-nums">
+          <span className="text-2xl font-semibold">
             {unitsTotal}
           </span>
-          <span className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="type-overline-xs text-muted-foreground">
             Total unit
           </span>
         </div>
@@ -150,7 +150,7 @@ export function FleetStatusChart({
               />
               {item.label}
             </span>
-            <span className="font-medium tabular-nums">{item.value}</span>
+            <span className="font-medium">{item.value}</span>
           </li>
         ))}
       </ul>

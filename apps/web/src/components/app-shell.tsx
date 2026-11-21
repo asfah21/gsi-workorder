@@ -209,7 +209,7 @@ function AppShellFrame({
           </Link>
           <Badge
             variant="secondary"
-            className="hide-menu h-5 shrink-0 px-2 text-[0.65rem]"
+            className="hide-menu h-5 shrink-0 px-2"
           >
             M1
           </Badge>
@@ -218,7 +218,7 @@ function AppShellFrame({
         <SidebarContent>
           {navigationGroups.map((group) => (
             <SidebarGroup key={group.label}>
-              <SidebarGroupLabel className="mb-2 h-auto px-2 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/70">
+              <SidebarGroupLabel className="mb-2 h-auto px-2 text-xs font-semibold uppercase text-sidebar-foreground/70">
                 {group.label}
               </SidebarGroupLabel>
               <SidebarMenu className="gap-0.5">
@@ -254,11 +254,11 @@ function AppShellFrame({
 
         <SidebarFooter className="p-2 pb-4">
           <div className="hide-menu rounded-xl border border-sidebar-border bg-sidebar-accent/60 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">
               Milestone 1
             </p>
             <p className="mt-1 text-sm font-medium">Master unit &amp; HM/KM</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               P2H, work order, dan inventory menyusul.
             </p>
           </div>

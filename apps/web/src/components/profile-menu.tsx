@@ -37,7 +37,7 @@ export function ProfileMenu({
         className="flex h-9 items-center gap-2 rounded-md border border-transparent p-1 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:pr-2"
       >
         <Avatar className="size-7">
-          <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
+          <AvatarFallback className="bg-muted text-xs font-medium text-muted-foreground">
             {initials}
           </AvatarFallback>
         </Avatar>
@@ -52,11 +52,11 @@ export function ProfileMenu({
       <SheetContent side="right" className="w-full sm:max-w-sm">
         <SheetHeader className="items-center pt-8 text-center">
           <Avatar size="lg" className="size-16">
-            <AvatarFallback className="bg-primary text-lg font-semibold text-primary-foreground">
+            <AvatarFallback className="bg-primary text-base font-medium text-primary-foreground">
               {initials}
             </AvatarFallback>
           </Avatar>
-          <SheetTitle className="mt-3 text-lg">{displayName}</SheetTitle>
+          <SheetTitle className="mt-3 text-base font-medium">{displayName}</SheetTitle>
           <SheetDescription>
             <span className="block">{roleLabel}</span>
             <span className="block">{user.nik}</span>
@@ -71,7 +71,7 @@ export function ProfileMenu({
             <ShieldCheck className="size-4" aria-hidden="true" />
             Sesi aman
           </div>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             Token disimpan di cookie httpOnly dan tidak disimpan di localStorage.
           </p>
         </div>

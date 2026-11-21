@@ -289,7 +289,7 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
                         {reading.reading_type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
+                    <TableCell className="text-right font-medium">
                       {formatNumber(reading.value)}
                     </TableCell>
                     <TableCell>
@@ -397,7 +397,7 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
       <CardContent>
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={(event) => void submit(event)} noValidate>
           <FieldSet className="space-y-2 sm:col-span-2">
-            <FieldLegend className="text-sm">Tipe reading</FieldLegend>
+            <FieldLegend className="text-sm font-medium">Tipe reading</FieldLegend>
             <div className="grid max-w-md grid-cols-2 gap-2">
               {(["hm", "km"] as const).map((type) => (
                 <label
@@ -556,7 +556,7 @@ function MetricCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>
+          <p className="mt-2 text-2xl font-semibold">{value}</p>
           <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
         </div>
         <span className={cn("grid size-9 shrink-0 place-items-center rounded-md", metricTones[tone])}>
@@ -578,7 +578,7 @@ function Detail({
 }) {
   return (
     <div>
-      <dt className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <dt className="type-overline flex items-center gap-1.5 text-muted-foreground">
         {Icon ? <Icon className="size-3.5" aria-hidden="true" /> : null}
         {label}
       </dt>
