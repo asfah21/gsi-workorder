@@ -14,7 +14,16 @@ type RouteContext = {
   params: Promise<{ path: string[] }>;
 };
 
-const ALLOWED_PREFIXES = new Set(["units", "unit-models", "engine-models", "dashboard"]);
+const ALLOWED_PREFIXES = new Set([
+  "units",
+  "unit-models",
+  "engine-models",
+  "dashboard",
+  "wo-candidates",
+  "p2h",
+  "notifications",
+  "settings",
+]);
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH"]);
 
 export async function GET(request: NextRequest, context: RouteContext) {

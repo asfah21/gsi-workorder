@@ -3,8 +3,11 @@
 import {
   Boxes,
   CircleAlert,
+  ClipboardList,
   LayoutDashboard,
+  ListChecks,
   Search,
+  Settings2,
   Truck,
   Wrench,
 } from "lucide-react";
@@ -19,6 +22,7 @@ import {
   useState,
 } from "react";
 
+import { NotificationMenu } from "@/components/notification-menu";
 import { ProfileMenu } from "@/components/profile-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -60,18 +64,45 @@ export const roleLabels: Record<User["role"], string> = {
   viewer: "Viewer",
 };
 
-const navigationGroups = [
+type NavigationItem = {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  roles?: User["role"][];
+};
+
+const navigationGroups: { label: string; items: NavigationItem[] }[] = [
   {
     label: "Ringkasan",
     items: [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
   },
   {
     label: "Operasional",
-    items: [{ href: "/units", label: "Unit", icon: Truck }],
+    items: [
+      { href: "/units", label: "Unit", icon: Truck },
+      { href: "/p2h", label: "P2H", icon: ClipboardList },
+      {
+        href: "/wo-candidates",
+        label: "Usulan WO",
+        icon: ListChecks,
+        roles: ["admin", "planner"],
+      },
+    ],
   },
   {
     label: "Master data",
     items: [{ href: "/master", label: "Master Unit", icon: Boxes }],
+  },
+  {
+    label: "Administrasi",
+    items: [
+      {
+        href: "/settings",
+        label: "Pengaturan",
+        icon: Settings2,
+        roles: ["admin"],
+      },
+    ],
   },
 ];
 
@@ -211,55 +242,63 @@ function AppShellFrame({
             variant="secondary"
             className="hide-menu h-5 shrink-0 px-2"
           >
-            M1
+            M2
           </Badge>
         </SidebarHeader>
 
         <SidebarContent>
-          {navigationGroups.map((group) => (
-            <SidebarGroup key={group.label}>
-              <SidebarGroupLabel className="mb-2 h-auto px-2 text-xs font-semibold uppercase text-sidebar-foreground/70">
-                {group.label}
-              </SidebarGroupLabel>
-              <SidebarMenu className="gap-0.5">
-                {group.items.map((item) => {
-                  const active = isActive(pathname, item.href);
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        render={
-                          <Link
-                            href={item.href}
-                            aria-label={item.label}
-                            aria-current={active ? "page" : undefined}
-                            onClick={closeMobileNav}
-                          />
-                        }
-                        isActive={active}
-                        tooltip={item.label}
-                        className="h-9 gap-3 rounded-md px-3 text-sm font-medium data-active:bg-primary data-active:text-background data-active:hover:bg-primary data-active:hover:text-background"
-                      >
-                        <item.icon className="size-4" aria-hidden="true" />
-                        <span className="hide-menu min-w-0 flex-1 truncate">
-                          {item.label}
-                        </span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroup>
-          ))}
+          {navigationGroups.map((group) => {
+            const items = group.items.filter(
+              (item) => !item.roles || item.roles.includes(user.role),
+            );
+            if (items.length === 0) {
+              return null;
+            }
+            return (
+              <SidebarGroup key={group.label}>
+                <SidebarGroupLabel className="mb-2 h-auto px-2 text-xs font-semibold uppercase text-sidebar-foreground/70">
+                  {group.label}
+                </SidebarGroupLabel>
+                <SidebarMenu className="gap-0.5">
+                  {items.map((item) => {
+                    const active = isActive(pathname, item.href);
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          render={
+                            <Link
+                              href={item.href}
+                              aria-label={item.label}
+                              aria-current={active ? "page" : undefined}
+                              onClick={closeMobileNav}
+                            />
+                          }
+                          isActive={active}
+                          tooltip={item.label}
+                          className="h-9 gap-3 rounded-md px-3 text-sm font-medium data-active:bg-primary data-active:text-background data-active:hover:bg-primary data-active:hover:text-background"
+                        >
+                          <item.icon className="size-4" aria-hidden="true" />
+                          <span className="hide-menu min-w-0 flex-1 truncate">
+                            {item.label}
+                          </span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroup>
+            );
+          })}
         </SidebarContent>
 
         <SidebarFooter className="p-2 pb-4">
           <div className="hide-menu rounded-xl border border-sidebar-border bg-sidebar-accent/60 p-3">
             <p className="text-xs font-semibold uppercase text-muted-foreground">
-              Milestone 1
+              Milestone 2
             </p>
-            <p className="mt-1 text-sm font-medium">Master unit &amp; HM/KM</p>
+            <p className="mt-1 text-sm font-medium">P2H &amp; usulan WO</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              P2H, work order, dan inventory menyusul.
+              Sinkron P2H, kandidat, dan notifikasi.
             </p>
           </div>
         </SidebarFooter>
@@ -325,6 +364,7 @@ function AppShellFrame({
             </div>
 
             <div className="ml-auto flex items-center gap-1.5">
+              <NotificationMenu />
               <ThemeToggle />
               <ProfileMenu
                 user={user}
@@ -342,7 +382,7 @@ function AppShellFrame({
           </div>
           <div className="container mx-auto w-full pt-6">
             <footer className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-              <p>GSI Work Order · Milestone 1</p>
+              <p>GSI Work Order · Milestone 2</p>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <p>Operasional WITA · PT GSI</p>
                 <span aria-hidden="true">·</span>

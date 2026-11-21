@@ -83,6 +83,149 @@ export type DashboardSummary = {
   readings_last_30_days: number;
 };
 
+export type P2HFinding = {
+  id: number;
+  odoo_line_id: number;
+  question_id?: number;
+  component: string;
+  category: string;
+  condition: "rusak" | "tidak_ada";
+  remark: string;
+};
+
+export type P2HReport = {
+  id: number;
+  odoo_report_id: number;
+  name: string;
+  report_date: string;
+  unit_id?: number;
+  unit_code: string;
+  unit_type: string;
+  shift: string;
+  foreman_name: string;
+  employee_name: string;
+  location: string;
+  state: string;
+  approval_status: string;
+  km_akhir?: number;
+  hm_awal?: number;
+  notes: string;
+  checked_items: number;
+  findings_count: number;
+  rusak_count: number;
+  detail_synced_at?: string;
+  synced_at?: string;
+  candidate_id?: number;
+  candidate_status: string;
+  findings: P2HFinding[];
+};
+
+export type WOCandidate = {
+  id: number;
+  p2h_report_id: number;
+  unit_id?: number;
+  unit_code: string;
+  unit_type: string;
+  report_name: string;
+  report_date: string;
+  suggested_priority: "low" | "medium" | "high" | "critical";
+  status: "pending" | "approved" | "skipped" | "auto_created" | "archived";
+  findings_count: number;
+  rusak_count: number;
+  decided_by?: number;
+  decided_by_name: string;
+  decided_at?: string;
+  skip_reason: string;
+  decision_note: string;
+  wo_id?: number;
+  wo_code: string;
+  notified_at?: string;
+  created_at: string;
+};
+
+export type WorkOrderRecord = {
+  id: number;
+  code: string;
+  unit_id?: number;
+  source: string;
+  p2h_report_id?: number;
+  candidate_id?: number;
+  title: string;
+  description: string;
+  priority: "low" | "medium" | "high" | "critical";
+  status: string;
+  assignee_id?: number;
+  created_by?: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CandidateWorkOrder = {
+  id: number;
+  code: string;
+  title: string;
+  description: string;
+  priority: "low" | "medium" | "high" | "critical";
+  status: string;
+  assignee_id?: number;
+  assignee_name: string;
+  created_at: string;
+};
+
+export type CandidateDetail = {
+  candidate: WOCandidate;
+  report: P2HReport;
+  work_order: CandidateWorkOrder | null;
+};
+
+export type CandidateApproveResponse = {
+  candidate: WOCandidate;
+  work_order: WorkOrderRecord;
+};
+
+export type CandidateBulkResponse = {
+  approved: CandidateApproveResponse[];
+  skipped: WOCandidate[];
+};
+
+export type NotificationItem = {
+  id: number;
+  type: string;
+  title: string;
+  body: string;
+  ref_type: string;
+  ref_id?: number;
+  read_at?: string;
+  created_at: string;
+};
+
+export type NotificationListResponse = {
+  data: NotificationItem[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    unread: number;
+  };
+};
+
+export type AppSettings = {
+  p2h_auto_wo: boolean;
+  candidate_sla_hours: number;
+  candidate_backfill_days: number;
+  updated_at: string;
+  history: SettingHistory[];
+};
+
+export type SettingHistory = {
+  id: number;
+  key: string;
+  old_value: string;
+  new_value: string;
+  changed_by?: number;
+  changed_at: string;
+};
+
 export type ListResponse<T> = {
   data: T[];
   meta: {

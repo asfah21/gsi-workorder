@@ -11,11 +11,13 @@ export function useListParams({
   defaultSort,
   allowedSorts,
   defaultPageSize = 25,
+  defaultOrder = "asc",
 }: {
   prefix?: string;
   defaultSort: string;
   allowedSorts: readonly string[];
   defaultPageSize?: number;
+  defaultOrder?: ListOrder;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -34,7 +36,9 @@ export function useListParams({
   const sort = allowedSorts.includes(searchParams.get(sortKey) ?? "")
     ? (searchParams.get(sortKey) as string)
     : defaultSort;
-  const order: ListOrder = searchParams.get(orderKey) === "desc" ? "desc" : "asc";
+  const orderParam = searchParams.get(orderKey);
+  const order: ListOrder =
+    orderParam === "desc" || orderParam === "asc" ? orderParam : defaultOrder;
 
   const update = (
     updates: Record<string, string | number | null | undefined>,
