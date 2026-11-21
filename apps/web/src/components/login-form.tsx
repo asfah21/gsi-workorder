@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  CircleAlert,
-  Eye,
-  EyeOff,
-  Gauge,
-  Loader2,
-  ShieldCheck,
-  Truck,
-  Wrench,
-} from "lucide-react";
+import { CircleAlert, Eye, EyeOff, Loader2, Wrench } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -19,24 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ApiError, login } from "@/lib/api-client";
-
-const highlights = [
-  {
-    icon: ShieldCheck,
-    title: "Akses sesuai role",
-    description: "Admin, planner, mechanic, storekeeper, dan viewer.",
-  },
-  {
-    icon: Truck,
-    title: "Master unit terpusat",
-    description: "Identitas unit, model, dan engine dalam satu tempat.",
-  },
-  {
-    icon: Gauge,
-    title: "HM/KM tercatat",
-    description: "Reading manual dan riwayat terbaru selalu tersedia.",
-  },
-];
 
 export function LoginForm() {
   const router = useRouter();
@@ -105,212 +78,143 @@ export function LoginForm() {
   };
 
   return (
-    <main className="relative grid min-h-dvh min-w-0 bg-muted/30 lg:grid-cols-[1.05fr_0.95fr]">
-      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
+    <main className="relative flex min-h-dvh min-w-0 items-center justify-center bg-accent px-4 py-10">
+      <div className="absolute right-4 top-4">
         <ThemeToggle />
       </div>
-      <section className="relative hidden overflow-hidden bg-slate-950 lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-14">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 15% 5%, rgba(45, 212, 191, 0.24), transparent 42%), radial-gradient(circle at 88% 92%, rgba(59, 130, 246, 0.18), transparent 40%)",
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }}
-        />
 
-        <div className="relative flex items-center gap-3">
-          <span className="grid size-11 place-items-center rounded-xl bg-white/10 text-teal-200 ring-1 ring-white/15 backdrop-blur">
-            <Wrench className="size-5" aria-hidden="true" />
+      <div className="w-full min-w-0 max-w-md">
+        <div className="mb-6 flex items-center justify-center gap-3">
+          <span className="grid size-9 place-items-center rounded-md bg-primary text-primary-foreground">
+            <Wrench className="size-4" aria-hidden="true" />
           </span>
           <div>
-            <p className="text-sm font-semibold tracking-tight text-white">GSI Work Order</p>
-            <p className="text-xs text-slate-400">Maintenance &amp; Unit</p>
+            <p className="text-sm font-semibold">GSI Work Order</p>
+            <p className="text-xs text-muted-foreground">Maintenance &amp; Unit</p>
           </div>
         </div>
 
-        <div className="relative max-w-xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-300">
-            PT GSI · Internal
-          </p>
-          <p className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-white xl:text-5xl">
-            Maintenance terpusat, keputusan lebih cepat.
-          </p>
-          <p className="mt-4 max-w-lg text-base leading-7 text-slate-300">
-            Kelola master unit, model, dan pembacaan HM/KM dalam satu alur kerja yang
-            konsisten.
-          </p>
-          <ul className="mt-8 space-y-4">
-            {highlights.map((item) => (
-              <li key={item.title} className="flex gap-3">
-                <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-teal-200 ring-1 ring-white/10">
-                  <item.icon className="size-4" aria-hidden="true" />
-                </span>
-                <span>
-                  <span className="block text-sm font-medium text-slate-100">{item.title}</span>
-                  <span className="mt-0.5 block text-sm leading-6 text-slate-400">
-                    {item.description}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="relative text-xs text-slate-500">GSI Work Order · Milestone 1</p>
-      </section>
-
-      <section className="flex min-h-dvh min-w-0 items-center justify-center px-4 py-10 sm:px-6 lg:px-10">
-        <div className="w-full min-w-0 max-w-md">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="grid size-11 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Wrench className="size-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold tracking-tight">GSI Work Order</p>
-              <p className="text-xs text-muted-foreground">Maintenance &amp; Unit</p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-background p-6 shadow-sm sm:p-8">
-            <div className="mb-7">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                PT GSI
-              </p>
-              <h1 id="login-heading" className="mt-2 text-2xl font-semibold tracking-tight">
-                Masuk ke Work Order
-              </h1>
-              <p id="login-help" className="mt-2 text-sm leading-6 text-muted-foreground">
-                Gunakan akun Odoo yang sudah terdaftar di aplikasi.
-              </p>
-            </div>
-
-            <form
-              className="space-y-5"
-              onSubmit={(event) => void handleSubmit(event)}
-              aria-labelledby="login-heading"
-              aria-describedby="login-help"
-              aria-busy={pending}
-              noValidate
-            >
-              <Field data-invalid={Boolean(fieldErrors.nik)}>
-                <FieldLabel htmlFor="nik">
-                  NIK / Login <span aria-hidden="true" className="text-destructive">*</span>
-                </FieldLabel>
-                <Input
-                  id="nik"
-                  name="nik"
-                  type="text"
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  enterKeyHint="next"
-                  required
-                  value={nik}
-                  onChange={(event) => {
-                    setNik(event.target.value);
-                    clearFieldError("nik");
-                  }}
-                  aria-invalid={Boolean(fieldErrors.nik)}
-                  aria-describedby={fieldErrors.nik ? "nik-error" : undefined}
-                  placeholder="Masukkan NIK atau login Odoo"
-                  className="h-11"
-                />
-                {fieldErrors.nik ? (
-                  <FieldError id="nik-error">{fieldErrors.nik}</FieldError>
-                ) : null}
-              </Field>
-
-              <Field data-invalid={Boolean(fieldErrors.password)}>
-                <FieldLabel htmlFor="password">
-                  Password <span aria-hidden="true" className="text-destructive">*</span>
-                </FieldLabel>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    enterKeyHint="done"
-                    required
-                    value={password}
-                    onChange={(event) => {
-                      setPassword(event.target.value);
-                      clearFieldError("password");
-                    }}
-                    aria-invalid={Boolean(fieldErrors.password)}
-                    aria-describedby={fieldErrors.password ? "password-error" : undefined}
-                    className="h-11 pr-12"
-                  />
-                  <button
-                    type="button"
-                    aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-                    aria-pressed={showPassword}
-                    aria-controls="password"
-                    onClick={() => setShowPassword((current) => !current)}
-                    className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-4" aria-hidden="true" />
-                    ) : (
-                      <Eye className="size-4" aria-hidden="true" />
-                    )}
-                  </button>
-                </div>
-                {fieldErrors.password ? (
-                  <FieldError id="password-error">{fieldErrors.password}</FieldError>
-                ) : null}
-              </Field>
-
-              {error ? (
-                <Alert
-                  id="login-error"
-                  tabIndex={-1}
-                  variant="destructive"
-                  className="border-destructive/30 bg-destructive/5"
-                >
-                  <CircleAlert aria-hidden="true" />
-                  <AlertTitle>Login gagal</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              ) : null}
-
-              <Button
-                type="submit"
-                disabled={pending}
-                className="h-11 w-full px-4 text-sm font-semibold"
-              >
-                {pending ? (
-                  <>
-                    <Loader2 className="animate-spin" aria-hidden="true" />
-                    Memproses...
-                  </>
-                ) : (
-                  "Masuk"
-                )}
-              </Button>
-            </form>
-
-            <p className="mt-6 text-center text-xs leading-5 text-muted-foreground">
-              Akses internal PT GSI. Hubungi admin bila akun belum terdaftar.
+        <div className="rounded-xl border border-border bg-background p-6 shadow-lg sm:p-8">
+          <div className="mb-6">
+            <h1 id="login-heading" className="text-xl font-semibold">
+              Masuk ke Work Order
+            </h1>
+            <p id="login-help" className="mt-2 text-sm leading-6 text-muted-foreground">
+              Gunakan akun Odoo yang sudah terdaftar di aplikasi.
             </p>
           </div>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground lg:hidden">
-            GSI Work Order · Internal
+          <form
+            className="space-y-4"
+            onSubmit={(event) => void handleSubmit(event)}
+            aria-labelledby="login-heading"
+            aria-describedby="login-help"
+            aria-busy={pending}
+            noValidate
+          >
+            <Field data-invalid={Boolean(fieldErrors.nik)}>
+              <FieldLabel htmlFor="nik" className="font-normal text-muted-foreground">
+                NIK / Login <span aria-hidden="true" className="text-destructive">*</span>
+              </FieldLabel>
+              <Input
+                id="nik"
+                name="nik"
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="next"
+                required
+                value={nik}
+                onChange={(event) => {
+                  setNik(event.target.value);
+                  clearFieldError("nik");
+                }}
+                aria-invalid={Boolean(fieldErrors.nik)}
+                aria-describedby={fieldErrors.nik ? "nik-error" : undefined}
+                placeholder="Masukkan NIK atau login Odoo"
+              />
+              {fieldErrors.nik ? (
+                <FieldError id="nik-error">{fieldErrors.nik}</FieldError>
+              ) : null}
+            </Field>
+
+            <Field data-invalid={Boolean(fieldErrors.password)}>
+              <FieldLabel htmlFor="password" className="font-normal text-muted-foreground">
+                Password <span aria-hidden="true" className="text-destructive">*</span>
+              </FieldLabel>
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  enterKeyHint="done"
+                  required
+                  value={password}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    clearFieldError("password");
+                  }}
+                  aria-invalid={Boolean(fieldErrors.password)}
+                  aria-describedby={fieldErrors.password ? "password-error" : undefined}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                  aria-pressed={showPassword}
+                  aria-controls="password"
+                  onClick={() => setShowPassword((current) => !current)}
+                  className="absolute inset-y-0 right-0 grid w-9 place-items-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-4" aria-hidden="true" />
+                  ) : (
+                    <Eye className="size-4" aria-hidden="true" />
+                  )}
+                </button>
+              </div>
+              {fieldErrors.password ? (
+                <FieldError id="password-error">{fieldErrors.password}</FieldError>
+              ) : null}
+            </Field>
+
+            {error ? (
+              <Alert
+                id="login-error"
+                tabIndex={-1}
+                variant="destructive"
+                className="border-destructive/30 bg-destructive/5"
+              >
+                <CircleAlert aria-hidden="true" />
+                <AlertTitle>Login gagal</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <Button type="submit" disabled={pending} className="w-full">
+              {pending ? (
+                <>
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                  Memproses...
+                </>
+              ) : (
+                "Masuk"
+              )}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-xs leading-5 text-muted-foreground">
+            Akses internal PT GSI. Hubungi admin bila akun belum terdaftar.
           </p>
         </div>
-      </section>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          GSI Work Order · Internal
+        </p>
+      </div>
     </main>
   );
 }

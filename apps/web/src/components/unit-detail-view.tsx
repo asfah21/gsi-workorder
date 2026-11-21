@@ -20,7 +20,7 @@ import { useSession } from "@/components/app-shell";
 import { UnitStatusBadge } from "@/components/status-badges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Empty,
@@ -40,6 +40,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Table,
   TableBody,
   TableCaption,
   TableCell,
@@ -114,7 +115,7 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
         </Alert>
         <Link
           href="/units"
-          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          className="inline-flex h-9 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
           Kembali ke daftar unit
@@ -132,32 +133,34 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
     "Identitas unit";
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Link
-            href="/units"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Unit
-          </Link>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{unit.code}</h1>
-            <UnitStatusBadge active={unit.is_active} breakdown={unit.is_breakdown} />
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardContent className="flex flex-row flex-wrap items-center justify-between gap-4">
+          <div>
+            <Link
+              href="/units"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Unit
+            </Link>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-semibold">{unit.code}</h1>
+              <UnitStatusBadge active={unit.is_active} breakdown={unit.is_breakdown} />
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-        </div>
-        {canWrite ? (
-          <Link
-            href={`/units/${unit.id}/edit`}
-            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-medium shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <Pencil className="size-4" aria-hidden="true" />
-            Edit unit
-          </Link>
-        ) : null}
-      </div>
+          {canWrite ? (
+            <Link
+              href={`/units/${unit.id}/edit`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <Pencil className="size-4" aria-hidden="true" />
+              Edit unit
+            </Link>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
@@ -204,8 +207,8 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
           <CardTitle>Identitas unit</CardTitle>
           <CardDescription>Data master dan model yang terpasang.</CardDescription>
         </CardHeader>
-        <CardContent className="pt-4">
-          <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <CardContent>
+          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Detail
               label="Unit model"
               value={
@@ -233,7 +236,7 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
 
       {canReadMeter ? <MeterReadingForm unit={unit} onSaved={() => void load()} /> : null}
 
-      <Card className="overflow-hidden">
+      <Card className="gap-0 overflow-hidden">
         <CardHeader className="border-b">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -261,13 +264,8 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
             </Empty>
           </CardContent>
         ) : (
-          <div
-            className="responsive-table-wrapper"
-            tabIndex={0}
-            role="region"
-            aria-labelledby="riwayat-reading"
-          >
-            <table className="responsive-table">
+          <div>
+            <Table>
               <TableCaption id="riwayat-reading" className="sr-only">
                 Riwayat pembacaan HM dan KM unit {unit.code}
               </TableCaption>
@@ -283,29 +281,29 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
               <TableBody>
                 {readings.map((reading) => (
                   <TableRow key={reading.id}>
-                    <TableHead scope="row" data-label="Waktu">
+                    <TableHead scope="row" className="whitespace-normal">
                       {formatDateTimeWita(reading.recorded_at)}
                     </TableHead>
-                    <TableCell data-label="Tipe">
+                    <TableCell>
                       <Badge variant="outline" className="h-6 px-2.5 uppercase">
                         {reading.reading_type}
                       </Badge>
                     </TableCell>
-                    <TableCell data-label="Nilai" className="text-right font-mono font-medium tabular-nums">
+                    <TableCell className="text-right font-medium tabular-nums">
                       {formatNumber(reading.value)}
                     </TableCell>
-                    <TableCell data-label="Sumber">
+                    <TableCell>
                       <Badge variant="secondary" className="h-6 px-2.5">
                         {sourceLabels[reading.source_type]}
                       </Badge>
                     </TableCell>
-                    <TableCell data-label="Catatan" className="text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       {reading.notes || "-"}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
-            </table>
+            </Table>
           </div>
         )}
       </Card>
@@ -396,15 +394,15 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
           alasan.
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-4">
-        <form className="grid gap-5 sm:grid-cols-2" onSubmit={(event) => void submit(event)} noValidate>
+      <CardContent>
+        <form className="grid gap-4 sm:grid-cols-2" onSubmit={(event) => void submit(event)} noValidate>
           <FieldSet className="space-y-2 sm:col-span-2">
             <FieldLegend className="text-sm">Tipe reading</FieldLegend>
             <div className="grid max-w-md grid-cols-2 gap-2">
               {(["hm", "km"] as const).map((type) => (
                 <label
                   key={type}
-                  className="flex min-h-11 cursor-pointer items-center justify-center rounded-lg border border-input bg-background px-3 text-sm font-medium transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50"
+                  className="flex h-9 cursor-pointer items-center justify-center rounded-md border border-input bg-transparent px-3 text-sm font-medium shadow-xs transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50"
                 >
                   <input
                     type="radio"
@@ -517,7 +515,7 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
           ) : null}
 
           <div className="sm:col-span-2">
-            <Button type="submit" disabled={pending} className="h-11 px-4">
+            <Button type="submit" disabled={pending}>
               {pending ? (
                 <>
                   <Loader2 className="animate-spin" aria-hidden="true" />
@@ -535,9 +533,9 @@ function MeterReadingForm({ unit, onSaved }: { unit: Unit; onSaved: () => void }
 }
 
 const metricTones = {
-  sky: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
-  emerald: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  violet: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+  sky: "bg-muted text-muted-foreground",
+  emerald: "bg-muted text-muted-foreground",
+  violet: "bg-muted text-muted-foreground",
 } as const;
 
 function MetricCard({
@@ -554,14 +552,14 @@ function MetricCard({
   tone: keyof typeof metricTones;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="rounded-xl border border-border bg-background p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-2 font-mono text-2xl font-semibold tabular-nums">{value}</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>
           <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
         </div>
-        <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", metricTones[tone])}>
+        <span className={cn("grid size-9 shrink-0 place-items-center rounded-md", metricTones[tone])}>
           <Icon className="size-5" aria-hidden="true" />
         </span>
       </div>

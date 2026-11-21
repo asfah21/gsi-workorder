@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Field as FieldRoot,
   FieldError,
@@ -154,7 +154,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
 
   return (
     <form
-      className="space-y-7"
+      className="space-y-6"
       onSubmit={(event) => void handleSubmit(event)}
       aria-busy={pending}
       noValidate
@@ -172,9 +172,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
         </Alert>
       ) : null}
 
-      <FieldSet className="gap-5">
-        <FieldLegend className="text-base">Identitas unit</FieldLegend>
-        <div className="grid gap-5 sm:grid-cols-2">
+      <FieldSet className="gap-4">
+        <FieldLegend className="text-base font-medium">Identitas unit</FieldLegend>
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Kode unit" htmlFor="code" required error={fieldErrors.code}>
             <Input
               id="code"
@@ -247,9 +247,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
         </div>
       </FieldSet>
 
-      <FieldSet className="gap-5">
-        <FieldLegend className="text-base">Model dan serial</FieldLegend>
-        <div className="grid gap-5 sm:grid-cols-2">
+      <FieldSet className="gap-4">
+        <FieldLegend className="text-base font-medium">Model dan serial</FieldLegend>
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Unit model" htmlFor="unit_model_id" error={fieldErrors.unit_model_id}>
             <NativeSelect
               id="unit_model_id"
@@ -320,8 +320,8 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       </FieldSet>
 
       <FieldSet className="gap-3">
-        <FieldLegend className="text-base">Status</FieldLegend>
-        <label className="flex min-h-11 items-center gap-3 text-sm">
+        <FieldLegend className="text-base font-medium">Status</FieldLegend>
+        <label className="flex h-9 w-fit items-center gap-2 text-sm">
           <input
             type="checkbox"
             name="is_active"
@@ -331,7 +331,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
           />
           Unit aktif
         </label>
-        <label className="flex min-h-11 items-center gap-3 text-sm">
+        <label className="flex h-9 w-fit items-center gap-2 text-sm">
           <input
             type="checkbox"
             name="is_breakdown"
@@ -344,7 +344,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       </FieldSet>
 
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={pending} className="h-11 px-4">
+        <Button type="submit" disabled={pending}>
           {pending ? (
             <>
               <Loader2 className="animate-spin" aria-hidden="true" />
@@ -358,7 +358,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
         </Button>
         <Link
           href={unit ? `/units/${unit.id}` : "/units"}
-          className="inline-flex min-h-11 items-center rounded-lg border border-border bg-background px-4 text-sm font-medium shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className={buttonVariants({ variant: "outline" })}
         >
           Batal
         </Link>

@@ -10,7 +10,7 @@ export function UnitStatusBadge({
 }) {
   if (!active) {
     return (
-      <Badge variant="outline" className="h-6 gap-1.5 px-2.5 text-muted-foreground">
+      <Badge variant="outline" className="h-5 gap-1.5 px-2 text-muted-foreground">
         <span className="size-1.5 rounded-full bg-muted-foreground" aria-hidden="true" />
         Nonaktif
       </Badge>
@@ -18,7 +18,7 @@ export function UnitStatusBadge({
   }
   if (breakdown) {
     return (
-      <Badge variant="destructive" className="h-6 gap-1.5 px-2.5">
+      <Badge variant="destructive" className="h-5 gap-1.5 px-2">
         <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
         Breakdown
       </Badge>
@@ -40,7 +40,7 @@ export function ActiveBadge({ active }: { active: boolean }) {
     <Badge
       variant={active ? "secondary" : "outline"}
       className={cn(
-        "h-6 gap-1.5 px-2.5",
+        "h-5 gap-1.5 px-2",
         active
           ? "border-transparent bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
           : "text-muted-foreground",

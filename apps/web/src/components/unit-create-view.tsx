@@ -15,7 +15,11 @@ export function UnitCreateView() {
   if (!canWrite) {
     return (
       <div className="max-w-xl space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Tambah unit</h1>
+        <Card>
+          <CardContent>
+            <h1 className="text-xl font-semibold">Tambah unit</h1>
+          </CardContent>
+        </Card>
         <Alert className="border-sky-500/30 bg-sky-500/5">
           <ShieldCheck aria-hidden="true" />
           <AlertTitle>Akses baca saja</AlertTitle>
@@ -23,7 +27,7 @@ export function UnitCreateView() {
         </Alert>
         <Link
           href="/units"
-          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          className="inline-flex h-9 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
           Kembali ke daftar unit
@@ -33,21 +37,23 @@ export function UnitCreateView() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <div>
-        <Link
-          href="/units"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          Unit
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Tambah unit</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          HM/KM awal diisi melalui pembacaan setelah unit dibuat.
-        </p>
-      </div>
-      <Card className="[--card-spacing:--spacing(5)] sm:[--card-spacing:--spacing(6)]">
+    <div className="max-w-3xl space-y-4">
+      <Card>
+        <CardContent>
+          <Link
+            href="/units"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Unit
+          </Link>
+          <h1 className="mt-2 text-xl font-semibold">Tambah unit</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            HM/KM awal diisi melalui pembacaan setelah unit dibuat.
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
         <CardContent>
           <UnitForm />
         </CardContent>

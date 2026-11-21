@@ -54,7 +54,7 @@ export function UnitEditView({ unitId }: { unitId: number }) {
   if (!canWrite) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Edit unit</h1>
+        <h1 className="text-xl font-semibold">Edit unit</h1>
         <Alert className="border-sky-500/30 bg-sky-500/5">
           <ShieldCheck aria-hidden="true" />
           <AlertTitle>Akses baca saja</AlertTitle>
@@ -62,7 +62,7 @@ export function UnitEditView({ unitId }: { unitId: number }) {
         </Alert>
         <Link
           href={`/units/${unitId}`}
-          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          className="inline-flex h-9 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
           Kembali ke detail unit
@@ -81,7 +81,7 @@ export function UnitEditView({ unitId }: { unitId: number }) {
         </Alert>
         <Link
           href={`/units/${unitId}`}
-          className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          className="inline-flex h-9 items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
           Kembali ke detail unit
@@ -103,21 +103,23 @@ export function UnitEditView({ unitId }: { unitId: number }) {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <div>
-        <Link
-          href={`/units/${unit.id}`}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          {unit.code}
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Edit unit</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Perbarui identitas, model, atau status unit.
-        </p>
-      </div>
-      <Card className="[--card-spacing:--spacing(5)] sm:[--card-spacing:--spacing(6)]">
+    <div className="max-w-3xl space-y-4">
+      <Card>
+        <CardContent>
+          <Link
+            href={`/units/${unit.id}`}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            {unit.code}
+          </Link>
+          <h1 className="mt-2 text-xl font-semibold">Edit unit</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Perbarui identitas, model, atau status unit.
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
         <CardContent>
           <UnitForm unit={unit} />
         </CardContent>
