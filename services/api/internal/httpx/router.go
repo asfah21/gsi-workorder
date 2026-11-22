@@ -7,6 +7,7 @@ import (
 
 	"gsi-workorder/internal/auth"
 	"gsi-workorder/internal/inventory"
+	"gsi-workorder/internal/material"
 	"gsi-workorder/internal/spareparts"
 )
 
@@ -36,6 +37,7 @@ type M2Services struct {
 	PM            PMService
 	Spareparts    spareparts.Service
 	Inventory     inventory.Service
+	Materials     material.Service
 	UploadDir     string
 }
 
@@ -182,7 +184,7 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 			sparepartWriters.POST("/spareparts/:id/compatibility/:compat_id/verify", sparepartHandler.VerifyCompatibility)
 		}
 		if m2.Inventory != nil {
-			inventoryHandler := NewInventoryHandler(m2.Inventory, logger)
+			inventoryHandler := NewInventoryHandler(m2.Inventory, m2.Materials, logger)
 			authorized.GET("/warehouses", inventoryHandler.ListWarehouses)
 			authorized.GET("/warehouses/:id/locations", inventoryHandler.ListWarehouseLocations)
 			authorized.GET("/warehouse-locations", inventoryHandler.ListAllLocations)
@@ -220,6 +222,32 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 			stockWriters.POST("/inventory/transfers", inventoryHandler.PostTransfer)
 			stockWriters.POST("/inventory/opname/sessions", inventoryHandler.CreateOpnameSession)
 			stockWriters.PATCH("/inventory/opname/sessions/:id/items", inventoryHandler.CountOpnameSession)
+		}
+		if m2.Materials != nil {
+			materialHandler := NewMaterialHandler(m2.Materials, logger)
+			authorized.GET("/material-requirements", materialHandler.ListRequirements)
+			authorized.GET("/material-requirements/:id", materialHandler.GetRequirement)
+			authorized.GET("/material-requirements/:id/updates", materialHandler.ListUpdates)
+			authorized.GET("/material-requirements/:id/usages", materialHandler.ListUsages)
+			authorized.GET("/inventory/reservations", materialHandler.ListReservations)
+
+			materialWriters := authorized.Group("")
+			materialWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner))
+			materialWriters.POST("/material-requirements", materialHandler.CreateRequirement)
+			materialWriters.PATCH("/material-requirements/:id", materialHandler.UpdateRequirement)
+			materialWriters.POST("/material-requirements/:id/cancel", materialHandler.Cancel)
+
+			materialStockWriters := authorized.Group("")
+			materialStockWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner, auth.RoleStorekeeper))
+			materialStockWriters.POST("/material-requirements/:id/check-stock", materialHandler.CheckStock)
+			materialStockWriters.POST("/material-requirements/:id/reserve", materialHandler.Reserve)
+			materialStockWriters.POST("/inventory/reservations", materialHandler.CreateReservation)
+			materialStockWriters.POST("/inventory/reservations/:id/release", materialHandler.ReleaseReservation)
+
+			materialIssueWriters := authorized.Group("")
+			materialIssueWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RoleStorekeeper))
+			materialIssueWriters.POST("/material-requirements/:id/issue", materialHandler.Issue)
+			materialIssueWriters.POST("/material-requirements/:id/return", materialHandler.Return)
 		}
 		if m2.Notifications != nil {
 			notificationHandler := NewNotificationHandler(m2.Notifications, logger)

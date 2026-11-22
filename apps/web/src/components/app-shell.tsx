@@ -263,7 +263,7 @@ function AppShellFrame({
             variant="secondary"
             className="hide-menu h-5 shrink-0 px-2"
           >
-            M5
+            M6
           </Badge>
         </SidebarHeader>
 

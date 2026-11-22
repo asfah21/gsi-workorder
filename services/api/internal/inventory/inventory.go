@@ -164,8 +164,17 @@ type PostItem struct {
 	SparepartID    int64
 	FromLocationID *int64
 	ToLocationID   *int64
+	ReservationID  *int64
 	Qty            float64
 	Notes          string
+}
+
+// PostedTransaction is returned by PostTx so callers that compose inventory
+// with material usage can attach usage rows to the inserted ledger lines.
+type PostedTransaction struct {
+	ID      int64
+	Code    string
+	ItemIDs []int64
 }
 
 type PostInput struct {
@@ -314,15 +323,18 @@ type OpnameCountInput struct {
 }
 
 type ReconciliationRow struct {
-	SparepartID   int64   `json:"sparepart_id"`
-	SparepartCode string  `json:"sparepart_code"`
-	SparepartName string  `json:"sparepart_name"`
-	LocationID    int64   `json:"warehouse_location_id"`
-	WarehouseCode string  `json:"warehouse_code"`
-	LocationCode  string  `json:"location_code"`
-	BalanceOnHand float64 `json:"balance_on_hand"`
-	LedgerOnHand  float64 `json:"ledger_on_hand"`
-	Difference    float64 `json:"difference"`
+	SparepartID         int64   `json:"sparepart_id"`
+	SparepartCode       string  `json:"sparepart_code"`
+	SparepartName       string  `json:"sparepart_name"`
+	LocationID          int64   `json:"warehouse_location_id"`
+	WarehouseCode       string  `json:"warehouse_code"`
+	LocationCode        string  `json:"location_code"`
+	BalanceOnHand       float64 `json:"balance_on_hand"`
+	LedgerOnHand        float64 `json:"ledger_on_hand"`
+	Difference          float64 `json:"difference"`
+	BalanceReserved     float64 `json:"balance_reserved"`
+	ReservationReserved float64 `json:"reservation_reserved"`
+	ReservedDifference  float64 `json:"reserved_difference"`
 }
 
 type Reconciliation struct {

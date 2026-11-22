@@ -69,6 +69,7 @@ import type {
   InventoryBalance,
   InventoryMovement,
   InventoryReconciliation,
+  InventoryReservation,
   InventoryTransaction,
   InventoryTransactionType,
   ListResponse,
@@ -81,7 +82,7 @@ import type {
 import { formatWita } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-type Tab = "stock" | "transactions" | "movements" | "opname" | "master";
+type Tab = "stock" | "transactions" | "movements" | "opname" | "reservations" | "master";
 type TxDraftItem = {
   key: string;
   sparepart_id: string;
@@ -139,6 +140,7 @@ const tabs: { id: Tab; label: string; icon: typeof Boxes }[] = [
   { id: "transactions", label: "Transaksi", icon: ArrowLeftRight },
   { id: "movements", label: "Pergerakan", icon: SlidersHorizontal },
   { id: "opname", label: "Stock Opname", icon: ClipboardList },
+  { id: "reservations", label: "Reservasi", icon: ShieldCheck },
   { id: "master", label: "Master", icon: Warehouse },
 ];
 
@@ -169,6 +171,7 @@ export function InventoryView() {
   const canApprove = isAdmin || user.role === "planner";
   const canCount = canMove;
   const canMaster = canApprove;
+  const canReserve = canMove || canApprove;
 
   const [tab, setTab] = useState<Tab>("stock");
   const [error, setError] = useState("");
@@ -224,6 +227,13 @@ export function InventoryView() {
   const [policyPage, setPolicyPage] = useState(1);
   const [policyPageSize, setPolicyPageSize] = useState(25);
   const [policyLoading, setPolicyLoading] = useState(false);
+
+  const [reservationStatus, setReservationStatus] = useState("");
+  const [reservations, setReservations] = useState<InventoryReservation[]>([]);
+  const [reservationTotal, setReservationTotal] = useState(0);
+  const [reservationPage, setReservationPage] = useState(1);
+  const [reservationPageSize, setReservationPageSize] = useState(25);
+  const [reservationLoading, setReservationLoading] = useState(false);
 
   const [txFormOpen, setTxFormOpen] = useState(false);
   const [txFormType, setTxFormType] = useState<Exclude<InventoryTransactionType, "opname">>("receipt");
@@ -391,6 +401,23 @@ export function InventoryView() {
     }
   }, [policyPage, policyPageSize]);
 
+  const loadReservations = useCallback(async () => {
+    setReservationLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(reservationPage), limit: String(reservationPageSize) });
+      if (reservationStatus) params.set("status", reservationStatus);
+      const result = await proxyGet<ListResponse<InventoryReservation>>(
+        `/inventory/reservations?${params.toString()}`,
+      );
+      setReservations(result.data);
+      setReservationTotal(result.meta.total);
+    } catch (loadError) {
+      setError(loadError instanceof ApiError ? loadError.message : "Reservasi inventory tidak dapat dimuat.");
+    } finally {
+      setReservationLoading(false);
+    }
+  }, [reservationPage, reservationPageSize, reservationStatus]);
+
   useEffect(() => {
     void loadBase();
   }, [loadBase]);
@@ -412,6 +439,10 @@ export function InventoryView() {
   }, [loadOpnames, tab]);
 
   useEffect(() => {
+    if (tab === "reservations") void loadReservations();
+  }, [loadReservations, tab]);
+
+  useEffect(() => {
     if (tab === "master") {
       void loadPolicies();
       void loadBase();
@@ -426,8 +457,9 @@ export function InventoryView() {
       loadMovements(),
       loadOpnames(),
       loadPolicies(),
+      loadReservations(),
     ]);
-  }, [loadBalances, loadBase, loadMovements, loadOpnames, loadPolicies, loadTransactions]);
+  }, [loadBalances, loadBase, loadMovements, loadOpnames, loadPolicies, loadReservations, loadTransactions]);
 
   const canPostType = (type: Exclude<InventoryTransactionType, "opname">) => {
     return type === "adjustment" ? canApprove : canMove;
@@ -882,10 +914,27 @@ export function InventoryView() {
     }
   };
 
+  const releaseReservation = async (reservation: InventoryReservation) => {
+    if (!canReserve) return;
+    setError("");
+    setSuccess("");
+    try {
+      await proxyPost<DataResponse<InventoryReservation>>(
+        `/inventory/reservations/${reservation.id}/release`,
+        { reason: "Release dari halaman inventory" },
+      );
+      setSuccess(`Reservasi ${reservation.sparepart_code} dilepas.`);
+      await refreshAfterWrite();
+    } catch (releaseError) {
+      setError(releaseError instanceof ApiError ? releaseError.message : "Reservasi tidak dapat dilepas.");
+    }
+  };
+
   const balancePages = Math.max(1, Math.ceil(balanceTotal / balancePageSize));
   const transactionPages = Math.max(1, Math.ceil(transactionTotal / transactionPageSize));
   const movementPages = Math.max(1, Math.ceil(movementTotal / movementPageSize));
   const opnamePages = Math.max(1, Math.ceil(opnameTotal / opnamePageSize));
+  const reservationPages = Math.max(1, Math.ceil(reservationTotal / reservationPageSize));
   const policyPages = Math.max(1, Math.ceil(policyTotal / policyPageSize));
   const opnameHasUnsavedCounts = opnameDetail
     ? opnameDetail.items.some(
@@ -1014,7 +1063,7 @@ export function InventoryView() {
               <Boxes className="size-4" aria-hidden="true" /> Saldo stok
             </CardTitle>
             <CardDescription>
-              Saldo tersedia per sparepart dan lokasi. Reserved belum dipakai pada M5.
+              Saldo tersedia per sparepart dan lokasi. Reserved berasal dari reservasi material aktif.
             </CardDescription>
             <form
               className="grid gap-3 md:grid-cols-2 xl:grid-cols-5"
@@ -1511,6 +1560,109 @@ export function InventoryView() {
         </Card>
       ) : null}
 
+      {tab === "reservations" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="size-4" aria-hidden="true" /> Reservasi inventory
+            </CardTitle>
+            <CardDescription>
+              Reservasi hanya menambah reserved. On hand tidak berubah sampai material di-issue.
+            </CardDescription>
+            <Field className="max-w-xs">
+              <FieldLabel htmlFor="reservation-status">Status</FieldLabel>
+              <NativeSelect
+                id="reservation-status"
+                value={reservationStatus}
+                onChange={(event) => { setReservationStatus(event.target.value); setReservationPage(1); }}
+              >
+                <NativeSelectOption value="">Semua status</NativeSelectOption>
+                <NativeSelectOption value="active">Active</NativeSelectOption>
+                <NativeSelectOption value="consumed">Consumed</NativeSelectOption>
+                <NativeSelectOption value="released">Released</NativeSelectOption>
+                <NativeSelectOption value="cancelled">Cancelled</NativeSelectOption>
+              </NativeSelect>
+            </Field>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {reservationLoading ? (
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : reservations.length === 0 ? (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon"><ShieldCheck aria-hidden="true" /></EmptyMedia>
+                  <EmptyTitle>Belum ada reservasi</EmptyTitle>
+                  <EmptyDescription>Reservasi dibuat dari material requirement work order.</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Sparepart</TableHead>
+                      <TableHead>Requirement</TableHead>
+                      <TableHead>Lokasi</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Reserved</TableHead>
+                      <TableHead>Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reservations.map((reservation) => (
+                      <TableRow key={reservation.id}>
+                        <TableCell>
+                          <p className="font-medium">{reservation.sparepart_code}</p>
+                          <p className="text-xs text-muted-foreground">{reservation.sparepart_name}</p>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-mono text-xs">{reservation.requirement_code}</p>
+                          <p className="text-xs text-muted-foreground">{reservation.wo_code}</p>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {reservation.warehouse_code}/{reservation.location_code}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{reservation.qty} {reservation.uom}</TableCell>
+                        <TableCell>
+                          <Badge variant={reservation.status === "active" ? "secondary" : "outline"}>
+                            {reservation.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatWita(reservation.reserved_at)}
+                          <span className="block">{reservation.reserved_by_name || "-"}</span>
+                        </TableCell>
+                        <TableCell>
+                          {canReserve && reservation.status === "active" ? (
+                            <Button type="button" size="xs" variant="outline" onClick={() => void releaseReservation(reservation)}>
+                              Release
+                            </Button>
+                          ) : null}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            <TablePagination
+              page={reservationPage}
+              pageSize={reservationPageSize}
+              total={reservationTotal}
+              totalPages={reservationPages}
+              loading={reservationLoading}
+              itemLabel="reservasi"
+              onPageChange={setReservationPage}
+              onPageSizeChange={(size) => { setReservationPageSize(size); setReservationPage(1); }}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
+
       {tab === "master" ? (
         <div className="flex flex-col gap-4">
           {masterError ? (
@@ -1823,9 +1975,12 @@ export function InventoryView() {
                       <TableRow>
                         <TableHead>Sparepart</TableHead>
                         <TableHead>Lokasi</TableHead>
-                        <TableHead>Saldo</TableHead>
+                        <TableHead>Saldo on hand</TableHead>
                         <TableHead>Ledger</TableHead>
                         <TableHead>Selisih</TableHead>
+                        <TableHead>Reserved saldo</TableHead>
+                        <TableHead>Reservasi</TableHead>
+                        <TableHead>Selisih reserved</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1839,6 +1994,9 @@ export function InventoryView() {
                           <TableCell>{row.balance_on_hand}</TableCell>
                           <TableCell>{row.ledger_on_hand}</TableCell>
                           <TableCell className={cn(row.difference !== 0 && "font-medium text-destructive")}>{row.difference}</TableCell>
+                          <TableCell>{row.balance_reserved}</TableCell>
+                          <TableCell>{row.reservation_reserved}</TableCell>
+                          <TableCell className={cn(row.reserved_difference !== 0 && "font-medium text-destructive")}>{row.reserved_difference}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

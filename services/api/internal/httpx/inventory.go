@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -9,18 +10,44 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"gsi-workorder/internal/inventory"
+	"gsi-workorder/internal/material"
 )
 
 type InventoryHandler struct {
-	service inventory.Service
-	logger  *slog.Logger
+	service   inventory.Service
+	materials material.Service
+	logger    *slog.Logger
 }
 
-func NewInventoryHandler(service inventory.Service, logger *slog.Logger) *InventoryHandler {
+func NewInventoryHandler(service inventory.Service, materials material.Service, logger *slog.Logger) *InventoryHandler {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &InventoryHandler{service: service, logger: logger}
+	return &InventoryHandler{service: service, materials: materials, logger: logger}
+}
+
+func (h *InventoryHandler) recomputeMaterialReadiness(ctx context.Context, sparepartIDs []int64) {
+	if h.materials == nil || len(sparepartIDs) == 0 {
+		return
+	}
+	unique := make(map[int64]struct{}, len(sparepartIDs))
+	ids := make([]int64, 0, len(sparepartIDs))
+	for _, id := range sparepartIDs {
+		if id <= 0 {
+			continue
+		}
+		if _, exists := unique[id]; exists {
+			continue
+		}
+		unique[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return
+	}
+	if _, err := h.materials.RecomputeForSpareparts(ctx, ids); err != nil {
+		h.logger.Warn("material readiness recompute failed", "error", err)
+	}
 }
 
 type warehouseRequest struct {
@@ -425,6 +452,11 @@ func (h *InventoryHandler) postTransaction(c *gin.Context, transactionType strin
 		h.writeError(c, err, "post inventory transaction")
 		return
 	}
+	sparepartIDs := make([]int64, 0, len(items))
+	for _, item := range items {
+		sparepartIDs = append(sparepartIDs, item.SparepartID)
+	}
+	h.recomputeMaterialReadiness(c.Request.Context(), sparepartIDs)
 	c.JSON(http.StatusCreated, gin.H{"data": result})
 }
 
@@ -449,6 +481,11 @@ func (h *InventoryHandler) Reverse(c *gin.Context) {
 		h.writeError(c, err, "reverse inventory transaction")
 		return
 	}
+	sparepartIDs := make([]int64, 0, len(item.Items))
+	for _, line := range item.Items {
+		sparepartIDs = append(sparepartIDs, line.SparepartID)
+	}
+	h.recomputeMaterialReadiness(c.Request.Context(), sparepartIDs)
 	c.JSON(http.StatusCreated, gin.H{"data": item})
 }
 
@@ -594,6 +631,11 @@ func (h *InventoryHandler) PostOpnameSession(c *gin.Context) {
 		h.writeError(c, err, "post stock opname session")
 		return
 	}
+	sparepartIDs := make([]int64, 0, len(item.Items))
+	for _, line := range item.Items {
+		sparepartIDs = append(sparepartIDs, line.SparepartID)
+	}
+	h.recomputeMaterialReadiness(c.Request.Context(), sparepartIDs)
 	c.JSON(http.StatusCreated, gin.H{"data": item})
 }
 

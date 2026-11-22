@@ -20,6 +20,7 @@ import { useSearchParams } from "next/navigation";
 
 import { useSession } from "@/components/app-shell";
 import { TablePagination } from "@/components/table-pagination";
+import { WorkOrderMaterialPanel } from "@/components/workorder-material-panel";
 import { TableSortHeader } from "@/components/table-sort-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -952,6 +953,8 @@ export function WorkOrdersView() {
                     </div>
                   </div>
                 ) : null}
+
+                <WorkOrderMaterialPanel woID={detail.id} woStatus={detail.status} />
 
                 {detail.checklist.length > 0 ? (
                   <div>

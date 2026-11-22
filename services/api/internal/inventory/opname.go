@@ -333,7 +333,7 @@ func (r *Repository) PostOpname(ctx context.Context, id int64, actor Actor) (Opn
 			return OpnameSession{}, err
 		}
 		if _, err := r.postLedgerTx(ctx, tx, actor.ID, "opname", "stock_opname",
-			&id, code, "Stock opname "+code, "", items, nil); err != nil {
+			&id, code, "Stock opname "+code, "", items, nil, false); err != nil {
 			return OpnameSession{}, err
 		}
 	}

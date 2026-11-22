@@ -524,7 +524,7 @@ Aturan:
 
 ### 5.10 Reconciliation
 
-* `on_hand` harus sama dengan hasil ledger transaksi `posted` (receipt/return/transfer in/adjustment increase/opname increase − issue/transfer out/adjustment decrease/opname decrease). Transaksi `reversed` tidak dihitung; reversal `posted` dihitung.
+* `on_hand` harus sama dengan hasil ledger transaksi asli + mirror (receipt/return/transfer in/adjustment increase/opname increase − issue/transfer out/adjustment decrease/opname decrease). Status `reversed` adalah penanda audit, bukan filter ledger; menghitung mirror saja akan menghasilkan selisih sebesar transaksi asli.
 * `reserved` harus sama dengan sum active reservations.
 * Reconcile query harus nol selisih; jika tidak, perbaiki bug dan buat adjustment beralasan—jangan edit manual.
 * `inventory_balances` dapat di-rebuild dari ledger.

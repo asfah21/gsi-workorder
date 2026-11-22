@@ -23,6 +23,11 @@ type balanceState struct {
 	Reserved float64
 }
 
+type balanceChange struct {
+	OnHand   float64
+	Reserved float64
+}
+
 func (r *Repository) Post(ctx context.Context, actor Actor, input PostInput) (Transaction, error) {
 	input.Type = strings.ToLower(trim(input.Type))
 	if !canPostType(actor.Role, input.Type) {
@@ -70,16 +75,58 @@ func (r *Repository) Post(ctx context.Context, actor Actor, input PostInput) (Tr
 	if err := validatePostReferences(ctx, tx, normalized.Items); err != nil {
 		return Transaction{}, err
 	}
-	id, err := r.postLedgerTx(ctx, tx, actor.ID, normalized.Type, normalized.ReferenceType,
+	posted, err := r.postLedgerTx(ctx, tx, actor.ID, normalized.Type, normalized.ReferenceType,
 		normalized.ReferenceID, normalized.ReferenceNo, normalized.Notes,
-		normalized.IdempotencyKey, normalized.Items, nil)
+		normalized.IdempotencyKey, normalized.Items, nil, false)
 	if err != nil {
 		return Transaction{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return Transaction{}, fmt.Errorf("commit inventory post: %w", err)
 	}
-	return r.GetTransaction(ctx, id)
+	return r.GetTransaction(ctx, posted.ID)
+}
+
+// PostTx performs the same ledger/balance write path as Post but uses the
+// caller's transaction. It is used by the material service so reservation,
+// requirement caches, usage, and stock can commit atomically.
+func (r *Repository) PostTx(ctx context.Context, tx pgx.Tx, actor Actor, input PostInput) (PostedTransaction, error) {
+	input.Type = strings.ToLower(trim(input.Type))
+	if !canPostType(actor.Role, input.Type) {
+		return PostedTransaction{}, ErrValidation
+	}
+	normalized, err := normalizePostInput(input)
+	if err != nil {
+		return PostedTransaction{}, err
+	}
+	active := normalized.Type != "release"
+	if err := validateReferences(ctx, tx, normalized.Items, active); err != nil {
+		return PostedTransaction{}, err
+	}
+	return r.postLedgerTx(ctx, tx, actor.ID, normalized.Type, normalized.ReferenceType,
+		normalized.ReferenceID, normalized.ReferenceNo, normalized.Notes,
+		normalized.IdempotencyKey, normalized.Items, nil, false)
+}
+
+// CheckIdempotency acquires the transaction-scoped advisory lock and reports
+// whether an inventory transaction with this key already exists.
+func (r *Repository) CheckIdempotency(ctx context.Context, tx pgx.Tx, key string) (bool, error) {
+	key = trim(key)
+	if key == "" {
+		return false, nil
+	}
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1)::bigint)`, key); err != nil {
+		return false, fmt.Errorf("lock inventory idempotency key: %w", err)
+	}
+	var id int64
+	err := tx.QueryRow(ctx, `SELECT id FROM inventory_transactions WHERE idempotency_key = $1`, key).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check inventory idempotency key: %w", err)
+	}
+	return true, nil
 }
 
 func (r *Repository) Reverse(ctx context.Context, id int64, actor Actor, reason string) (Transaction, error) {
@@ -135,8 +182,8 @@ func (r *Repository) Reverse(ctx context.Context, id int64, actor Actor, reason 
 	if err := validateReversalReferences(ctx, tx, mirrored); err != nil {
 		return Transaction{}, err
 	}
-	reversalID, err := r.postLedgerTx(ctx, tx, actor.ID, original.Type, "reversal",
-		&id, original.Code, reason, "", mirrored, &id)
+	posted, err := r.postLedgerTx(ctx, tx, actor.ID, original.Type, "reversal",
+		&id, original.Code, reason, "", mirrored, &id, true)
 	if err != nil {
 		return Transaction{}, err
 	}
@@ -148,7 +195,7 @@ func (r *Repository) Reverse(ctx context.Context, id int64, actor Actor, reason 
 	if err := tx.Commit(ctx); err != nil {
 		return Transaction{}, fmt.Errorf("commit inventory reversal: %w", err)
 	}
-	return r.GetTransaction(ctx, reversalID)
+	return r.GetTransaction(ctx, posted.ID)
 }
 
 func (r *Repository) postLedgerTx(
@@ -163,13 +210,14 @@ func (r *Repository) postLedgerTx(
 	idempotencyKey string,
 	items []PostItem,
 	reversalOfID *int64,
-) (int64, error) {
+	reversal bool,
+) (PostedTransaction, error) {
 	if len(items) == 0 {
-		return 0, &ValidationError{Fields: map[string]string{"items": "Minimal satu item transaksi wajib diisi."}}
+		return PostedTransaction{}, &ValidationError{Fields: map[string]string{"items": "Minimal satu item transaksi wajib diisi."}}
 	}
-	deltas, err := buildDeltas(items)
+	deltas, err := buildDeltas(transactionType, items, reversal)
 	if err != nil {
-		return 0, err
+		return PostedTransaction{}, err
 	}
 	keys := make([]balanceKey, 0, len(deltas))
 	for key := range deltas {
@@ -189,7 +237,7 @@ func (r *Repository) postLedgerTx(
 			VALUES ($1, $2, 0, 0)
 			ON CONFLICT (sparepart_id, warehouse_location_id) DO NOTHING
 		`, key.SparepartID, key.LocationID); err != nil {
-			return 0, fmt.Errorf("ensure inventory balance: %w", err)
+			return PostedTransaction{}, fmt.Errorf("ensure inventory balance: %w", err)
 		}
 		var state balanceState
 		if err := tx.QueryRow(ctx, `
@@ -198,18 +246,20 @@ func (r *Repository) postLedgerTx(
 			WHERE sparepart_id = $1 AND warehouse_location_id = $2
 			FOR UPDATE
 		`, key.SparepartID, key.LocationID).Scan(&state.OnHand, &state.Reserved); err != nil {
-			return 0, fmt.Errorf("lock inventory balance: %w", err)
+			return PostedTransaction{}, fmt.Errorf("lock inventory balance: %w", err)
 		}
-		state.OnHand += deltas[key]
+		change := deltas[key]
+		state.OnHand += change.OnHand
+		state.Reserved += change.Reserved
 		if state.OnHand < 0 || state.Reserved < 0 || state.Reserved > state.OnHand {
-			return 0, ErrInsufficientStock
+			return PostedTransaction{}, ErrInsufficientStock
 		}
 		states[key] = state
 	}
 
 	code, err := nextTransactionCode(ctx, tx)
 	if err != nil {
-		return 0, err
+		return PostedTransaction{}, err
 	}
 	var transactionID int64
 	if err := tx.QueryRow(ctx, `
@@ -222,27 +272,32 @@ func (r *Repository) postLedgerTx(
 		RETURNING id
 	`, code, transactionType, trim(referenceType), referenceID, trim(referenceNo),
 		reversalOfID, trim(idempotencyKey), actorID, trim(notes)).Scan(&transactionID); err != nil {
-		return 0, fmt.Errorf("insert inventory transaction: %w", err)
+		return PostedTransaction{}, fmt.Errorf("insert inventory transaction: %w", err)
 	}
+	itemIDs := make([]int64, 0, len(items))
 	for _, item := range items {
-		if _, err := tx.Exec(ctx, `
+		var itemID int64
+		if err := tx.QueryRow(ctx, `
 			INSERT INTO inventory_transaction_items (
-				transaction_id, sparepart_id, from_location_id, to_location_id, qty, notes
+				transaction_id, sparepart_id, from_location_id, to_location_id,
+				reservation_id, qty, notes
 			)
-			VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''))
+			VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''))
+			RETURNING id
 		`, transactionID, item.SparepartID, item.FromLocationID, item.ToLocationID,
-			item.Qty, trim(item.Notes)); err != nil {
-			return 0, fmt.Errorf("insert inventory transaction item: %w", err)
+			item.ReservationID, item.Qty, trim(item.Notes)).Scan(&itemID); err != nil {
+			return PostedTransaction{}, fmt.Errorf("insert inventory transaction item: %w", err)
 		}
+		itemIDs = append(itemIDs, itemID)
 	}
 	for _, key := range keys {
 		state := states[key]
 		if _, err := tx.Exec(ctx, `
 			UPDATE inventory_balances
-			SET on_hand = $3, updated_at = now()
+			SET on_hand = $3, reserved = $4, updated_at = now()
 			WHERE sparepart_id = $1 AND warehouse_location_id = $2
-		`, key.SparepartID, key.LocationID, state.OnHand); err != nil {
-			return 0, fmt.Errorf("update inventory balance: %w", err)
+		`, key.SparepartID, key.LocationID, state.OnHand, state.Reserved); err != nil {
+			return PostedTransaction{}, fmt.Errorf("update inventory balance: %w", err)
 		}
 	}
 	if reversalOfID == nil && (transactionType == "adjustment" || transactionType == "opname") {
@@ -264,10 +319,10 @@ func (r *Repository) postLedgerTx(
 				DedupeKey: fmt.Sprintf("inv:%d:posted", transactionID),
 			}, &actorID)
 		if err != nil {
-			return 0, fmt.Errorf("notify inventory posting: %w", err)
+			return PostedTransaction{}, fmt.Errorf("notify inventory posting: %w", err)
 		}
 	}
-	return transactionID, nil
+	return PostedTransaction{ID: transactionID, Code: code, ItemIDs: itemIDs}, nil
 }
 
 func (r *Repository) ListTransactions(ctx context.Context, filter TransactionFilter) ([]Transaction, int, error) {
@@ -511,7 +566,7 @@ func (r *Repository) ListMovements(ctx context.Context, filter MovementFilter) (
 
 func (r *Repository) Reconcile(ctx context.Context) (Reconciliation, error) {
 	rows, err := r.pool.Query(ctx, `
-		WITH ledger_lines AS (
+		WITH onhand_ledger_lines AS (
 			SELECT ti.sparepart_id, ti.to_location_id AS location_id, ti.qty
 			FROM inventory_transaction_items ti
 			JOIN inventory_transactions t ON t.id = ti.transaction_id
@@ -524,26 +579,47 @@ func (r *Repository) Reconcile(ctx context.Context) (Reconciliation, error) {
 			WHERE t.type NOT IN ('reserve', 'release')
 			  AND ti.from_location_id IS NOT NULL
 		),
-		ledger AS (
+		onhand_ledger AS (
 			SELECT sparepart_id, location_id, SUM(qty) AS qty
-			FROM ledger_lines
+			FROM onhand_ledger_lines
 			GROUP BY sparepart_id, location_id
+		),
+		reserved_ledger AS (
+			SELECT sparepart_id, warehouse_location_id AS location_id, SUM(qty) AS qty
+			FROM inventory_reservations
+			WHERE status = 'active'
+			GROUP BY sparepart_id, warehouse_location_id
+		),
+		keys AS (
+			SELECT sparepart_id, warehouse_location_id AS location_id FROM inventory_balances
+			UNION
+			SELECT sparepart_id, location_id FROM onhand_ledger
+			UNION
+			SELECT sparepart_id, location_id FROM reserved_ledger
 		)
-		SELECT COALESCE(b.sparepart_id, l.sparepart_id),
-		       s.code, s.name,
-		       COALESCE(b.warehouse_location_id, l.location_id),
-		       w.code, wl.code,
+		SELECT k.sparepart_id, s.code, s.name,
+		       k.location_id, w.code, wl.code,
 		       COALESCE(b.on_hand, 0)::float8,
 		       COALESCE(l.qty, 0)::float8,
-		       (COALESCE(b.on_hand, 0) - COALESCE(l.qty, 0))::float8
-		FROM inventory_balances b
-		FULL OUTER JOIN ledger l
-		       ON l.sparepart_id = b.sparepart_id
-		      AND l.location_id = b.warehouse_location_id
-		JOIN spareparts s ON s.id = COALESCE(b.sparepart_id, l.sparepart_id)
-		JOIN warehouse_locations wl ON wl.id = COALESCE(b.warehouse_location_id, l.location_id)
+		       (COALESCE(b.on_hand, 0) - COALESCE(l.qty, 0))::float8,
+		       COALESCE(b.reserved, 0)::float8,
+		       COALESCE(r.qty, 0)::float8,
+		       (COALESCE(b.reserved, 0) - COALESCE(r.qty, 0))::float8
+		FROM keys k
+		JOIN spareparts s ON s.id = k.sparepart_id
+		JOIN warehouse_locations wl ON wl.id = k.location_id
 		JOIN warehouses w ON w.id = wl.warehouse_id
-		WHERE COALESCE(b.on_hand, 0) <> COALESCE(l.qty, 0)
+		LEFT JOIN inventory_balances b
+		       ON b.sparepart_id = k.sparepart_id
+		      AND b.warehouse_location_id = k.location_id
+		LEFT JOIN onhand_ledger l
+		       ON l.sparepart_id = k.sparepart_id
+		      AND l.location_id = k.location_id
+		LEFT JOIN reserved_ledger r
+		       ON r.sparepart_id = k.sparepart_id
+		      AND r.location_id = k.location_id
+		WHERE COALESCE(b.on_hand, 0) IS DISTINCT FROM COALESCE(l.qty, 0)
+		   OR COALESCE(b.reserved, 0) IS DISTINCT FROM COALESCE(r.qty, 0)
 		ORDER BY s.code ASC, w.code ASC, wl.code ASC
 	`)
 	if err != nil {
@@ -555,7 +631,8 @@ func (r *Repository) Reconcile(ctx context.Context) (Reconciliation, error) {
 		var item ReconciliationRow
 		if err := rows.Scan(&item.SparepartID, &item.SparepartCode, &item.SparepartName,
 			&item.LocationID, &item.WarehouseCode, &item.LocationCode,
-			&item.BalanceOnHand, &item.LedgerOnHand, &item.Difference); err != nil {
+			&item.BalanceOnHand, &item.LedgerOnHand, &item.Difference,
+			&item.BalanceReserved, &item.ReservationReserved, &item.ReservedDifference); err != nil {
 			return Reconciliation{}, fmt.Errorf("scan inventory reconciliation: %w", err)
 		}
 		result.Rows = append(result.Rows, item)
@@ -567,8 +644,8 @@ func (r *Repository) Reconcile(ctx context.Context) (Reconciliation, error) {
 	return result, nil
 }
 
-func buildDeltas(items []PostItem) (map[balanceKey]float64, error) {
-	deltas := make(map[balanceKey]float64, len(items)*2)
+func buildDeltas(transactionType string, items []PostItem, reversal bool) (map[balanceKey]balanceChange, error) {
+	deltas := make(map[balanceKey]balanceChange, len(items)*2)
 	for _, item := range items {
 		if item.SparepartID <= 0 {
 			return nil, &ValidationError{Fields: map[string]string{"items": "Sparepart wajib dipilih."}}
@@ -585,13 +662,60 @@ func buildDeltas(items []PostItem) (map[balanceKey]float64, error) {
 		if item.ToLocationID != nil && *item.ToLocationID <= 0 {
 			return nil, &ValidationError{Fields: map[string]string{"items": "Lokasi tujuan tidak valid."}}
 		}
-		if item.FromLocationID != nil {
+		switch {
+		case reversal:
+			if item.FromLocationID != nil {
+				key := balanceKey{SparepartID: item.SparepartID, LocationID: *item.FromLocationID}
+				change := deltas[key]
+				change.OnHand -= item.Qty
+				deltas[key] = change
+			}
+			if item.ToLocationID != nil {
+				key := balanceKey{SparepartID: item.SparepartID, LocationID: *item.ToLocationID}
+				change := deltas[key]
+				change.OnHand += item.Qty
+				deltas[key] = change
+			}
+		case transactionType == "reserve":
+			if item.FromLocationID == nil {
+				return nil, &ValidationError{Fields: map[string]string{"items": "Reservasi wajib memiliki lokasi."}}
+			}
 			key := balanceKey{SparepartID: item.SparepartID, LocationID: *item.FromLocationID}
-			deltas[key] -= item.Qty
-		}
-		if item.ToLocationID != nil {
-			key := balanceKey{SparepartID: item.SparepartID, LocationID: *item.ToLocationID}
-			deltas[key] += item.Qty
+			change := deltas[key]
+			change.Reserved += item.Qty
+			deltas[key] = change
+		case transactionType == "release":
+			if item.FromLocationID == nil {
+				return nil, &ValidationError{Fields: map[string]string{"items": "Release wajib memiliki lokasi."}}
+			}
+			key := balanceKey{SparepartID: item.SparepartID, LocationID: *item.FromLocationID}
+			change := deltas[key]
+			change.Reserved -= item.Qty
+			deltas[key] = change
+		case transactionType == "issue":
+			if item.FromLocationID == nil {
+				return nil, &ValidationError{Fields: map[string]string{"items": "Issue wajib memiliki lokasi asal."}}
+			}
+			key := balanceKey{SparepartID: item.SparepartID, LocationID: *item.FromLocationID}
+			change := deltas[key]
+			change.OnHand -= item.Qty
+			if item.ReservationID != nil {
+				change.Reserved -= item.Qty
+			}
+			deltas[key] = change
+		default:
+			if item.FromLocationID != nil {
+				key := balanceKey{SparepartID: item.SparepartID, LocationID: *item.FromLocationID}
+				change := deltas[key]
+				change.OnHand -= item.Qty
+				deltas[key] = change
+			}
+			if item.ToLocationID != nil {
+				key := balanceKey{SparepartID: item.SparepartID, LocationID: *item.ToLocationID}
+				change := deltas[key]
+				change.OnHand += item.Qty
+				deltas[key] = change
+			}
 		}
 	}
 	return deltas, nil
@@ -635,6 +759,22 @@ func normalizePostInput(input PostInput) (PostInput, error) {
 				fields["items"] = "Issue hanya boleh memiliki lokasi asal."
 				break
 			}
+		case "reserve":
+			if item.FromLocationID == nil || item.ToLocationID != nil {
+				fields["items"] = "Reserve hanya boleh memiliki lokasi asal."
+				break
+			}
+			if item.ReservationID == nil {
+				fields["items"] = "Reserve wajib menautkan reservasi."
+			}
+		case "release":
+			if item.FromLocationID == nil || item.ToLocationID != nil {
+				fields["items"] = "Release hanya boleh memiliki lokasi asal."
+				break
+			}
+			if item.ReservationID == nil {
+				fields["items"] = "Release wajib menautkan reservasi."
+			}
 		case "transfer":
 			if item.FromLocationID == nil || item.ToLocationID == nil {
 				fields["items"] = "Transfer wajib memiliki lokasi asal dan tujuan."
@@ -664,6 +804,8 @@ func canPostType(role, transactionType string) bool {
 	switch transactionType {
 	case "receipt", "issue", "return", "transfer":
 		return canMoveStock(role)
+	case "reserve", "release":
+		return canMoveStock(role) || canApproveStock(role)
 	case "adjustment":
 		return canApproveStock(role)
 	default:

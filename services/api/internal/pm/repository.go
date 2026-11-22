@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"gsi-workorder/internal/material"
 	"gsi-workorder/internal/notifications"
 	"gsi-workorder/internal/pmcalc"
 	"gsi-workorder/internal/settings"
@@ -1238,6 +1239,7 @@ func (r *Repository) GenerateWO(ctx context.Context, id int64, actor Actor) (Gen
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	var (
+		planID                       int64
 		unitID                       int64
 		cycleNo                      int
 		status                       string
@@ -1246,14 +1248,14 @@ func (r *Repository) GenerateWO(ctx context.Context, id int64, actor Actor) (Gen
 		dueDate                      pgtype.Date
 	)
 	err = tx.QueryRow(ctx, `
-		SELECT s.unit_id, s.cycle_no, s.status, p.name, p.default_priority,
+		SELECT p.id, s.unit_id, s.cycle_no, s.status, p.name, p.default_priority,
 		       p.default_assignee_id, p.default_supervisor_id, u.code, s.due_date
 		FROM pm_schedules s
 		JOIN pm_plans p ON p.id = s.pm_plan_id
 		JOIN units u ON u.id = s.unit_id
 		WHERE s.id = $1
 		FOR UPDATE OF s
-	`, id).Scan(&unitID, &cycleNo, &status, &planName, &priority,
+	`, id).Scan(&planID, &unitID, &cycleNo, &status, &planName, &priority,
 		&assigneeID, &supervisorID, &unitCode, &dueDate)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return GenerateResult{}, ErrNotFound
@@ -1312,6 +1314,9 @@ func (r *Repository) GenerateWO(ctx context.Context, id int64, actor Actor) (Gen
 		ORDER BY c.sequence
 	`, order.ID, id); err != nil {
 		return GenerateResult{}, fmt.Errorf("snapshot PM checklist: %w", err)
+	}
+	if err := material.SnapshotPlan(ctx, tx, order.ID, planID, actor.ID); err != nil {
+		return GenerateResult{}, fmt.Errorf("snapshot PM material plan: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE pm_schedules SET status = 'wo_created', updated_at = now() WHERE id = $1

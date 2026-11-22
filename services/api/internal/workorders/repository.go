@@ -11,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"gsi-workorder/internal/material"
+	"gsi-workorder/internal/notifications"
 	"gsi-workorder/internal/pmcalc"
 )
 
@@ -127,8 +129,9 @@ type Detail struct {
 }
 
 type Repository struct {
-	pool *pgxpool.Pool
-	loc  *time.Location
+	pool      *pgxpool.Pool
+	loc       *time.Location
+	materials *material.Repository
 }
 
 func NewRepository(pool *pgxpool.Pool, loc *time.Location) *Repository {
@@ -136,6 +139,10 @@ func NewRepository(pool *pgxpool.Pool, loc *time.Location) *Repository {
 		loc = time.UTC
 	}
 	return &Repository{pool: pool, loc: loc}
+}
+
+func (r *Repository) SetMaterialRepository(materials *material.Repository) {
+	r.materials = materials
 }
 
 const workOrderSelect = `
@@ -370,6 +377,9 @@ func (r *Repository) Update(ctx context.Context, id int64, actor Actor, input Pa
 		if err := validateTransition(item, actor, input, note); err != nil {
 			return WorkOrder{}, err
 		}
+		if err := r.validateMaterialTransition(ctx, tx, item, actor, statusTo); err != nil {
+			return WorkOrder{}, err
+		}
 		switch {
 		case statusTo == "in_progress":
 			if item.UnitID != nil {
@@ -487,16 +497,32 @@ func (r *Repository) Update(ctx context.Context, id int64, actor Actor, input Pa
 	if statusFrom != statusTo {
 		switch statusTo {
 		case "done":
+			if r.materials != nil {
+				if err := r.materials.CompleteForWO(ctx, tx, id,
+					material.Actor{ID: actor.ID, Role: actor.Role}, note); err != nil {
+					return WorkOrder{}, materialWorkOrderError(err)
+				}
+			}
 			if item.Source == "pm" && item.PMScheduleID != nil {
 				if err := r.completePMSchedule(ctx, tx, item, input, now); err != nil {
 					return WorkOrder{}, err
 				}
 			}
 		case "cancelled":
+			if r.materials != nil {
+				if err := r.materials.CancelForWO(ctx, tx, id,
+					material.Actor{ID: actor.ID, Role: actor.Role}, note); err != nil {
+					return WorkOrder{}, materialWorkOrderError(err)
+				}
+			}
 			if item.Source == "pm" && item.PMScheduleID != nil {
 				if err := r.restorePMSchedule(ctx, tx, *item.PMScheduleID, now); err != nil {
 					return WorkOrder{}, err
 				}
+			}
+		case "waiting_part":
+			if err := r.notifyWaitingPart(ctx, tx, item, actor); err != nil {
+				return WorkOrder{}, err
 			}
 		}
 	}
@@ -941,6 +967,80 @@ func validateTransition(item WorkOrder, actor Actor, input PatchInput, note stri
 		return ErrConflict
 	}
 	return nil
+}
+
+func (r *Repository) validateMaterialTransition(ctx context.Context, tx pgx.Tx, item WorkOrder, actor Actor, statusTo string) error {
+	if r.materials == nil {
+		return nil
+	}
+	switch {
+	case statusTo == "waiting_part":
+		status, exists, err := r.materials.RequirementStatusForWO(ctx, tx, item.ID)
+		if err != nil {
+			return materialWorkOrderError(err)
+		}
+		if !exists {
+			return &ValidationError{Fields: map[string]string{"material": "Waiting part membutuhkan material requirement."}}
+		}
+		if status != "shortage" && status != "partially_ready" {
+			return &ValidationError{Fields: map[string]string{"material": "Material harus berstatus shortage atau partially ready."}}
+		}
+	case item.Status == "waiting_part" && statusTo == "in_progress":
+		status, exists, err := r.materials.RequirementStatusForWO(ctx, tx, item.ID)
+		if err != nil {
+			return materialWorkOrderError(err)
+		}
+		if exists && (status == "shortage" || status == "partially_ready") {
+			return &ValidationError{Fields: map[string]string{"material": "Material belum siap; selesaikan shortage terlebih dahulu."}}
+		}
+	}
+	return nil
+}
+
+func (r *Repository) notifyWaitingPart(ctx context.Context, tx pgx.Tx, item WorkOrder, actor Actor) error {
+	targetID := item.ID
+	dedupe := fmt.Sprintf("wo:%d:waiting:%s", item.ID, time.Now().In(r.loc).Format("2006-01-02"))
+	if _, err := notifications.CreateForRoles(ctx, tx, []string{"admin", "planner"},
+		notifications.CreateInput{
+			Type:      "wo_waiting_part",
+			Title:     "Work order menunggu sparepart",
+			Body:      item.Code + " - " + item.Title,
+			RefType:   "work_order",
+			RefID:     &targetID,
+			DedupeKey: dedupe,
+		}, &actor.ID); err != nil {
+		return fmt.Errorf("notify waiting part: %w", err)
+	}
+	if item.SupervisorID != nil && *item.SupervisorID != actor.ID {
+		if _, err := notifications.CreateForUsers(ctx, tx, []int64{*item.SupervisorID},
+			notifications.CreateInput{
+				Type:      "wo_waiting_part",
+				Title:     "Work order menunggu sparepart",
+				Body:      item.Code + " - " + item.Title,
+				RefType:   "work_order",
+				RefID:     &targetID,
+				DedupeKey: dedupe,
+			}); err != nil {
+			return fmt.Errorf("notify waiting part supervisor: %w", err)
+		}
+	}
+	return nil
+}
+
+func materialWorkOrderError(err error) error {
+	var validation *material.ValidationError
+	switch {
+	case errors.As(err, &validation):
+		return &ValidationError{Fields: validation.Fields}
+	case errors.Is(err, material.ErrInvalidState):
+		return ErrConflict
+	case errors.Is(err, material.ErrNotFound):
+		return ErrNotFound
+	case errors.Is(err, material.ErrValidation):
+		return ErrValidation
+	default:
+		return err
+	}
 }
 
 func (r *Repository) completePMSchedule(

@@ -19,6 +19,7 @@ import (
 	"gsi-workorder/internal/config"
 	"gsi-workorder/internal/db"
 	"gsi-workorder/internal/inventory"
+	"gsi-workorder/internal/material"
 	"gsi-workorder/internal/odoo"
 	"gsi-workorder/internal/p2h"
 	"gsi-workorder/internal/pm"
@@ -72,6 +73,12 @@ func main() {
 		case "alert-stock":
 			if err := runStockAlerts(logger); err != nil {
 				logger.Error("stock alert failed", "error", err)
+				os.Exit(1)
+			}
+			return
+		case "recompute-material":
+			if err := runMaterialRecompute(logger); err != nil {
+				logger.Error("material recompute failed", "error", err)
 				os.Exit(1)
 			}
 			return
@@ -215,7 +222,7 @@ func run(logger *slog.Logger) error {
 	jobs++
 
 	scheduler.Start()
-	logger.Info("worker started", "jobs", jobs, "milestone", "m5")
+	logger.Info("worker started", "jobs", jobs, "milestone", "m6")
 	<-ctx.Done()
 	logger.Info("worker shutdown signal received")
 	return nil
@@ -266,6 +273,27 @@ func runStockAlerts(logger *slog.Logger) error {
 		"critical", result.Critical,
 		"notified", result.Notified,
 	)
+	return nil
+}
+
+func runMaterialRecompute(logger *slog.Logger) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	pool, err := db.NewPool(ctx, cfg.DatabaseURL, logger)
+	if err != nil {
+		return fmt.Errorf("connect database: %w", err)
+	}
+	defer pool.Close()
+	inv := inventory.NewRepository(pool, cfg.AppLocation)
+	result, err := material.NewRepository(pool, inv, cfg.AppLocation).RecomputeAll(ctx)
+	if err != nil {
+		return err
+	}
+	logger.Info("material recompute finished", "updated", result.Updated)
 	return nil
 }
 

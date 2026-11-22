@@ -893,7 +893,7 @@ Union/join:
 
 ### 6.10 `v_inventory_movement`
 
-`inventory_transaction_items` + transactions + sparepart + locations; signed qty per arah. Report menampilkan status transaksi; perhitungan saldo hanya memakai transaksi `posted` (termasuk reversal), bukan transaksi `reversed`.
+`inventory_transaction_items` + transactions + sparepart + locations; signed qty per arah. Report menampilkan status transaksi. Rekonstruksi saldo menghitung transaksi asli dan mirror; status `reversed` tetap ditampilkan sebagai audit.
 
 ### 6.11 `v_component_replacement_frequency`
 
@@ -976,7 +976,7 @@ Formula `on_hand` per sparepart+lokasi:
 - opname decrease.qty (from)
 ```
 
-Hanya transaksi berstatus `posted` yang dihitung; transaksi asli yang sudah `reversed` tidak dihitung, sedangkan reversal yang `posted` dihitung. `reserved` = `SUM(active inventory_reservations.qty)` per sparepart+lokasi.
+Transaksi asli dan transaksi mirror sama-sama dihitung; status `reversed` adalah penanda audit, bukan filter ledger. Jika hanya mirror yang dihitung, saldo hasil rekonstruksi akan salah sebesar qty transaksi asli. `reserved` = `SUM(active inventory_reservations.qty)` per sparepart+lokasi.
 
 Reconcile query harus menghasilkan nol selisih. Jika tidak, jangan edit manual—perbaiki bug transaksi dan buat adjustment beralasan.
 

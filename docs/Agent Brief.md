@@ -26,7 +26,7 @@ Fakta M0:
 | Auto-WO P2H | default `false`; hanya jika setting `true` |
 | Timezone saat ini | `APP_TIMEZONE` default `Asia/Makassar` dan divalidasi saat startup; `.env.example` dan `docker-compose.yml` masih memakai `TZ=Asia/Jakarta`. Target proses `TZ=UTC` + `APP_TIMEZONE=Asia/Makassar`; perubahan config butuh approval terpisah |
 
-**Fase saat ini (status per 2026-11-22):** M1, M2, M3, dan M4 sudah **accepted**. Verifikasi lokal M1/M2/M3/M4 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL) lulus. Sync Odoo nyata diverifikasi pada 2026-11-21: 4.454 report, 8.519 finding, 2.501 kandidat unik (587 pending, 1.914 archived), `work_orders` hasil sync = 0, dan `raw` tanpa foto. Sync kedua idempoten. Kontrak skip divalidasi sebagai 400 dan bulk tetap 422. M4 PM core accepted di server pada migration `000007_m4_pm_core`, termasuk job evaluasi PM 07:00 WITA. M5 Sparepart & Inventory sudah diimplementasikan lokal di migration `000008_m5_spareparts_inventory`: master sparepart/nomor/alternatif/compatibility, PM material template, warehouse/location, transaksi inventory immutable, saldo, stock policy, opname, rekonsiliasi, dan alert stok harian 07:30 WITA; status **menunggu acceptance server**.
+**Fase saat ini (status per 2026-11-22):** M1, M2, M3, dan M4 sudah **accepted**. Verifikasi lokal M1/M2/M3/M4 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL) lulus. Sync Odoo nyata diverifikasi pada 2026-11-21: 4.454 report, 8.519 finding, 2.501 kandidat unik (587 pending, 1.914 archived), `work_orders` hasil sync = 0, dan `raw` tanpa foto. Sync kedua idempoten. Kontrak skip divalidasi sebagai 400 dan bulk tetap 422. M4 PM core accepted di server pada migration `000007_m4_pm_core`, termasuk job evaluasi PM 07:00 WITA. M5 Sparepart & Inventory sudah diimplementasikan lokal di migration `000008_m5_spareparts_inventory`: master sparepart/nomor/alternatif/compatibility, PM material template, warehouse/location, transaksi inventory immutable, saldo, stock policy, opname, rekonsiliasi, dan alert stok harian 07:30 WITA. M6 Material sudah diimplementasikan lokal di migration `000009_m6_material_requirements`: material requirement per WO, readiness/shortage, reservasi/release, issue/return + usage, PM snapshot, waiting-part guard, shortage aging, dan rekonsiliasi reserved. M5 dan M6 sama-sama **menunggu acceptance server**.
 
 > **Verification note:** runtime Docker/Linux M0 dan sync Odoo nyata sudah terverifikasi di server UAT. Route auth, unit, P2H, candidate, notification, dan settings sudah terdaftar dan diuji di router API. Jangan mengubah migrasi atau kode M0.
 >
@@ -88,7 +88,7 @@ Fakta M0:
 | **M3** ✅ | WO manual/lifecycle, assignee, supervisor, `maintenance_type`, `started_at`, attachments, waiting_part | PM/inventory | Transisi valid; audit; done/cancel |
 | **M4** ✅ | PM plan/checklist/schedule/due, generate WO, completion/history/compliance | Material plan/requirement, stock check/reservation | Plan unit/model; combined; auto-WO 0 default; next due benar |
 | **M5** 🟡 | Sparepart/compatibility, PM material plan (`pm_plan_materials`), warehouse/location, receipt/issue/return/transfer/adjustment/opname, ledger, balance, min stock | Material readiness/reservation | Ledger immutable; negative ditolak; balance reconcile |
-| **M6** | Material requirement/readiness, reserve/release, issue/return, waiting_part, shortage aging, PM material | Procurement | Planning ≠ stock; issue/return benar; readiness benar |
+| **M6** 🟡 | Material requirement/readiness, reserve/release, issue/return, waiting_part, shortage aging, PM material | Procurement | Planning ≠ stock; issue/return benar; readiness benar |
 | **M7** | Unit profile/history, component interval, downtime, dashboard/report, export, performance/audit | Fitur baru di luar PRD | History dari transaksi; report WITA; p95 |
 
 **Dependensi:** M4 PM core tidak menjanjikan readiness stok; `pm_plan_materials` baru ada di M5, dan material requirement/readiness penuh di M6. Jika PM harus launch dengan material plan/readiness, urutan M4/M5/M6 perlu approval.
@@ -155,13 +155,17 @@ Fakta M0:
 
 ### M6 — Material
 
-* [ ] Material requirement per WO; lifecycle 10 status.
-* [ ] Planning/checking tidak mengubah stok.
-* [ ] Readiness Ready/Partially/Shortage; shortage aging.
-* [ ] Reserve/release (reservation tidak mengurangi `on_hand`); issue/return; usage linked ke ledger.
-* [ ] WO waiting_part ↔ material status.
-* [ ] PM material integration; cancel release reservations.
-* [ ] Tidak ada PR/PO/vendor/harga/Accurate.
+* [x] Material requirement per WO; lifecycle 10 status.
+* [x] Planning/checking tidak mengubah stok.
+* [x] Readiness Ready/Partially/Shortage; shortage aging.
+* [x] Reserve/release (reservation tidak mengurangi `on_hand`); issue/return; usage linked ke ledger.
+* [x] WO waiting_part ↔ material status.
+* [x] PM material integration; cancel release reservations.
+* [x] Tidak ada PR/PO/vendor/harga/Accurate.
+* [x] Rekonsiliasi `reserved` terhadap reservasi aktif.
+* [x] UI material di detail WO dan tab reservasi inventory.
+
+> Catatan M6: migration `000009_m6_material_requirements` additive; M6 integration test PostgreSQL lokal lulus (readiness, reserve/release, issue/return, PM snapshot, waiting_part, cancel/complete, shortage aging, rekonsiliasi reserved). API startup, Go vet/build, ESLint, dan Next build lulus. Command worker tambahan: `/app/worker recompute-material`. Acceptance server masih pending bersama M5.
 
 ### M7 — History & Reporting
 

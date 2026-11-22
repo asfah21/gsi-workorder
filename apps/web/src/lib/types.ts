@@ -681,9 +681,130 @@ export type InventoryReconciliation = {
     balance_on_hand: number;
     ledger_on_hand: number;
     difference: number;
+    balance_reserved: number;
+    reservation_reserved: number;
+    reserved_difference: number;
   }[];
   mismatch: number;
   checked_at: string;
+};
+
+export type MaterialRequirementStatus =
+  | "draft"
+  | "planned"
+  | "checking_stock"
+  | "ready"
+  | "partially_ready"
+  | "shortage"
+  | "reserved"
+  | "issued"
+  | "completed"
+  | "cancelled";
+
+export type MaterialRequirementItem = {
+  id: number;
+  material_requirement_id: number;
+  sparepart_id: number;
+  sparepart_code: string;
+  sparepart_name: string;
+  uom: string;
+  qty_required: number;
+  qty_reserved: number;
+  qty_issued: number;
+  qty_returned: number;
+  net_issued: number;
+  available: number;
+  coverage: number;
+  shortage: number;
+  is_optional: boolean;
+  preferred_warehouse_id?: number;
+  preferred_warehouse_code: string;
+  notes: string;
+};
+
+export type MaterialUsage = {
+  id: number;
+  wo_id: number;
+  material_requirement_item_id?: number;
+  sparepart_id: number;
+  sparepart_code: string;
+  sparepart_name: string;
+  component_id?: number;
+  component_name: string;
+  warehouse_location_id: number;
+  warehouse_code: string;
+  location_code: string;
+  qty: number;
+  hm?: number;
+  km?: number;
+  movement_type: "issue" | "return";
+  inventory_transaction_item_id: number;
+  return_of_usage_id?: number;
+  used_by?: number;
+  used_by_name: string;
+  used_at: string;
+  notes: string;
+};
+
+export type MaterialRequirement = {
+  id: number;
+  code: string;
+  wo_id: number;
+  wo_code: string;
+  wo_title: string;
+  unit_code: string;
+  source: string;
+  status: MaterialRequirementStatus;
+  status_changed_at: string;
+  shortage_since?: string;
+  requested_by?: number;
+  requested_by_name: string;
+  requested_at?: string;
+  notes: string;
+  item_count: number;
+  required_count: number;
+  shortage_count: number;
+  derived_status: MaterialRequirementStatus;
+  items: MaterialRequirementItem[];
+  usages: MaterialUsage[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type MaterialRequirementUpdate = {
+  id: number;
+  material_requirement_id: number;
+  user_id?: number;
+  user_name: string;
+  status_from: string;
+  status_to: string;
+  note: string;
+  created_at: string;
+};
+
+export type InventoryReservation = {
+  id: number;
+  material_requirement_item_id: number;
+  material_requirement_id: number;
+  requirement_code: string;
+  wo_id: number;
+  wo_code: string;
+  sparepart_id: number;
+  sparepart_code: string;
+  sparepart_name: string;
+  uom: string;
+  warehouse_location_id: number;
+  warehouse_code: string;
+  location_code: string;
+  location_name: string;
+  qty: number;
+  status: "active" | "consumed" | "released" | "cancelled";
+  reserved_by?: number;
+  reserved_by_name: string;
+  reserved_at: string;
+  released_at?: string;
+  consumed_at?: string;
+  notes: string;
 };
 
 export type ListResponse<T> = {
