@@ -1,8 +1,10 @@
 package httpx
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -24,6 +26,9 @@ type fakeUnitService struct {
 	engineModelFilter units.ModelFilter
 	historyFilter     units.HistoryFilter
 	downtimeFilter    units.DowntimeFilter
+	importFile        []byte
+	importErr         error
+	importResult      units.ImportResult
 }
 
 func (f *fakeUnitService) ListUnitModels(_ context.Context, filter units.ModelFilter) ([]units.UnitModel, int, error) {
@@ -59,6 +64,13 @@ func (f *fakeUnitService) CreateUnit(_ context.Context, input units.UnitInput) (
 		return units.Unit{}, f.createUnitErr
 	}
 	return units.Unit{ID: 1, Code: input.Code, IsActive: true}, nil
+}
+func (f *fakeUnitService) ImportUnits(_ context.Context, data []byte) (units.ImportResult, error) {
+	f.importFile = data
+	if f.importErr != nil {
+		return units.ImportResult{}, f.importErr
+	}
+	return f.importResult, nil
 }
 func (f *fakeUnitService) UpdateUnit(context.Context, int64, units.UnitPatch) (units.Unit, error) {
 	return units.Unit{ID: 1, Code: "LV-01"}, nil
@@ -261,4 +273,107 @@ func TestUnitDowntimeRejectsInvalidPeriod(t *testing.T) {
 	if recorder.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
+}
+
+func TestUnitsExportReturnsXLSX(t *testing.T) {
+	unitService := &fakeUnitService{}
+	router := unitTestRouter(auth.User{ID: 9, Role: auth.RoleViewer, IsActive: true}, unitService)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/units/export?q=LV-01", nil)
+	request.Header.Set("Authorization", "Bearer good")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if contentType := recorder.Header().Get("Content-Type"); !strings.Contains(contentType, "spreadsheetml.sheet") {
+		t.Fatalf("content type = %q", contentType)
+	}
+	if !bytes.HasPrefix(recorder.Body.Bytes(), []byte("PK")) {
+		t.Fatal("response body is not a zip-based workbook")
+	}
+	if unitService.listFilter.Query != "LV-01" {
+		t.Fatalf("export filter = %+v", unitService.listFilter)
+	}
+}
+
+func TestUnitImportTemplateIsAvailableToViewer(t *testing.T) {
+	router := unitTestRouter(auth.User{ID: 9, Role: auth.RoleViewer, IsActive: true}, &fakeUnitService{})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/units/import-template", nil)
+	request.Header.Set("Authorization", "Bearer good")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if !bytes.HasPrefix(recorder.Body.Bytes(), []byte("PK")) {
+		t.Fatal("template body is not a zip-based workbook")
+	}
+}
+
+func TestUnitsImportRejectsMechanic(t *testing.T) {
+	router := unitTestRouter(auth.User{ID: 7, Role: auth.RoleMechanic, IsActive: true}, &fakeUnitService{})
+	body, contentType := unitImportRequest(t)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/units/import", body)
+	request.Header.Set("Authorization", "Bearer good")
+	request.Header.Set("Content-Type", contentType)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestUnitsAllowAdminImport(t *testing.T) {
+	unitService := &fakeUnitService{
+		importResult: units.ImportResult{Total: 1, Created: 1, Rows: []units.ImportRowResult{
+			{Row: 2, Code: "UNIT-1", Status: "created"},
+		}},
+	}
+	router := unitTestRouter(auth.User{ID: 1, Role: auth.RoleAdmin, IsActive: true}, unitService)
+	body, contentType := unitImportRequest(t)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/units/import", body)
+	request.Header.Set("Authorization", "Bearer good")
+	request.Header.Set("Content-Type", contentType)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if string(unitService.importFile) != "xlsx-bytes" {
+		t.Fatalf("import file = %q", unitService.importFile)
+	}
+	var response struct {
+		Data units.ImportResult `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if response.Data.Created != 1 {
+		t.Fatalf("body = %#v", response.Data)
+	}
+}
+
+func unitImportRequest(t *testing.T) (*bytes.Buffer, string) {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "unit.xlsx")
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	if _, err := part.Write([]byte("xlsx-bytes")); err != nil {
+		t.Fatalf("write form file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+	return &body, writer.FormDataContentType()
 }

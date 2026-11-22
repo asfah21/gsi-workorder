@@ -34,6 +34,17 @@ const unitSelect = `
 	LEFT JOIN engine_models em ON em.id = u.engine_model_id
 `
 
+const unitInsertSQL = `
+	INSERT INTO units (
+		code, unit_type, merk, class_unit, license_plate, site_location,
+		unit_model_id, engine_model_id, serial_number, engine_serial_number,
+		is_breakdown, is_active
+	)
+	VALUES ($1, NULLIF($2, ''), NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''),
+	        NULLIF($6, ''), $7, $8, NULLIF($9, ''), NULLIF($10, ''), $11, $12)
+	RETURNING id
+`
+
 func (r *PostgresRepository) ListUnitModels(ctx context.Context, filter ModelFilter) ([]UnitModel, int, error) {
 	args := make([]any, 0, 3)
 	where := []string{"1 = 1"}
@@ -330,22 +341,66 @@ func (r *PostgresRepository) GetUnit(ctx context.Context, id int64) (Unit, error
 
 func (r *PostgresRepository) CreateUnit(ctx context.Context, unit Unit) (Unit, error) {
 	var id int64
-	err := r.pool.QueryRow(ctx, `
-		INSERT INTO units (
-			code, unit_type, merk, class_unit, license_plate, site_location,
-			unit_model_id, engine_model_id, serial_number, engine_serial_number,
-			is_breakdown, is_active
-		)
-		VALUES ($1, NULLIF($2, ''), NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''),
-		        NULLIF($6, ''), $7, $8, NULLIF($9, ''), NULLIF($10, ''), $11, $12)
-		RETURNING id
-	`, unit.Code, unit.UnitType, unit.Merk, unit.ClassUnit, unit.LicensePlate, unit.SiteLocation,
+	err := r.pool.QueryRow(ctx, unitInsertSQL, unit.Code, unit.UnitType, unit.Merk, unit.ClassUnit, unit.LicensePlate, unit.SiteLocation,
 		nullableID(unit.UnitModelID), nullableID(unit.EngineModelID), unit.SerialNumber,
 		unit.EngineSerialNumber, unit.IsBreakdown, unit.IsActive).Scan(&id)
 	if err != nil {
 		return Unit{}, mapWriteError("create unit", err)
 	}
 	return r.GetUnit(ctx, id)
+}
+
+func (r *PostgresRepository) CreateUnits(ctx context.Context, items []Unit) ([]Unit, error) {
+	if len(items) == 0 {
+		return []Unit{}, nil
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin create units: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	created := make([]Unit, 0, len(items))
+	for _, item := range items {
+		var id int64
+		err := tx.QueryRow(ctx, unitInsertSQL, item.Code, item.UnitType, item.Merk, item.ClassUnit,
+			item.LicensePlate, item.SiteLocation, nullableID(item.UnitModelID),
+			nullableID(item.EngineModelID), item.SerialNumber, item.EngineSerialNumber,
+			item.IsBreakdown, item.IsActive).Scan(&id)
+		if err != nil {
+			return nil, mapWriteError("create unit", err)
+		}
+		item.ID = id
+		created = append(created, item)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit create units: %w", err)
+	}
+	return created, nil
+}
+
+func (r *PostgresRepository) ExistingUnitCodes(ctx context.Context, codes []string) (map[string]struct{}, error) {
+	result := make(map[string]struct{}, len(codes))
+	if len(codes) == 0 {
+		return result, nil
+	}
+	rows, err := r.pool.Query(ctx, `SELECT code FROM units WHERE code = ANY($1)`, codes)
+	if err != nil {
+		return nil, fmt.Errorf("list existing unit codes: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, fmt.Errorf("scan existing unit code: %w", err)
+		}
+		result[code] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate existing unit codes: %w", err)
+	}
+	return result, nil
 }
 
 func (r *PostgresRepository) UpdateUnit(ctx context.Context, unit Unit) (Unit, error) {

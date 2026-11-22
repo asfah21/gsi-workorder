@@ -88,6 +88,8 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 		authorized.GET("/unit-models", unitHandler.ListUnitModels)
 		authorized.GET("/engine-models", unitHandler.ListEngineModels)
 		authorized.GET("/units", unitHandler.ListUnits)
+		authorized.GET("/units/export", unitHandler.ExportUnits)
+		authorized.GET("/units/import-template", unitHandler.UnitImportTemplate)
 		authorized.GET("/units/:id", unitHandler.GetUnit)
 		authorized.GET("/units/:id/meter-readings", unitHandler.ListMeterReadings)
 		authorized.GET("/units/:id/history", unitHandler.ListMaintenanceHistory)
@@ -106,6 +108,7 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 		unitWriters.POST("/engine-models", unitHandler.CreateEngineModel)
 		unitWriters.PATCH("/engine-models/:id", unitHandler.UpdateEngineModel)
 		unitWriters.POST("/units", unitHandler.CreateUnit)
+		unitWriters.POST("/units/import", unitHandler.ImportUnits)
 		unitWriters.PATCH("/units/:id", unitHandler.UpdateUnit)
 
 		meterWriters := authorized.Group("")

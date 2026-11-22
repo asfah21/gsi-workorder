@@ -17,6 +17,9 @@ type fakeRepository struct {
 	unitFilter        UnitFilter
 	createdUnit       Unit
 	createdUnitErr    error
+	createdUnits      []Unit
+	createUnitsErr    error
+	existingCodes     map[string]struct{}
 	reading           MeterReading
 	readingErr        error
 	historyFilter     HistoryFilter
@@ -63,6 +66,22 @@ func (f *fakeRepository) CreateUnit(_ context.Context, unit Unit) (Unit, error) 
 	}
 	unit.ID = 1
 	return unit, nil
+}
+func (f *fakeRepository) CreateUnits(_ context.Context, items []Unit) ([]Unit, error) {
+	f.createdUnits = items
+	if f.createUnitsErr != nil {
+		return nil, f.createUnitsErr
+	}
+	for index := range items {
+		items[index].ID = int64(index + 1)
+	}
+	return items, nil
+}
+func (f *fakeRepository) ExistingUnitCodes(context.Context, []string) (map[string]struct{}, error) {
+	if f.existingCodes == nil {
+		return map[string]struct{}{}, nil
+	}
+	return f.existingCodes, nil
 }
 func (f *fakeRepository) UpdateUnit(context.Context, Unit) (Unit, error) {
 	return Unit{ID: 1}, nil

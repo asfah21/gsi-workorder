@@ -1,8 +1,11 @@
 package httpx
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -13,6 +16,8 @@ import (
 
 	"gsi-workorder/internal/units"
 )
+
+const xlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 // UnitService is the application surface used by unit-master HTTP handlers.
 type UnitService interface {
@@ -27,6 +32,7 @@ type UnitService interface {
 	ListUnits(ctx context.Context, filter units.UnitFilter) ([]units.Unit, int, error)
 	GetUnit(ctx context.Context, id int64) (units.Unit, error)
 	CreateUnit(ctx context.Context, input units.UnitInput) (units.Unit, error)
+	ImportUnits(ctx context.Context, file []byte) (units.ImportResult, error)
 	UpdateUnit(ctx context.Context, id int64, patch units.UnitPatch) (units.Unit, error)
 
 	ListMeterReadings(ctx context.Context, unitID int64, limit int) ([]units.MeterReading, error)
@@ -264,35 +270,43 @@ func (h *UnitHandler) UpdateEngineModel(c *gin.Context) {
 
 func (h *UnitHandler) ListUnits(c *gin.Context) {
 	page, limit := parsePagination(c)
+	filter, ok := h.parseUnitFilter(c)
+	if !ok {
+		return
+	}
+	filter.Page = page
+	filter.Limit = limit
+	items, total, err := h.service.ListUnits(c.Request.Context(), filter)
+	if err != nil {
+		h.writeError(c, err, "list units")
+		return
+	}
+	writeList(c, items, page, limit, total)
+}
+
+func (h *UnitHandler) parseUnitFilter(c *gin.Context) (units.UnitFilter, bool) {
 	active, err := parseOptionalBool(c.Query("is_active"))
 	if err != nil {
 		writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter is_active tidak valid", nil)
-		return
+		return units.UnitFilter{}, false
 	}
 	var unitModelID *int64
 	if raw := strings.TrimSpace(c.Query("unit_model_id")); raw != "" {
 		value, parseErr := strconv.ParseInt(raw, 10, 64)
 		if parseErr != nil || value <= 0 {
 			writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter unit_model_id tidak valid", nil)
-			return
+			return units.UnitFilter{}, false
 		}
 		unitModelID = &value
 	}
-	items, total, err := h.service.ListUnits(c.Request.Context(), units.UnitFilter{
+	return units.UnitFilter{
 		Query:        c.Query("q"),
 		IsActive:     active,
 		UnitModelID:  unitModelID,
 		SiteLocation: c.Query("site_location"),
-		Page:         page,
-		Limit:        limit,
 		Sort:         c.Query("sort"),
 		Order:        c.Query("order"),
-	})
-	if err != nil {
-		h.writeError(c, err, "list units")
-		return
-	}
-	writeList(c, items, page, limit, total)
+	}, true
 }
 
 func (h *UnitHandler) GetUnit(c *gin.Context) {
@@ -333,6 +347,110 @@ func (h *UnitHandler) CreateUnit(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"data": item})
+}
+
+func (h *UnitHandler) ImportUnits(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, units.UnitImportMaxFileBytes+(1<<20))
+	header, err := c.FormFile("file")
+	if err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_request", "File XLSX wajib diunggah", nil)
+		return
+	}
+	if header.Size > units.UnitImportMaxFileBytes {
+		writeUnitError(c, http.StatusBadRequest, "invalid_request", "Ukuran file maksimal 5 MB", nil)
+		return
+	}
+	uploaded, err := header.Open()
+	if err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_request", "File tidak dapat dibaca", nil)
+		return
+	}
+	defer uploaded.Close()
+
+	data, err := io.ReadAll(io.LimitReader(uploaded, units.UnitImportMaxFileBytes+1))
+	if err != nil || len(data) > units.UnitImportMaxFileBytes {
+		writeUnitError(c, http.StatusBadRequest, "invalid_request", "Ukuran file maksimal 5 MB", nil)
+		return
+	}
+	result, err := h.service.ImportUnits(c.Request.Context(), data)
+	if err != nil {
+		h.writeError(c, err, "import units")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (h *UnitHandler) ExportUnits(c *gin.Context) {
+	filter, ok := h.parseUnitFilter(c)
+	if !ok {
+		return
+	}
+	const pageSize = units.MaxPageLimit
+	const maxRows = 10000
+	filter.Page = 1
+	filter.Limit = pageSize
+
+	all := make([]units.Unit, 0)
+	for {
+		batch, total, err := h.service.ListUnits(c.Request.Context(), filter)
+		if err != nil {
+			h.writeError(c, err, "export units")
+			return
+		}
+		all = append(all, batch...)
+		if len(batch) == 0 || len(all) >= total || len(all) >= maxRows {
+			break
+		}
+		filter.Page++
+	}
+	if len(all) > maxRows {
+		h.logger.Warn("unit export truncated", "max_rows", maxRows)
+		all = all[:maxRows]
+	}
+
+	unitModels, engineModels := h.referenceModels(c)
+	var buffer bytes.Buffer
+	if err := units.WriteUnitsXLSX(&buffer, all, unitModels, engineModels); err != nil {
+		h.logger.Error("render unit xlsx failed", "error", err)
+		writeUnitError(c, http.StatusInternalServerError, "internal_error", "XLSX tidak dapat dibuat", nil)
+		return
+	}
+	h.writeXLSX(c, buffer.Bytes(), fmt.Sprintf("unit-%s.xlsx", time.Now().In(h.loc).Format("2006-01-02")))
+}
+
+func (h *UnitHandler) UnitImportTemplate(c *gin.Context) {
+	unitModels, engineModels := h.referenceModels(c)
+	var buffer bytes.Buffer
+	if err := units.WriteUnitImportTemplate(&buffer, unitModels, engineModels); err != nil {
+		h.logger.Error("render unit import template failed", "error", err)
+		writeUnitError(c, http.StatusInternalServerError, "internal_error", "Template tidak dapat dibuat", nil)
+		return
+	}
+	h.writeXLSX(c, buffer.Bytes(), "template-import-unit.xlsx")
+}
+
+func (h *UnitHandler) referenceModels(c *gin.Context) ([]units.UnitModel, []units.EngineModel) {
+	unitModels, _, err := h.service.ListUnitModels(c.Request.Context(), units.ModelFilter{
+		Page: 1, Limit: units.MaxPageLimit, Sort: "manufacturer", Order: "asc",
+	})
+	if err != nil {
+		h.logger.Warn("load unit models for xlsx failed", "error", err)
+		unitModels = nil
+	}
+	engineModels, _, err := h.service.ListEngineModels(c.Request.Context(), units.ModelFilter{
+		Page: 1, Limit: units.MaxPageLimit, Sort: "manufacturer", Order: "asc",
+	})
+	if err != nil {
+		h.logger.Warn("load engine models for xlsx failed", "error", err)
+		engineModels = nil
+	}
+	return unitModels, engineModels
+}
+
+func (h *UnitHandler) writeXLSX(c *gin.Context, data []byte, filename string) {
+	c.Header("Content-Type", xlsxContentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	c.Data(http.StatusOK, xlsxContentType, data)
 }
 
 func (h *UnitHandler) UpdateUnit(c *gin.Context) {

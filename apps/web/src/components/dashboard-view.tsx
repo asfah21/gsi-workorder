@@ -192,6 +192,13 @@ export function DashboardView() {
         </Alert>
       ) : null}
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-medium">Ringkasan armada</h2>
+        <p className="text-sm text-muted-foreground">
+          {today ? `Data per ${today}` : "Ringkasan terkini"}
+        </p>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Unit aktif"
@@ -231,125 +238,133 @@ export function DashboardView() {
         days={days}
         onDaysChange={setDays}
         refreshKey={refreshKey}
-        fleet={{
+        summary={{
           total: unitsTotal,
           active: unitsActive,
           breakdown,
           loading: loading && !summary,
           failed: Boolean(error) && !summary,
+          stockLow: summary?.stock_low ?? 0,
+          stockCritical: summary?.stock_critical ?? 0,
+          waitingPart: summary?.waiting_part_units ?? 0,
+          downtime30d: summary?.downtime_minutes_30d ?? 0,
+          mttr30d: summary?.mttr_minutes_30d ?? 0,
+          pmOverdue: summary?.pm_overdue ?? 0,
+          pmDue: summary?.pm_due ?? 0,
+          pmDueSoon: summary?.pm_due_soon ?? 0,
+          woOpen: summary?.wo_open ?? 0,
+          woInProgress: summary?.wo_in_progress ?? 0,
         }}
       />
 
-      <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-8">
-          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
-            <div>
-              <CardTitle>Cuplikan unit</CardTitle>
-              <CardDescription>Unit pertama dari master unit.</CardDescription>
+      <Card className="gap-0">
+        <CardHeader className="flex flex-col gap-3 border-b sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Cuplikan unit</CardTitle>
+            <CardDescription>Unit pertama dari master unit.</CardDescription>
+          </div>
+          <Link href="/units" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Lihat semua
+            <ArrowRight aria-hidden="true" />
+          </Link>
+        </CardHeader>
+        <CardContent className="px-0">
+          {previewLoading ? (
+            <div className="space-y-3 px-6 py-4" role="status" aria-label="Memuat unit">
+              {Array.from({ length: PREVIEW_SIZE }).map((_, index) => (
+                <Skeleton key={index} className="h-12 w-full" />
+              ))}
             </div>
-            <Link href="/units" className={buttonVariants({ variant: "outline", size: "sm" })}>
-              Lihat semua
-              <ArrowRight aria-hidden="true" />
-            </Link>
-          </CardHeader>
-          <CardContent className="px-0">
-            {previewLoading ? (
-              <div className="space-y-3 px-6 py-4" role="status" aria-label="Memuat unit">
-                {Array.from({ length: PREVIEW_SIZE }).map((_, index) => (
-                  <Skeleton key={index} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : previewError ? (
-              <div className="px-6 py-4 text-sm text-muted-foreground">
-                {previewError}
-              </div>
-            ) : unitsPreview.length === 0 ? (
-              <Empty className="border-0 py-10">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Truck aria-hidden="true" />
-                  </EmptyMedia>
-                  <EmptyTitle>Belum ada unit</EmptyTitle>
-                  <EmptyDescription>
-                    Tambahkan unit pertama untuk mulai mencatat HM/KM.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Unit</TableHead>
-                      <TableHead>Model</TableHead>
-                      <TableHead>Lokasi</TableHead>
-                      <TableHead className="text-right">HM</TableHead>
-                      <TableHead>Status</TableHead>
+          ) : previewError ? (
+            <div className="px-6 py-4 text-sm text-muted-foreground">
+              {previewError}
+            </div>
+          ) : unitsPreview.length === 0 ? (
+            <Empty className="border-0 py-10">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Truck aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>Belum ada unit</EmptyTitle>
+                <EmptyDescription>
+                  Tambahkan unit pertama untuk mulai mencatat HM/KM.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Unit</TableHead>
+                    <TableHead>Model</TableHead>
+                    <TableHead>Lokasi</TableHead>
+                    <TableHead className="text-right">HM</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {unitsPreview.map((unit) => (
+                    <TableRow key={unit.id}>
+                      <TableCell>
+                        <Link
+                          href={`/units/${unit.id}`}
+                          className="font-medium underline-offset-4 hover:underline"
+                        >
+                          {unit.code}
+                        </Link>
+                        <span className="block text-xs text-muted-foreground">
+                          {unit.unit_type || "Tanpa tipe"}
+                        </span>
+                      </TableCell>
+                      <TableCell>{modelLabel(unit)}</TableCell>
+                      <TableCell>{unit.site_location || "-"}</TableCell>
+                      <TableCell className="text-right">
+                        {unit.hm_updated_at ? formatNumber(unit.current_hm) : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <UnitStatusBadge
+                          active={unit.is_active}
+                          breakdown={unit.is_breakdown}
+                        />
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {unitsPreview.map((unit) => (
-                      <TableRow key={unit.id}>
-                        <TableCell>
-                          <Link
-                            href={`/units/${unit.id}`}
-                            className="font-medium underline-offset-4 hover:underline"
-                          >
-                            {unit.code}
-                          </Link>
-                          <span className="block text-xs text-muted-foreground">
-                            {unit.unit_type || "Tanpa tipe"}
-                          </span>
-                        </TableCell>
-                        <TableCell>{modelLabel(unit)}</TableCell>
-                        <TableCell>{unit.site_location || "-"}</TableCell>
-                        <TableCell className="text-right">
-                          {unit.hm_updated_at ? formatNumber(unit.current_hm) : "-"}
-                        </TableCell>
-                        <TableCell>
-                          <UnitStatusBadge
-                            active={unit.is_active}
-                            breakdown={unit.is_breakdown}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Akses cepat</CardTitle>
-            <CardDescription>Mulai dari master unit atau unit baru.</CardDescription>
-          </CardHeader>
-          <CardContent className="gap-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Akses cepat</CardTitle>
+          <CardDescription>Mulai dari master unit atau unit baru.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2 md:grid-cols-3">
+          <QuickLink
+            href="/units"
+            icon={Truck}
+            title="Daftar unit"
+            description="HM/KM terakhir dan status unit."
+          />
+          <QuickLink
+            href="/master"
+            icon={Boxes}
+            title="Master model"
+            description="Unit model dan engine model."
+          />
+          {canWrite ? (
             <QuickLink
-              href="/units"
-              icon={Truck}
-              title="Daftar unit"
-              description="HM/KM terakhir dan status unit."
+              href="/units?create=1"
+              icon={Plus}
+              title="Tambah unit"
+              description="Daftarkan unit baru ke master."
             />
-            <QuickLink
-              href="/master"
-              icon={Boxes}
-              title="Master model"
-              description="Unit model dan engine model."
-            />
-            {canWrite ? (
-              <QuickLink
-                href="/units/new"
-                icon={Plus}
-                title="Tambah unit"
-                description="Daftarkan unit baru ke master."
-              />
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <p className="text-xs text-muted-foreground">
         Data operasional dihitung dari transaksi aktual; seluruh tanggal dan bucket

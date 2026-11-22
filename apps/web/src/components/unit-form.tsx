@@ -40,7 +40,21 @@ type FormState = {
   is_active: boolean;
 };
 
-export function UnitForm({ unit }: { unit?: Unit }) {
+type UnitFormProps = {
+  unit?: Unit;
+  idPrefix?: string;
+  onSuccess?: (unit: Unit) => void;
+  onCancel?: () => void;
+  footer?: (state: { pending: boolean; isEdit: boolean }) => React.ReactNode;
+};
+
+export function UnitForm({
+  unit,
+  idPrefix = "unit",
+  onSuccess,
+  onCancel,
+  footer,
+}: UnitFormProps) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(() => initialForm(unit));
   const [unitModels, setUnitModels] = useState<UnitModel[]>([]);
@@ -49,6 +63,8 @@ export function UnitForm({ unit }: { unit?: Unit }) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const isEdit = Boolean(unit);
+  const fieldId = (key: string) => `${idPrefix}-${key}`;
+  const errorId = (key: string) => `${fieldId(key)}-error`;
 
   useEffect(() => {
     let cancelled = false;
@@ -86,7 +102,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
 
   const fieldState = (key: keyof FormState) => ({
     "aria-invalid": Boolean(fieldErrors[key]),
-    "aria-describedby": fieldErrors[key] ? `${key}-error` : undefined,
+    "aria-describedby": fieldErrors[key] ? errorId(key) : undefined,
   });
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -96,7 +112,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
 
     if (!form.code.trim()) {
       setFieldErrors({ code: "Kode unit wajib diisi." });
-      requestAnimationFrame(() => document.getElementById("code")?.focus());
+      requestAnimationFrame(() => document.getElementById(fieldId("code"))?.focus());
       return;
     }
 
@@ -130,8 +146,12 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       const result = unit
         ? await proxyPatch<DataResponse<Unit>>(`/units/${unit.id}`, payload)
         : await proxyPost<DataResponse<Unit>>("/units", payload);
-      router.replace(`/units/${result.data.id}`);
-      router.refresh();
+      if (onSuccess) {
+        onSuccess(result.data);
+      } else {
+        router.replace(`/units/${result.data.id}`);
+        router.refresh();
+      }
     } catch (submitError) {
       if (submitError instanceof ApiError) {
         setFieldErrors(submitError.fields);
@@ -139,13 +159,13 @@ export function UnitForm({ unit }: { unit?: Unit }) {
         const firstField = Object.keys(submitError.fields)[0];
         requestAnimationFrame(() => {
           const target = firstField
-            ? document.getElementById(firstField)
-            : document.getElementById("unit-form-error");
+            ? document.getElementById(fieldId(firstField))
+            : document.getElementById(fieldId("form-error"));
           target?.focus();
         });
       } else {
         setError("Unit tidak dapat disimpan.");
-        requestAnimationFrame(() => document.getElementById("unit-form-error")?.focus());
+        requestAnimationFrame(() => document.getElementById(fieldId("form-error"))?.focus());
       }
     } finally {
       setPending(false);
@@ -161,7 +181,7 @@ export function UnitForm({ unit }: { unit?: Unit }) {
     >
       {error ? (
         <Alert
-          id="unit-form-error"
+          id={fieldId("form-error")}
           tabIndex={-1}
           variant="destructive"
           className="border-destructive/30 bg-destructive/5"
@@ -175,9 +195,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       <FieldSet className="gap-4">
         <FieldLegend className="text-base font-medium">Identitas unit</FieldLegend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Kode unit" htmlFor="code" required error={fieldErrors.code}>
+          <Field label="Kode unit" htmlFor={fieldId("code")} required error={fieldErrors.code}>
             <Input
-              id="code"
+              id={fieldId("code")}
               name="code"
               type="text"
               required
@@ -189,9 +209,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
               {...fieldState("code")}
             />
           </Field>
-          <Field label="Tipe unit" htmlFor="unit_type" error={fieldErrors.unit_type}>
+          <Field label="Tipe unit" htmlFor={fieldId("unit_type")} error={fieldErrors.unit_type}>
             <Input
-              id="unit_type"
+              id={fieldId("unit_type")}
               name="unit_type"
               type="text"
               autoComplete="off"
@@ -200,9 +220,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
               {...fieldState("unit_type")}
             />
           </Field>
-          <Field label="Merk" htmlFor="merk" error={fieldErrors.merk}>
+          <Field label="Merk" htmlFor={fieldId("merk")} error={fieldErrors.merk}>
             <Input
-              id="merk"
+              id={fieldId("merk")}
               name="merk"
               type="text"
               autoComplete="off"
@@ -211,9 +231,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
               {...fieldState("merk")}
             />
           </Field>
-          <Field label="Kelas unit" htmlFor="class_unit" error={fieldErrors.class_unit}>
+          <Field label="Kelas unit" htmlFor={fieldId("class_unit")} error={fieldErrors.class_unit}>
             <Input
-              id="class_unit"
+              id={fieldId("class_unit")}
               name="class_unit"
               type="text"
               value={form.class_unit}
@@ -221,9 +241,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
               {...fieldState("class_unit")}
             />
           </Field>
-          <Field label="Nomor polisi" htmlFor="license_plate" error={fieldErrors.license_plate}>
+          <Field label="Nomor polisi" htmlFor={fieldId("license_plate")} error={fieldErrors.license_plate}>
             <Input
-              id="license_plate"
+              id={fieldId("license_plate")}
               name="license_plate"
               type="text"
               autoComplete="off"
@@ -233,9 +253,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
               {...fieldState("license_plate")}
             />
           </Field>
-          <Field label="Lokasi" htmlFor="site_location" error={fieldErrors.site_location}>
+          <Field label="Lokasi" htmlFor={fieldId("site_location")} error={fieldErrors.site_location}>
             <Input
-              id="site_location"
+              id={fieldId("site_location")}
               name="site_location"
               type="text"
               autoComplete="off"
@@ -250,9 +270,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
       <FieldSet className="gap-4">
         <FieldLegend className="text-base font-medium">Model dan serial</FieldLegend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Unit model" htmlFor="unit_model_id" error={fieldErrors.unit_model_id}>
+          <Field label="Unit model" htmlFor={fieldId("unit_model_id")} error={fieldErrors.unit_model_id}>
             <NativeSelect
-              id="unit_model_id"
+              id={fieldId("unit_model_id")}
               name="unit_model_id"
               value={form.unit_model_id}
               onChange={(event) => update("unit_model_id", event.target.value)}
@@ -268,9 +288,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Engine model" htmlFor="engine_model_id" error={fieldErrors.engine_model_id}>
+          <Field label="Engine model" htmlFor={fieldId("engine_model_id")} error={fieldErrors.engine_model_id}>
             <NativeSelect
-              id="engine_model_id"
+              id={fieldId("engine_model_id")}
               name="engine_model_id"
               value={form.engine_model_id}
               onChange={(event) => update("engine_model_id", event.target.value)}
@@ -286,9 +306,9 @@ export function UnitForm({ unit }: { unit?: Unit }) {
               ))}
             </NativeSelect>
           </Field>
-          <Field label="Serial number unit" htmlFor="serial_number" error={fieldErrors.serial_number}>
+          <Field label="Serial number unit" htmlFor={fieldId("serial_number")} error={fieldErrors.serial_number}>
             <Input
-              id="serial_number"
+              id={fieldId("serial_number")}
               name="serial_number"
               type="text"
               autoComplete="off"
@@ -301,11 +321,11 @@ export function UnitForm({ unit }: { unit?: Unit }) {
           </Field>
           <Field
             label="Serial number engine"
-            htmlFor="engine_serial_number"
+            htmlFor={fieldId("engine_serial_number")}
             error={fieldErrors.engine_serial_number}
           >
             <Input
-              id="engine_serial_number"
+              id={fieldId("engine_serial_number")}
               name="engine_serial_number"
               type="text"
               autoComplete="off"
@@ -321,8 +341,12 @@ export function UnitForm({ unit }: { unit?: Unit }) {
 
       <FieldSet className="gap-3">
         <FieldLegend className="text-base font-medium">Status</FieldLegend>
-        <label className="flex h-9 w-fit items-center gap-2 text-sm">
+        <label
+          htmlFor={fieldId("is_active")}
+          className="flex h-9 w-fit items-center gap-2 text-sm"
+        >
           <input
+            id={fieldId("is_active")}
             type="checkbox"
             name="is_active"
             checked={form.is_active}
@@ -331,8 +355,12 @@ export function UnitForm({ unit }: { unit?: Unit }) {
           />
           Unit aktif
         </label>
-        <label className="flex h-9 w-fit items-center gap-2 text-sm">
+        <label
+          htmlFor={fieldId("is_breakdown")}
+          className="flex h-9 w-fit items-center gap-2 text-sm"
+        >
           <input
+            id={fieldId("is_breakdown")}
             type="checkbox"
             name="is_breakdown"
             checked={form.is_breakdown}
@@ -343,26 +371,36 @@ export function UnitForm({ unit }: { unit?: Unit }) {
         </label>
       </FieldSet>
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={pending}>
-          {pending ? (
-            <>
-              <Loader2 className="animate-spin" aria-hidden="true" />
-              Menyimpan...
-            </>
-          ) : isEdit ? (
-            "Simpan perubahan"
+      {footer ? (
+        footer({ pending, isEdit })
+      ) : (
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" disabled={pending}>
+            {pending ? (
+              <>
+                <Loader2 className="animate-spin" aria-hidden="true" />
+                Menyimpan...
+              </>
+            ) : isEdit ? (
+              "Simpan perubahan"
+            ) : (
+              "Buat unit"
+            )}
+          </Button>
+          {onCancel ? (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Batal
+            </Button>
           ) : (
-            "Buat unit"
+            <Link
+              href={unit ? `/units/${unit.id}` : "/units"}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Batal
+            </Link>
           )}
-        </Button>
-        <Link
-          href={unit ? `/units/${unit.id}` : "/units"}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          Batal
-        </Link>
-      </div>
+        </div>
+      )}
     </form>
   );
 }

@@ -1,12 +1,19 @@
 "use client";
 
-import { CircleAlert, Loader2, Save, Settings2, ShieldAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  CircleAlert,
+  CircleCheck,
+  Loader2,
+  RefreshCw,
+  Save,
+  Settings2,
+  ShieldAlert,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,10 +22,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
+  TableCaption,
   TableBody,
   TableCell,
   TableHead,
@@ -55,40 +71,37 @@ export function SettingsView() {
 
   const isAdmin = user.role === "admin";
 
-  useEffect(() => {
+  const loadSettings = useCallback(async () => {
     if (!isAdmin) {
       setLoading(false);
       return;
     }
-    let cancelled = false;
-    proxyGet<DataResponse<AppSettings>>("/settings")
-      .then((response) => {
-        if (cancelled) return;
-        const result = response.data;
-        setSettings(result);
-        setAutoWO(result.p2h_auto_wo);
-        setSlaHours(String(result.candidate_sla_hours));
-        setBackfillDays(String(result.candidate_backfill_days));
-        setPMAutoWO(result.pm_auto_wo);
-        setPMUpcomingDays(String(result.pm_upcoming_days));
-        setPMDueSoonDays(String(result.pm_due_soon_days));
-      })
-      .catch((loadError) => {
-        if (!cancelled) {
-          setError(
-            loadError instanceof ApiError
-              ? loadError.message
-              : "Pengaturan tidak dapat dimuat.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    setLoading(true);
+    setError("");
+    try {
+      const response = await proxyGet<DataResponse<AppSettings>>("/settings");
+      const result = response.data;
+      setSettings(result);
+      setAutoWO(result.p2h_auto_wo);
+      setSlaHours(String(result.candidate_sla_hours));
+      setBackfillDays(String(result.candidate_backfill_days));
+      setPMAutoWO(result.pm_auto_wo);
+      setPMUpcomingDays(String(result.pm_upcoming_days));
+      setPMDueSoonDays(String(result.pm_due_soon_days));
+    } catch (loadError) {
+      setError(
+        loadError instanceof ApiError
+          ? loadError.message
+          : "Pengaturan tidak dapat dimuat.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [isAdmin]);
+
+  useEffect(() => {
+    void loadSettings();
+  }, [loadSettings]);
 
   const save = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -128,13 +141,19 @@ export function SettingsView() {
 
   if (!isAdmin) {
     return (
-      <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
-        <ShieldAlert aria-hidden="true" />
-        <AlertTitle>Akses admin diperlukan</AlertTitle>
-        <AlertDescription>
-          Halaman pengaturan hanya dapat dibuka oleh admin.
-        </AlertDescription>
-      </Alert>
+      <div className="flex flex-col gap-4">
+        <PageHeader
+          title="Pengaturan"
+          description="Kontrol global P2H, kandidat work order, dan PM otomatis."
+        />
+        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+          <ShieldAlert aria-hidden="true" />
+          <AlertTitle>Akses admin diperlukan</AlertTitle>
+          <AlertDescription>
+            Halaman pengaturan hanya dapat dibuka oleh admin.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
@@ -142,11 +161,17 @@ export function SettingsView() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Pengaturan"
-        description="Kontrol global P2H dan kandidat work order. Setiap perubahan diaudit."
+        description="Kontrol global P2H, kandidat work order, dan PM otomatis. Setiap perubahan diaudit."
         actions={
-          <Badge variant="secondary" className="h-6 px-2.5">
-            Admin
-          </Badge>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void loadSettings()}
+            disabled={loading}
+          >
+            <RefreshCw className={loading ? "animate-spin" : undefined} aria-hidden="true" />
+            Muat ulang
+          </Button>
         }
       />
 
@@ -158,12 +183,12 @@ export function SettingsView() {
         </Alert>
       ) : null}
       {success ? (
-        <Alert className="border-emerald-500/30 bg-emerald-500/5">
-          <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-            Tersimpan
-          </Badge>
+        <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300">
+          <CircleCheck aria-hidden="true" />
           <AlertTitle>Berhasil</AlertTitle>
-          <AlertDescription>{success}</AlertDescription>
+          <AlertDescription className="text-emerald-700 dark:text-emerald-300">
+            {success}
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -180,9 +205,18 @@ export function SettingsView() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="animate-spin" aria-hidden="true" />
-                Memuat pengaturan...
+              <div className="flex flex-col gap-4" role="status" aria-label="Memuat pengaturan">
+                <Skeleton className="h-24 w-full rounded-lg" />
+                <Skeleton className="h-24 w-full rounded-lg" />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+                <Skeleton className="h-9 w-40" />
               </div>
             ) : (
               <form onSubmit={save} className="space-y-5">
@@ -194,15 +228,18 @@ export function SettingsView() {
                       Default nonaktif; hanya kandidat baru yang terpengaruh.
                     </p>
                   </div>
-                  <label className="flex cursor-pointer items-center gap-2">
+                  <Field orientation="horizontal" className="w-fit shrink-0">
                     <input
+                      id="p2h-auto-wo"
                       type="checkbox"
                       checked={autoWO}
                       onChange={(event) => setAutoWO(event.target.checked)}
                       className="size-4 rounded border-input accent-primary"
                     />
-                    <span className="text-sm font-medium">{autoWO ? "Aktif" : "Nonaktif"}</span>
-                  </label>
+                    <FieldLabel htmlFor="p2h-auto-wo">
+                      {autoWO ? "Aktif" : "Nonaktif"}
+                    </FieldLabel>
+                  </Field>
                 </div>
 
                 {autoWO ? (
@@ -225,15 +262,18 @@ export function SettingsView() {
                         auto-generate pada plan sama-sama aktif. Default nonaktif.
                       </p>
                     </div>
-                    <label className="flex cursor-pointer items-center gap-2">
+                    <Field orientation="horizontal" className="w-fit shrink-0">
                       <input
+                        id="pm-auto-wo"
                         type="checkbox"
                         checked={pmAutoWO}
                         onChange={(event) => setPMAutoWO(event.target.checked)}
                         className="size-4 rounded border-input accent-primary"
                       />
-                      <span className="text-sm font-medium">{pmAutoWO ? "Aktif" : "Nonaktif"}</span>
-                    </label>
+                      <FieldLabel htmlFor="pm-auto-wo">
+                        {pmAutoWO ? "Aktif" : "Nonaktif"}
+                      </FieldLabel>
+                    </Field>
                   </div>
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <Field data-invalid={Boolean(fieldErrors.pm_upcoming_days)}>
@@ -246,9 +286,12 @@ export function SettingsView() {
                         value={pmUpcomingDays}
                         onChange={(event) => setPMUpcomingDays(event.target.value)}
                         aria-invalid={Boolean(fieldErrors.pm_upcoming_days)}
+                        aria-describedby="pm-upcoming-days-error"
                       />
                       {fieldErrors.pm_upcoming_days ? (
-                        <FieldError>{fieldErrors.pm_upcoming_days}</FieldError>
+                        <FieldError id="pm-upcoming-days-error">
+                          {fieldErrors.pm_upcoming_days}
+                        </FieldError>
                       ) : null}
                     </Field>
                     <Field data-invalid={Boolean(fieldErrors.pm_due_soon_days)}>
@@ -261,9 +304,12 @@ export function SettingsView() {
                         value={pmDueSoonDays}
                         onChange={(event) => setPMDueSoonDays(event.target.value)}
                         aria-invalid={Boolean(fieldErrors.pm_due_soon_days)}
+                        aria-describedby="pm-due-soon-days-error"
                       />
                       {fieldErrors.pm_due_soon_days ? (
-                        <FieldError>{fieldErrors.pm_due_soon_days}</FieldError>
+                        <FieldError id="pm-due-soon-days-error">
+                          {fieldErrors.pm_due_soon_days}
+                        </FieldError>
                       ) : null}
                     </Field>
                   </div>
@@ -280,12 +326,15 @@ export function SettingsView() {
                       value={slaHours}
                       onChange={(event) => setSlaHours(event.target.value)}
                       aria-invalid={Boolean(fieldErrors.candidate_sla_hours)}
+                      aria-describedby="sla-hours-help sla-hours-error"
                     />
-                    <p className="text-xs text-muted-foreground">
+                    <FieldDescription id="sla-hours-help">
                       Reminder dikirim sekali setelah kandidat pending melewati SLA.
-                    </p>
+                    </FieldDescription>
                     {fieldErrors.candidate_sla_hours ? (
-                      <FieldError>{fieldErrors.candidate_sla_hours}</FieldError>
+                      <FieldError id="sla-hours-error">
+                        {fieldErrors.candidate_sla_hours}
+                      </FieldError>
                     ) : null}
                   </Field>
                   <Field data-invalid={Boolean(fieldErrors.candidate_backfill_days)}>
@@ -298,12 +347,15 @@ export function SettingsView() {
                       value={backfillDays}
                       onChange={(event) => setBackfillDays(event.target.value)}
                       aria-invalid={Boolean(fieldErrors.candidate_backfill_days)}
+                      aria-describedby="backfill-days-help backfill-days-error"
                     />
-                    <p className="text-xs text-muted-foreground">
+                    <FieldDescription id="backfill-days-help">
                       Laporan lebih lama dari batas ini masuk sebagai kandidat arsip.
-                    </p>
+                    </FieldDescription>
                     {fieldErrors.candidate_backfill_days ? (
-                      <FieldError>{fieldErrors.candidate_backfill_days}</FieldError>
+                      <FieldError id="backfill-days-error">
+                        {fieldErrors.candidate_backfill_days}
+                      </FieldError>
                     ) : null}
                   </Field>
                 </div>
@@ -350,6 +402,7 @@ export function SettingsView() {
           {settings && settings.history.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
+                <TableCaption className="sr-only">Riwayat perubahan pengaturan</TableCaption>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Waktu</TableHead>
@@ -377,7 +430,17 @@ export function SettingsView() {
               </Table>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Belum ada perubahan.</p>
+            <Empty className="border-0 py-10">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Settings2 aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>Belum ada perubahan.</EmptyTitle>
+                <EmptyDescription>
+                  Riwayat perubahan pengaturan akan muncul di sini setelah nilai disimpan.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </CardContent>
       </Card>

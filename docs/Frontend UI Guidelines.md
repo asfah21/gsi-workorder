@@ -192,6 +192,21 @@ Aturan:
 - Jangan menimpa ukuran teks kontrol di level halaman; gunakan default komponen shared.
 - Jangan membuat side sheet baru dengan `side="right"` untuk form/detail.
 
+### Impor dan ekspor data
+
+- Tombol `Impor XLSX` dan `Ekspor XLSX` berada di `PageHeader actions`, bukan di dalam tabel.
+- Form unggah file memakai centered `Sheet`; input file tetap memakai `Field` + `FieldLabel` + `Input type="file"`.
+- Ekspor mengikuti filter aktif pada halaman list, tanpa pagination.
+- Template unduhan dan hasil impor memakai file `.xlsx`; backend yang membuat dan mem-parsing file.
+- Ringkasan hasil impor ditampilkan dengan `Alert`; baris gagal ditampilkan dengan `Table` di dalam `overflow-x-auto`.
+
+### Dashboard
+
+- Bagian atas memakai sapaan, tanggal WITA, dan empat `KpiCard` dengan nilai `text-2xl font-semibold`.
+- Bagian bawah memetakan data nyata sebagai berikut: downtime/MTTR, status work order, kesiapan stok, armada aktif, kondisi armada, dan penunggu part.
+- `Cuplikan unit` memakai tabel lebar penuh; `Akses cepat` menjadi kartu grid di bawahnya.
+- Jangan menambah data tren palsu atau angka dummy untuk menyerupai demo; semua nilai harus berasal dari endpoint dashboard.
+
 ## Typography
 
 Satu jenis elemen hanya boleh memakai satu ukuran teks. Jangan mencampur `text-sm`, `text-base`, dan `text-lg` untuk elemen yang setara.

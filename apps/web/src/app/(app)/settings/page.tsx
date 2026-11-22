@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = {
   title: "Pengaturan | GSI Work Order",
-  description: "Pengaturan global P2H dan usulan WO",
+  description: "Pengaturan global P2H, kandidat work order, dan PM otomatis",
 };
 
 export default function SettingsPage() {
@@ -19,13 +19,16 @@ export default function SettingsPage() {
 
 function SettingsPageSkeleton() {
   return (
-    <div className="space-y-6" role="status" aria-label="Memuat pengaturan">
-      <Skeleton className="h-9 w-48" />
-      <Skeleton className="h-4 w-96 max-w-full" />
+    <div className="flex flex-col gap-4" role="status" aria-label="Memuat pengaturan">
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-9 w-48" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+      </div>
       <div className="grid gap-4 lg:grid-cols-12">
         <Skeleton className="h-80 rounded-xl lg:col-span-7" />
         <Skeleton className="h-80 rounded-xl lg:col-span-5" />
       </div>
+      <Skeleton className="h-64 rounded-xl" />
     </div>
   );
 }

@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-
-import { UnitCreateView } from "@/components/unit-create-view";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Tambah Unit | GSI Work Order",
 };
 
 export default function NewUnitPage() {
-  return <UnitCreateView />;
+  redirect("/units?create=1");
 }

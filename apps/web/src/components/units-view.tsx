@@ -3,17 +3,22 @@
 import {
   ChevronRight,
   CircleAlert,
+  CircleCheck,
+  Download,
   Filter,
   Loader2,
   Plus,
   RotateCcw,
   Truck,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
+import { UnitCreateSheet } from "@/components/unit-create-sheet";
+import { UnitImportSheet } from "@/components/unit-import-sheet";
 import { PageHeader } from "@/components/layout/page-header";
 import { FilterBar } from "@/components/list/list-filter-bar";
 import { SearchInput } from "@/components/list/list-search";
@@ -52,7 +57,8 @@ import {
 } from "@/components/ui/table";
 import { useListParams } from "@/hooks/use-list-params";
 import { ApiError, proxyGet } from "@/lib/api-client";
-import type { ListResponse, Unit } from "@/lib/types";
+import { downloadBlob } from "@/lib/download";
+import type { ListResponse, Unit, UnitImportResult } from "@/lib/types";
 import { formatDateTimeWita, formatNumber } from "@/lib/time";
 
 const filterLabels: Record<string, string> = {
@@ -72,6 +78,7 @@ const sortableColumns = [
 
 export function UnitsView() {
   const { user } = useSession();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const q = searchParams.get("q") ?? "";
   const rawActive = searchParams.get("is_active");
@@ -88,6 +95,15 @@ export function UnitsView() {
   const [queryError, setQueryError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createKey, setCreateKey] = useState(0);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importKey, setImportKey] = useState(0);
+  const [importResult, setImportResult] = useState<UnitImportResult | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const canWrite = user.role === "admin" || user.role === "planner";
   const hasFilters = q.trim() !== "" || activeFilter !== "active";
@@ -99,13 +115,19 @@ export function UnitsView() {
   }, [q]);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError("");
+    if (searchParams.get("create") !== "1") {
+      return;
+    }
+    setCreateKey((current) => current + 1);
+    setCreateOpen(true);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("create");
+    const suffix = nextParams.toString();
+    router.replace(`/units${suffix ? `?${suffix}` : ""}`, { scroll: false });
+  }, [router, searchParams]);
 
+  const buildListParams = useCallback((includePagination: boolean) => {
     const params = new URLSearchParams({
-      page: String(list.page),
-      limit: String(list.pageSize),
       sort: list.sort,
       order: list.order,
     });
@@ -117,6 +139,85 @@ export function UnitsView() {
     } else if (activeFilter === "inactive") {
       params.set("is_active", "false");
     }
+    if (includePagination) {
+      params.set("page", String(list.page));
+      params.set("limit", String(list.pageSize));
+    }
+    return params;
+  }, [activeFilter, list.order, list.page, list.pageSize, list.sort, q]);
+
+  const refresh = () => {
+    setRefreshKey((current) => current + 1);
+  };
+
+  const openCreate = () => {
+    setCreateKey((current) => current + 1);
+    setSuccessMessage("");
+    setActionError("");
+    setCreateOpen(true);
+  };
+
+  const openImport = () => {
+    setImportKey((current) => current + 1);
+    setSuccessMessage("");
+    setActionError("");
+    setImportOpen(true);
+  };
+
+  const exportXlsx = async () => {
+    setExporting(true);
+    setActionError("");
+    setSuccessMessage("");
+    try {
+      const response = await fetch(
+        `/api/proxy/units/export?${buildListParams(false).toString()}`,
+        {
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: {
+            Accept:
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        },
+      );
+      if (!response.ok) {
+        throw new Error("XLSX tidak dapat dibuat.");
+      }
+      downloadBlob(await response.blob(), `unit-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      setSuccessMessage("Data unit berhasil diekspor.");
+    } catch (exportError) {
+      setActionError(
+        exportError instanceof Error
+          ? exportError.message
+          : "XLSX tidak dapat dibuat.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImported = (result: UnitImportResult) => {
+    setImportResult(result);
+    if (result.failed > 0) {
+      setActionError(
+        `Impor dibatalkan: ${result.failed} baris tidak valid. Tidak ada unit yang disimpan.`,
+      );
+      setSuccessMessage("");
+    } else {
+      setActionError("");
+      setSuccessMessage(
+        `Impor selesai: ${result.created} unit dibuat, ${result.skipped} baris dilewati.`,
+      );
+    }
+    refresh();
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+
+    const params = buildListParams(true);
 
     proxyGet<ListResponse<Unit>>(`/units?${params.toString()}`)
       .then((result) => {
@@ -143,7 +244,7 @@ export function UnitsView() {
     return () => {
       cancelled = true;
     };
-  }, [activeFilter, list.order, list.page, list.pageSize, list.sort, q]);
+  }, [buildListParams, refreshKey]);
 
   const submitSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -173,11 +274,30 @@ export function UnitsView() {
             <Badge variant="secondary" className="h-6 px-2.5">
               {formatNumber(total)} unit
             </Badge>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void exportXlsx()}
+              disabled={exporting}
+            >
+              {exporting ? (
+                <Loader2 className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Download aria-hidden="true" />
+              )}
+              Ekspor XLSX
+            </Button>
             {canWrite ? (
-              <Link href="/units/new" className={buttonVariants({ variant: "default" })}>
-                <Plus aria-hidden="true" />
-                Tambah unit
-              </Link>
+              <>
+                <Button type="button" variant="outline" onClick={openImport}>
+                  <Upload aria-hidden="true" />
+                  Impor XLSX
+                </Button>
+                <Button type="button" onClick={openCreate}>
+                  <Plus aria-hidden="true" />
+                  Tambah unit
+                </Button>
+              </>
             ) : null}
           </>
         }
@@ -272,6 +392,74 @@ export function UnitsView() {
         </Alert>
       ) : null}
 
+      {actionError ? (
+        <Alert
+          role="alert"
+          variant="destructive"
+          className="border-destructive/30 bg-destructive/5"
+        >
+          <CircleAlert aria-hidden="true" />
+          <AlertTitle>Aksi gagal</AlertTitle>
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {successMessage ? (
+        <Alert
+          aria-live="polite"
+          className="border-emerald-500/30 bg-emerald-500/5"
+        >
+          <CircleCheck aria-hidden="true" />
+          <AlertTitle>Berhasil</AlertTitle>
+          <AlertDescription>{successMessage}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {importResult && importResult.failed > 0 ? (
+        <Card className="gap-0">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
+            <div>
+              <CardTitle>Baris impor gagal</CardTitle>
+              <CardDescription>
+                Perbaiki file lalu unggah ulang. Tidak ada unit yang disimpan dari file tersebut.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setImportResult(null)}
+            >
+              Tutup
+            </Button>
+          </CardHeader>
+          <CardContent className="px-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col">Baris</TableHead>
+                    <TableHead scope="col">Kode unit</TableHead>
+                    <TableHead scope="col">Alasan</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {importResult.rows
+                    .filter((row) => row.status === "failed")
+                    .map((row) => (
+                      <TableRow key={row.row}>
+                        <TableCell>{row.row}</TableCell>
+                        <TableCell className="font-medium">{row.code || "-"}</TableCell>
+                        <TableCell>{row.message || "Data tidak valid"}</TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card className="gap-0">
         <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
           <div>
@@ -321,10 +509,10 @@ export function UnitsView() {
                   </Button>
                 ) : null}
                 {canWrite ? (
-                  <Link href="/units/new" className={buttonVariants({ variant: "default" })}>
+                  <Button type="button" onClick={openCreate}>
                     <Plus aria-hidden="true" />
                     Tambah unit
-                  </Link>
+                  </Button>
                 ) : null}
               </EmptyContent>
             </Empty>
@@ -449,6 +637,22 @@ export function UnitsView() {
           </CardFooter>
         ) : null}
       </Card>
+
+      <UnitCreateSheet
+        key={`unit-create-${createKey}`}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSaved={() => {
+          setSuccessMessage("Unit berhasil ditambahkan.");
+          refresh();
+        }}
+      />
+      <UnitImportSheet
+        key={`unit-import-${importKey}`}
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={handleImported}
+      />
     </div>
   );
 }

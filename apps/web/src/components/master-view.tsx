@@ -5,6 +5,7 @@ import {
   CircleAlert,
   CircleCheck,
   Loader2,
+  Plus,
   RefreshCw,
   Search,
   Settings2,
@@ -41,6 +42,14 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -116,6 +125,10 @@ export function MasterView() {
   const [engineStats, setEngineStats] = useState<{ total: number; active: number } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
+  const [unitFormOpen, setUnitFormOpen] = useState(false);
+  const [engineFormOpen, setEngineFormOpen] = useState(false);
+  const [unitFormKey, setUnitFormKey] = useState(0);
+  const [engineFormKey, setEngineFormKey] = useState(0);
 
   const canWrite = user.role === "admin" || user.role === "planner";
   const unitTotalPages = Math.max(1, Math.ceil(unitTotal / unitList.pageSize));
@@ -226,6 +239,16 @@ export function MasterView() {
     void loadStats();
   }, [loadEngineModels, loadStats, loadUnitModels]);
 
+  const openUnitForm = () => {
+    setUnitFormKey((current) => current + 1);
+    setUnitFormOpen(true);
+  };
+
+  const openEngineForm = () => {
+    setEngineFormKey((current) => current + 1);
+    setEngineFormOpen(true);
+  };
+
   const submitUnitSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const term = umQuery.trim();
@@ -268,18 +291,26 @@ export function MasterView() {
         title="Master unit"
         description="Referensi unit model dan engine model yang dipakai pada master unit."
         actions={
-          <Button
-            type="button"
-            variant="outline"
-            onClick={refreshAll}
-            disabled={unitLoading || engineLoading || statsLoading}
-          >
-            <RefreshCw
-              className={unitLoading || engineLoading || statsLoading ? "animate-spin" : undefined}
-              aria-hidden="true"
-            />
-            Muat ulang
-          </Button>
+          <>
+            {canWrite ? (
+              <Button type="button" onClick={tab === "unit" ? openUnitForm : openEngineForm}>
+                <Plus aria-hidden="true" />
+                {tab === "unit" ? "Tambah unit model" : "Tambah engine model"}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={refreshAll}
+              disabled={unitLoading || engineLoading || statsLoading}
+            >
+              <RefreshCw
+                className={unitLoading || engineLoading || statsLoading ? "animate-spin" : undefined}
+                aria-hidden="true"
+              />
+              Muat ulang
+            </Button>
+          </>
         }
       />
 
@@ -414,15 +445,6 @@ export function MasterView() {
                 <AlertTitle>Master unit model tidak dapat dimuat</AlertTitle>
                 <AlertDescription>{unitError}</AlertDescription>
               </Alert>
-            ) : null}
-
-            {canWrite ? (
-              <UnitModelForm
-                onSaved={() => {
-                  void loadUnitModels();
-                  void loadStats();
-                }}
-              />
             ) : null}
 
             {unitLoading && unitModels.length === 0 ? (
@@ -581,15 +603,6 @@ export function MasterView() {
               </Alert>
             ) : null}
 
-            {canWrite ? (
-              <EngineModelForm
-                onSaved={() => {
-                  void loadEngineModels();
-                  void loadStats();
-                }}
-              />
-            ) : null}
-
             {engineLoading && engineModels.length === 0 ? (
               <TableSkeleton />
             ) : engineModels.length === 0 ? (
@@ -692,24 +705,49 @@ export function MasterView() {
           </CardContent>
         </Card>
       )}
+
+      <UnitModelSheet
+        key={`unit-${unitFormKey}`}
+        open={unitFormOpen}
+        onOpenChange={setUnitFormOpen}
+        onSaved={() => {
+          void loadUnitModels();
+          void loadStats();
+        }}
+      />
+      <EngineModelSheet
+        key={`engine-${engineFormKey}`}
+        open={engineFormOpen}
+        onOpenChange={setEngineFormOpen}
+        onSaved={() => {
+          void loadEngineModels();
+          void loadStats();
+        }}
+      />
     </div>
   );
 }
 
-function UnitModelForm({ onSaved }: { onSaved: () => void }) {
+function UnitModelSheet({
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
   const [manufacturer, setManufacturer] = useState("");
   const [model, setModel] = useState("");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [active, setActive] = useState(true);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-    setMessage("");
     setPending(true);
     try {
       await proxyPost<DataResponse<UnitModel>>("/unit-models", {
@@ -719,13 +757,8 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
         notes: notes.trim(),
         is_active: active,
       });
-      setManufacturer("");
-      setModel("");
-      setCategory("");
-      setNotes("");
-      setActive(true);
-      setMessage("Unit model berhasil ditambahkan.");
       onSaved();
+      onOpenChange(false);
     } catch (submitError) {
       setError(
         submitError instanceof ApiError
@@ -739,121 +772,130 @@ function UnitModelForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <form
-      onSubmit={(event) => void submit(event)}
-      className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2 xl:grid-cols-4"
-      noValidate
-    >
-      <div className="sm:col-span-2 xl:col-span-4">
-        <p className="text-sm font-medium">Tambah unit model</p>
-        <p className="text-xs text-muted-foreground">
-          Referensi baru langsung tersedia untuk pembuatan unit.
-        </p>
-      </div>
-
-      <Field>
-        <FieldLabel htmlFor="um-manufacturer">
-          Manufacturer <span aria-hidden="true" className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="um-manufacturer"
-          name="manufacturer"
-          required
-          maxLength={100}
-          autoComplete="off"
-          value={manufacturer}
-          onChange={(event) => setManufacturer(event.target.value)}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="um-model">
-          Model <span aria-hidden="true" className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="um-model"
-          name="model"
-          required
-          maxLength={100}
-          autoComplete="off"
-          value={model}
-          onChange={(event) => setModel(event.target.value)}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="um-category">Kategori</FieldLabel>
-        <Input
-          id="um-category"
-          name="category"
-          maxLength={100}
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
-        />
-      </Field>
-      <Field orientation="horizontal" className="w-fit self-end pb-2">
-        <input
-          id="um-active"
-          type="checkbox"
-          name="is_active"
-          checked={active}
-          onChange={(event) => setActive(event.target.checked)}
-          className="size-4 accent-primary"
-        />
-        <FieldLabel htmlFor="um-active">Aktif</FieldLabel>
-      </Field>
-      <Field className="sm:col-span-2 xl:col-span-4">
-        <FieldLabel htmlFor="um-notes">Catatan</FieldLabel>
-        <Textarea
-          id="um-notes"
-          name="notes"
-          rows={2}
-          maxLength={2000}
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-        />
-      </Field>
-
-      {error ? (
-        <Alert
-          id="unit-model-form-error"
-          tabIndex={-1}
-          variant="destructive"
-          className="border-destructive/30 bg-destructive/5 sm:col-span-2 xl:col-span-4"
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>Tambah unit model</SheetTitle>
+          <SheetDescription>
+            Referensi baru langsung tersedia untuk pembuatan unit.
+          </SheetDescription>
+        </SheetHeader>
+        <form
+          onSubmit={(event) => void submit(event)}
+          className="flex flex-col gap-4 px-4 pb-4"
+          noValidate
         >
-          <CircleAlert aria-hidden="true" />
-          <AlertTitle>Gagal menyimpan</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-      {message ? (
-        <Alert
-          role="status"
-          className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 sm:col-span-2 xl:col-span-4"
-        >
-          <CircleCheck aria-hidden="true" />
-          <AlertTitle>Berhasil</AlertTitle>
-          <AlertDescription className="text-emerald-700 dark:text-emerald-300">
-            {message}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="um-manufacturer">
+                Manufacturer <span aria-hidden="true" className="text-destructive">*</span>
+              </FieldLabel>
+              <Input
+                id="um-manufacturer"
+                name="manufacturer"
+                required
+                maxLength={100}
+                autoComplete="off"
+                value={manufacturer}
+                onChange={(event) => setManufacturer(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="um-model">
+                Model <span aria-hidden="true" className="text-destructive">*</span>
+              </FieldLabel>
+              <Input
+                id="um-model"
+                name="model"
+                required
+                maxLength={100}
+                autoComplete="off"
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="um-category">Kategori</FieldLabel>
+              <Input
+                id="um-category"
+                name="category"
+                maxLength={100}
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+              />
+            </Field>
+            <Field orientation="horizontal" className="w-fit self-end pb-2">
+              <input
+                id="um-active"
+                type="checkbox"
+                name="is_active"
+                checked={active}
+                onChange={(event) => setActive(event.target.checked)}
+                className="size-4 accent-primary"
+              />
+              <FieldLabel htmlFor="um-active">Aktif</FieldLabel>
+            </Field>
+            <Field className="sm:col-span-2">
+              <FieldLabel htmlFor="um-notes">Catatan</FieldLabel>
+              <Textarea
+                id="um-notes"
+                name="notes"
+                rows={2}
+                maxLength={2000}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </Field>
+          </div>
 
-      <div className="sm:col-span-2 xl:col-span-4">
-        <Button type="submit" size="sm" disabled={pending}>
-          {pending ? (
-            <>
-              <Loader2 className="animate-spin" aria-hidden="true" />
-              Menyimpan...
-            </>
-          ) : (
-            "Tambah unit model"
-          )}
-        </Button>
-      </div>
-    </form>
+          {error ? (
+            <Alert
+              id="unit-model-form-error"
+              tabIndex={-1}
+              variant="destructive"
+              className="border-destructive/30 bg-destructive/5"
+            >
+              <CircleAlert aria-hidden="true" />
+              <AlertTitle>Gagal menyimpan</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <SheetFooter className="px-0 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={pending}
+            >
+              Batal
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? (
+                <>
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                  Menyimpan...
+                </>
+              ) : (
+                "Simpan unit model"
+              )}
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }
 
-function EngineModelForm({ onSaved }: { onSaved: () => void }) {
+function EngineModelSheet({
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+}) {
   const [manufacturer, setManufacturer] = useState("");
   const [model, setModel] = useState("");
   const [fuelType, setFuelType] = useState("");
@@ -861,13 +903,11 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
   const [notes, setNotes] = useState("");
   const [active, setActive] = useState(true);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-    setMessage("");
     setPending(true);
     try {
       await proxyPost<DataResponse<EngineModel>>("/engine-models", {
@@ -878,14 +918,8 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
         notes: notes.trim(),
         is_active: active,
       });
-      setManufacturer("");
-      setModel("");
-      setFuelType("");
-      setDisplacement("");
-      setNotes("");
-      setActive(true);
-      setMessage("Engine model berhasil ditambahkan.");
       onSaved();
+      onOpenChange(false);
     } catch (submitError) {
       setError(
         submitError instanceof ApiError
@@ -899,131 +933,132 @@ function EngineModelForm({ onSaved }: { onSaved: () => void }) {
   };
 
   return (
-    <form
-      onSubmit={(event) => void submit(event)}
-      className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-2 xl:grid-cols-4"
-      noValidate
-    >
-      <div className="sm:col-span-2 xl:col-span-4">
-        <p className="text-sm font-medium">Tambah engine model</p>
-        <p className="text-xs text-muted-foreground">
-          Referensi baru langsung tersedia untuk pembuatan unit.
-        </p>
-      </div>
-
-      <Field>
-        <FieldLabel htmlFor="em-manufacturer">
-          Manufacturer <span aria-hidden="true" className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="em-manufacturer"
-          name="manufacturer"
-          required
-          maxLength={100}
-          autoComplete="off"
-          value={manufacturer}
-          onChange={(event) => setManufacturer(event.target.value)}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="em-model">
-          Model <span aria-hidden="true" className="text-destructive">*</span>
-        </FieldLabel>
-        <Input
-          id="em-model"
-          name="model"
-          required
-          maxLength={100}
-          autoComplete="off"
-          value={model}
-          onChange={(event) => setModel(event.target.value)}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="em-fuel">Bahan bakar</FieldLabel>
-        <Input
-          id="em-fuel"
-          name="fuel_type"
-          maxLength={50}
-          value={fuelType}
-          onChange={(event) => setFuelType(event.target.value)}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="em-displacement">Displacement (cc)</FieldLabel>
-        <Input
-          id="em-displacement"
-          name="displacement_cc"
-          type="number"
-          inputMode="numeric"
-          min="1"
-          max="1000000"
-          step="1"
-          value={displacement}
-          onChange={(event) => setDisplacement(event.target.value)}
-        />
-      </Field>
-      <Field className="sm:col-span-2 xl:col-span-4">
-        <FieldLabel htmlFor="em-notes">Catatan</FieldLabel>
-        <Textarea
-          id="em-notes"
-          name="notes"
-          rows={2}
-          maxLength={2000}
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-        />
-      </Field>
-
-      {error ? (
-        <Alert
-          id="engine-model-form-error"
-          tabIndex={-1}
-          variant="destructive"
-          className="border-destructive/30 bg-destructive/5 sm:col-span-2 xl:col-span-4"
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>Tambah engine model</SheetTitle>
+          <SheetDescription>
+            Referensi baru langsung tersedia untuk pembuatan unit.
+          </SheetDescription>
+        </SheetHeader>
+        <form
+          onSubmit={(event) => void submit(event)}
+          className="flex flex-col gap-4 px-4 pb-4"
+          noValidate
         >
-          <CircleAlert aria-hidden="true" />
-          <AlertTitle>Gagal menyimpan</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-      {message ? (
-        <Alert
-          role="status"
-          className="border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 sm:col-span-2 xl:col-span-4"
-        >
-          <CircleCheck aria-hidden="true" />
-          <AlertTitle>Berhasil</AlertTitle>
-          <AlertDescription className="text-emerald-700 dark:text-emerald-300">
-            {message}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="em-manufacturer">
+                Manufacturer <span aria-hidden="true" className="text-destructive">*</span>
+              </FieldLabel>
+              <Input
+                id="em-manufacturer"
+                name="manufacturer"
+                required
+                maxLength={100}
+                autoComplete="off"
+                value={manufacturer}
+                onChange={(event) => setManufacturer(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="em-model">
+                Model <span aria-hidden="true" className="text-destructive">*</span>
+              </FieldLabel>
+              <Input
+                id="em-model"
+                name="model"
+                required
+                maxLength={100}
+                autoComplete="off"
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="em-fuel">Bahan bakar</FieldLabel>
+              <Input
+                id="em-fuel"
+                name="fuel_type"
+                maxLength={50}
+                value={fuelType}
+                onChange={(event) => setFuelType(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="em-displacement">Displacement (cc)</FieldLabel>
+              <Input
+                id="em-displacement"
+                name="displacement_cc"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max="1000000"
+                step="1"
+                value={displacement}
+                onChange={(event) => setDisplacement(event.target.value)}
+              />
+            </Field>
+            <Field orientation="horizontal" className="w-fit self-end pb-2">
+              <input
+                id="em-active"
+                type="checkbox"
+                name="is_active"
+                checked={active}
+                onChange={(event) => setActive(event.target.checked)}
+                className="size-4 accent-primary"
+              />
+              <FieldLabel htmlFor="em-active">Aktif</FieldLabel>
+            </Field>
+            <Field className="sm:col-span-2">
+              <FieldLabel htmlFor="em-notes">Catatan</FieldLabel>
+              <Textarea
+                id="em-notes"
+                name="notes"
+                rows={2}
+                maxLength={2000}
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </Field>
+          </div>
 
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-2 xl:col-span-4">
-        <Field orientation="horizontal" className="w-fit">
-          <input
-            id="em-active"
-            type="checkbox"
-            name="is_active"
-            checked={active}
-            onChange={(event) => setActive(event.target.checked)}
-            className="size-4 accent-primary"
-          />
-          <FieldLabel htmlFor="em-active">Aktif</FieldLabel>
-        </Field>
-        <Button type="submit" size="sm" disabled={pending}>
-          {pending ? (
-            <>
-              <Loader2 className="animate-spin" aria-hidden="true" />
-              Menyimpan...
-            </>
-          ) : (
-            "Tambah engine model"
-          )}
-        </Button>
-      </div>
-    </form>
+          {error ? (
+            <Alert
+              id="engine-model-form-error"
+              tabIndex={-1}
+              variant="destructive"
+              className="border-destructive/30 bg-destructive/5"
+            >
+              <CircleAlert aria-hidden="true" />
+              <AlertTitle>Gagal menyimpan</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <SheetFooter className="px-0 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={pending}
+            >
+              Batal
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? (
+                <>
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                  Menyimpan...
+                </>
+              ) : (
+                "Simpan engine model"
+              )}
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }
 

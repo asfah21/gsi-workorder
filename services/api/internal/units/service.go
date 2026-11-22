@@ -221,6 +221,8 @@ type Repository interface {
 	ListUnits(ctx context.Context, filter UnitFilter) ([]Unit, int, error)
 	GetUnit(ctx context.Context, id int64) (Unit, error)
 	CreateUnit(ctx context.Context, unit Unit) (Unit, error)
+	CreateUnits(ctx context.Context, units []Unit) ([]Unit, error)
+	ExistingUnitCodes(ctx context.Context, codes []string) (map[string]struct{}, error)
 	UpdateUnit(ctx context.Context, unit Unit) (Unit, error)
 
 	ListMeterReadings(ctx context.Context, unitID int64, limit int) ([]MeterReading, error)
@@ -384,7 +386,15 @@ func (s *Service) GetUnit(ctx context.Context, id int64) (Unit, error) {
 }
 
 func (s *Service) CreateUnit(ctx context.Context, input UnitInput) (Unit, error) {
-	unit := Unit{
+	unit := unitFromInput(input)
+	if err := s.validateUnitInput(ctx, unit); err != nil {
+		return Unit{}, err
+	}
+	return s.repo.CreateUnit(ctx, unit)
+}
+
+func unitFromInput(input UnitInput) Unit {
+	return Unit{
 		Code:               strings.TrimSpace(input.Code),
 		UnitType:           strings.TrimSpace(input.UnitType),
 		Merk:               strings.TrimSpace(input.Merk),
@@ -398,10 +408,6 @@ func (s *Service) CreateUnit(ctx context.Context, input UnitInput) (Unit, error)
 		IsBreakdown:        boolValue(input.IsBreakdown, false),
 		IsActive:           boolValue(input.IsActive, true),
 	}
-	if err := s.validateUnitInput(ctx, unit); err != nil {
-		return Unit{}, err
-	}
-	return s.repo.CreateUnit(ctx, unit)
 }
 
 func (s *Service) UpdateUnit(ctx context.Context, id int64, patch UnitPatch) (Unit, error) {

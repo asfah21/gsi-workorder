@@ -62,6 +62,21 @@ export type Unit = {
   synced_at?: string;
 };
 
+export type UnitImportRowResult = {
+  row: number;
+  code: string;
+  status: "created" | "skipped" | "failed";
+  message?: string;
+};
+
+export type UnitImportResult = {
+  total: number;
+  created: number;
+  skipped: number;
+  failed: number;
+  rows: UnitImportRowResult[];
+};
+
 export type MeterReading = {
   id: number;
   unit_id: number;
