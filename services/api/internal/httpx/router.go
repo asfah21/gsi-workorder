@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"gsi-workorder/internal/auth"
+	"gsi-workorder/internal/inventory"
+	"gsi-workorder/internal/spareparts"
 )
 
 // NewRouter builds the HTTP router. M0 only had health checking; the optional
@@ -32,6 +34,8 @@ type M2Services struct {
 	WorkOrders    WorkOrderService
 	Users         UserDirectoryService
 	PM            PMService
+	Spareparts    spareparts.Service
+	Inventory     inventory.Service
 	UploadDir     string
 }
 
@@ -152,6 +156,70 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 			pmWriters.POST("/pm/schedules/:id/override-due", pmHandler.OverrideDue)
 			pmWriters.POST("/pm/schedules/:id/skip", pmHandler.Skip)
 			pmWriters.POST("/pm/schedules/:id/cancel", pmHandler.Cancel)
+			authorized.GET("/pm/plans/:id/materials", pmHandler.ListPlanMaterials)
+			pmWriters.POST("/pm/plans/:id/materials", pmHandler.AddPlanMaterial)
+			pmWriters.PATCH("/pm/plans/:id/materials/:material_id", pmHandler.UpdatePlanMaterial)
+			pmWriters.DELETE("/pm/plans/:id/materials/:material_id", pmHandler.DeletePlanMaterial)
+		}
+		if m2.Spareparts != nil {
+			sparepartHandler := NewSparepartHandler(m2.Spareparts, logger)
+			authorized.GET("/spareparts", sparepartHandler.List)
+			authorized.GET("/spareparts/search", sparepartHandler.Search)
+			authorized.GET("/spareparts/:id", sparepartHandler.Get)
+			authorized.GET("/spareparts/:id/numbers", sparepartHandler.ListNumbers)
+			authorized.GET("/spareparts/:id/alternatives", sparepartHandler.ListAlternatives)
+			authorized.GET("/spareparts/:id/compatibility", sparepartHandler.ListCompatibility)
+
+			sparepartWriters := authorized.Group("")
+			sparepartWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner))
+			sparepartWriters.POST("/spareparts", sparepartHandler.Create)
+			sparepartWriters.PATCH("/spareparts/:id", sparepartHandler.Update)
+			sparepartWriters.POST("/spareparts/:id/numbers", sparepartHandler.CreateNumber)
+			sparepartWriters.PATCH("/spareparts/:id/numbers/:number_id", sparepartHandler.UpdateNumber)
+			sparepartWriters.POST("/spareparts/:id/alternatives", sparepartHandler.CreateAlternative)
+			sparepartWriters.POST("/spareparts/:id/alternatives/:alternative_id/verify", sparepartHandler.VerifyAlternative)
+			sparepartWriters.POST("/spareparts/:id/compatibility", sparepartHandler.CreateCompatibility)
+			sparepartWriters.POST("/spareparts/:id/compatibility/:compat_id/verify", sparepartHandler.VerifyCompatibility)
+		}
+		if m2.Inventory != nil {
+			inventoryHandler := NewInventoryHandler(m2.Inventory, logger)
+			authorized.GET("/warehouses", inventoryHandler.ListWarehouses)
+			authorized.GET("/warehouses/:id/locations", inventoryHandler.ListWarehouseLocations)
+			authorized.GET("/warehouse-locations", inventoryHandler.ListAllLocations)
+			authorized.GET("/inventory/balances", inventoryHandler.ListBalances)
+			authorized.GET("/inventory/movements", inventoryHandler.ListMovements)
+			authorized.GET("/inventory/receipts", inventoryHandler.ListReceipts)
+			authorized.GET("/inventory/issues", inventoryHandler.ListIssues)
+			authorized.GET("/inventory/returns", inventoryHandler.ListReturns)
+			authorized.GET("/inventory/transfers", inventoryHandler.ListTransfers)
+			authorized.GET("/inventory/adjustments", inventoryHandler.ListAdjustments)
+			authorized.GET("/inventory/transactions/:id", inventoryHandler.GetTransaction)
+			authorized.GET("/inventory/opname/sessions", inventoryHandler.ListOpnameSessions)
+			authorized.GET("/inventory/opname/sessions/:id", inventoryHandler.GetOpnameSession)
+			authorized.GET("/inventory/stock-policies", inventoryHandler.ListPolicies)
+
+			inventoryMasters := authorized.Group("")
+			inventoryMasters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner))
+			inventoryMasters.POST("/warehouses", inventoryHandler.CreateWarehouse)
+			inventoryMasters.PATCH("/warehouses/:id", inventoryHandler.UpdateWarehouse)
+			inventoryMasters.POST("/warehouses/:id/locations", inventoryHandler.CreateLocation)
+			inventoryMasters.PATCH("/warehouse-locations/:id", inventoryHandler.UpdateLocation)
+			inventoryMasters.POST("/inventory/stock-policies", inventoryHandler.UpsertPolicy)
+			inventoryMasters.PATCH("/inventory/stock-policies/:id", inventoryHandler.UpdatePolicy)
+			inventoryMasters.POST("/inventory/adjustments", inventoryHandler.PostAdjustment)
+			inventoryMasters.POST("/inventory/transactions/:id/reverse", inventoryHandler.Reverse)
+			inventoryMasters.POST("/inventory/opname/sessions/:id/post", inventoryHandler.PostOpnameSession)
+			inventoryMasters.POST("/inventory/opname/sessions/:id/cancel", inventoryHandler.CancelOpnameSession)
+			inventoryMasters.GET("/inventory/reconciliation", inventoryHandler.Reconcile)
+
+			stockWriters := authorized.Group("")
+			stockWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RoleStorekeeper))
+			stockWriters.POST("/inventory/receipts", inventoryHandler.PostReceipt)
+			stockWriters.POST("/inventory/issues", inventoryHandler.PostIssue)
+			stockWriters.POST("/inventory/returns", inventoryHandler.PostReturn)
+			stockWriters.POST("/inventory/transfers", inventoryHandler.PostTransfer)
+			stockWriters.POST("/inventory/opname/sessions", inventoryHandler.CreateOpnameSession)
+			stockWriters.PATCH("/inventory/opname/sessions/:id/items", inventoryHandler.CountOpnameSession)
 		}
 		if m2.Notifications != nil {
 			notificationHandler := NewNotificationHandler(m2.Notifications, logger)

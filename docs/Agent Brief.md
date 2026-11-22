@@ -26,7 +26,7 @@ Fakta M0:
 | Auto-WO P2H | default `false`; hanya jika setting `true` |
 | Timezone saat ini | `APP_TIMEZONE` default `Asia/Makassar` dan divalidasi saat startup; `.env.example` dan `docker-compose.yml` masih memakai `TZ=Asia/Jakarta`. Target proses `TZ=UTC` + `APP_TIMEZONE=Asia/Makassar`; perubahan config butuh approval terpisah |
 
-**Fase saat ini (status per 2026-11-21):** M1, M2, dan M3 sudah **accepted**. Verifikasi lokal M1/M2/M3 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL M2/M4) lulus. Sync Odoo nyata diverifikasi pada 2026-11-21: 4.454 report, 8.519 finding, 2.501 kandidat unik (587 pending, 1.914 archived), `work_orders` hasil sync = 0, dan `raw` tanpa foto. Sync kedua idempoten. Kontrak skip divalidasi sebagai 400 dan bulk tetap 422. M4 PM core sudah diimplementasikan di repo: plan per unit/model, interval HM/KM/calendar, checklist snapshot, schedule due/upcoming/overdue, generate WO, completion + next cycle, compliance, serta auto-WO double control; status **menunggu acceptance server**. Migration M4 adalah `000007_m4_pm_core`.
+**Fase saat ini (status per 2026-11-22):** M1, M2, M3, dan M4 sudah **accepted**. Verifikasi lokal M1/M2/M3/M4 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL) lulus. Sync Odoo nyata diverifikasi pada 2026-11-21: 4.454 report, 8.519 finding, 2.501 kandidat unik (587 pending, 1.914 archived), `work_orders` hasil sync = 0, dan `raw` tanpa foto. Sync kedua idempoten. Kontrak skip divalidasi sebagai 400 dan bulk tetap 422. M4 PM core accepted di server pada migration `000007_m4_pm_core`, termasuk job evaluasi PM 07:00 WITA. M5 Sparepart & Inventory sudah diimplementasikan lokal di migration `000008_m5_spareparts_inventory`: master sparepart/nomor/alternatif/compatibility, PM material template, warehouse/location, transaksi inventory immutable, saldo, stock policy, opname, rekonsiliasi, dan alert stok harian 07:30 WITA; status **menunggu acceptance server**.
 
 > **Verification note:** runtime Docker/Linux M0 dan sync Odoo nyata sudah terverifikasi di server UAT. Route auth, unit, P2H, candidate, notification, dan settings sudah terdaftar dan diuji di router API. Jangan mengubah migrasi atau kode M0.
 >
@@ -86,8 +86,8 @@ Fakta M0:
 | **M1** | Auth Odoo/JWT, RBAC + `storekeeper`, sync user/employee, unit model/engine, meter reading, dashboard shell | PM/inventory/material | Login; role; unit model/engine; HM/KM reading |
 | **M2** | Sync P2H/findings, kandidat, notifikasi/reminder, approve/skip/bulk, kandidat → WO | WO otomatis dari sync | Sync 2x idempoten; kandidat pending; WO sync = 0; approve = 1 WO |
 | **M3** ✅ | WO manual/lifecycle, assignee, supervisor, `maintenance_type`, `started_at`, attachments, waiting_part | PM/inventory | Transisi valid; audit; done/cancel |
-| **M4** 🟡 | PM plan/checklist/schedule/due, generate WO, completion/history/compliance | Material plan/requirement, stock check/reservation | Plan unit/model; combined; auto-WO 0 default; next due benar |
-| **M5** | Sparepart/compatibility, PM material plan (`pm_plan_materials`), warehouse/location, receipt/issue/return/transfer/adjustment/opname, ledger, balance, min stock | Material readiness/reservation | Ledger immutable; negative ditolak; balance reconcile |
+| **M4** ✅ | PM plan/checklist/schedule/due, generate WO, completion/history/compliance | Material plan/requirement, stock check/reservation | Plan unit/model; combined; auto-WO 0 default; next due benar |
+| **M5** 🟡 | Sparepart/compatibility, PM material plan (`pm_plan_materials`), warehouse/location, receipt/issue/return/transfer/adjustment/opname, ledger, balance, min stock | Material readiness/reservation | Ledger immutable; negative ditolak; balance reconcile |
 | **M6** | Material requirement/readiness, reserve/release, issue/return, waiting_part, shortage aging, PM material | Procurement | Planning ≠ stock; issue/return benar; readiness benar |
 | **M7** | Unit profile/history, component interval, downtime, dashboard/report, export, performance/audit | Fitur baru di luar PRD | History dari transaksi; report WITA; p95 |
 
@@ -136,18 +136,22 @@ Fakta M0:
 * [x] PM history/compliance dari WO; belum ada material plan/requirement (M5/M6).
 * [x] Tidak ada interval hardcoded.
 
-> Catatan M4: implementasi dan integration test PostgreSQL lulus lokal. Acceptance server (migration `version=7`, job worker 07:00 WITA, dan uji UI) masih pending. Evaluasi PM dapat dijalankan manual dengan `docker compose exec worker /app/worker evaluate-pm`.
+> Catatan M4: accepted di server pada migration `version=7`; job evaluasi PM berjalan 07:00 WITA. Evaluasi PM dapat dijalankan manual dengan `docker compose exec worker /app/worker evaluate-pm`.
 
 ### M5 — Sparepart & Inventory
 
-* [ ] Sparepart master + OEM/aftermarket numbers + brand + alternatives.
-* [ ] Compatibility per unit model/engine/config; status verifikasi.
-* [ ] `pm_plan_materials` dapat didefinisikan setelah sparepart master; belum ada material requirement/readiness.
-* [ ] Warehouse/location; receipt/issue/return/transfer/adjustment/opname.
-* [ ] Ledger immutable; reversal; balance cache; reconciliation.
-* [ ] No negative; min/critical stock; balance reconcile dari ledger.
-* [ ] Movement history; search by part number/unit.
-* [ ] Tidak ada harga/cost/procurement.
+* [x] Sparepart master + OEM/aftermarket numbers + brand + alternatives.
+* [x] Compatibility per unit model/engine/config; status verifikasi dan verifier/timestamp.
+* [x] `pm_plan_materials` dapat didefinisikan setelah sparepart master; belum ada material requirement/readiness.
+* [x] Warehouse/location; receipt/issue/return/transfer/adjustment/opname.
+* [x] Ledger immutable; reversal; balance cache; reconciliation.
+* [x] No negative; min/critical stock; balance reconcile dari ledger.
+* [x] Movement history; search by part number/unit/engine/compatibility.
+* [x] Tidak ada harga/cost/procurement.
+* [x] Alert stok low/critical harian 07:30 WITA dengan dedupe per sparepart/lokasi/status/hari.
+* [x] Idempotency key transaksi; reversal memakai alasan dan hanya admin/planner.
+
+> Catatan M5: migration `000008_m5_spareparts_inventory` additive, integration test PostgreSQL lokal lulus (termasuk idempotency, stok negatif, reversal, opname, alert dedupe, dan rekonsiliasi), API dapat start, serta ESLint/Next build lulus. Acceptance server dan penerapan migration `000008` masih pending. UI tersedia di `/spareparts`, `/inventory`, dan panel material pada `/pm`.
 
 ### M6 — Material
 

@@ -16,11 +16,13 @@ import (
 	"gsi-workorder/internal/config"
 	"gsi-workorder/internal/db"
 	"gsi-workorder/internal/httpx"
+	"gsi-workorder/internal/inventory"
 	"gsi-workorder/internal/notifications"
 	"gsi-workorder/internal/odoo"
 	"gsi-workorder/internal/p2h"
 	"gsi-workorder/internal/pm"
 	"gsi-workorder/internal/settings"
+	"gsi-workorder/internal/spareparts"
 	"gsi-workorder/internal/store"
 	"gsi-workorder/internal/units"
 	"gsi-workorder/internal/users"
@@ -90,6 +92,8 @@ func run(logger *slog.Logger) error {
 	workOrderService := workorders.NewRepository(pool, cfg.AppLocation)
 	pmService := pm.NewRepository(pool, cfg.AppLocation)
 	userDirectoryService := users.NewRepository(pool)
+	sparepartService := spareparts.NewRepository(pool)
+	inventoryService := inventory.NewRepository(pool, cfg.AppLocation)
 
 	server := &http.Server{
 		Addr: ":" + cfg.Port,
@@ -101,6 +105,8 @@ func run(logger *slog.Logger) error {
 			WorkOrders:    workOrderService,
 			Users:         userDirectoryService,
 			PM:            pmService,
+			Spareparts:    sparepartService,
+			Inventory:     inventoryService,
 			UploadDir:     cfg.UploadDir,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,

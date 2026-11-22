@@ -8,9 +8,11 @@ import {
   ClipboardList,
   LayoutDashboard,
   ListChecks,
+  PackageSearch,
   Search,
   Settings2,
   Truck,
+  Warehouse,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -98,11 +100,19 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
         label: "Preventive Maintenance",
         icon: CalendarClock,
       },
+      {
+        href: "/inventory",
+        label: "Inventory",
+        icon: Warehouse,
+      },
     ],
   },
   {
     label: "Master data",
-    items: [{ href: "/master", label: "Master Unit", icon: Boxes }],
+    items: [
+      { href: "/master", label: "Master Unit", icon: Boxes },
+      { href: "/spareparts", label: "Sparepart", icon: PackageSearch },
+    ],
   },
   {
     label: "Administrasi",
@@ -253,7 +263,7 @@ function AppShellFrame({
             variant="secondary"
             className="hide-menu h-5 shrink-0 px-2"
           >
-            M2
+            M5
           </Badge>
         </SidebarHeader>
 

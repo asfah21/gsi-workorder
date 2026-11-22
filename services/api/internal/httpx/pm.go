@@ -28,6 +28,10 @@ type PMService interface {
 	Skip(ctx context.Context, id int64, actor pm.Actor, reason string) (pm.Schedule, error)
 	Cancel(ctx context.Context, id int64, actor pm.Actor, reason string) (pm.Schedule, error)
 	Compliance(ctx context.Context, filter pm.ComplianceFilter) (pm.Compliance, error)
+	ListPlanMaterials(ctx context.Context, planID int64) ([]pm.PlanMaterial, error)
+	AddPlanMaterial(ctx context.Context, planID int64, actor pm.Actor, input pm.PlanMaterialInput) (pm.PlanMaterial, error)
+	UpdatePlanMaterial(ctx context.Context, planID, materialID int64, actor pm.Actor, patch pm.PlanMaterialPatch) (pm.PlanMaterial, error)
+	DeletePlanMaterial(ctx context.Context, planID, materialID int64, actor pm.Actor) error
 }
 
 type PMHandler struct {

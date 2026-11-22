@@ -6,6 +6,7 @@ import {
   CircleAlert,
   ClipboardList,
   Loader2,
+  PackageSearch,
   Pencil,
   Play,
   Plus,
@@ -13,6 +14,7 @@ import {
   Search,
   ShieldCheck,
   SkipForward,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -57,14 +59,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, proxyGet, proxyPatch, proxyPost } from "@/lib/api-client";
+import { ApiError, proxyDelete, proxyGet, proxyPatch, proxyPost } from "@/lib/api-client";
 import type {
   DataResponse,
   ListResponse,
   PMCompliance,
   PMComplianceRow,
   PMPlan,
+  PMPlanMaterial,
   PMSchedule,
+  Sparepart,
   Unit,
   UnitModel,
   UserOption,
@@ -192,6 +196,17 @@ export function PMView() {
   const [actionDueDate, setActionDueDate] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState("");
+
+  const [materialPlan, setMaterialPlan] = useState<PMPlan | null>(null);
+  const [materials, setMaterials] = useState<PMPlanMaterial[]>([]);
+  const [materialOptions, setMaterialOptions] = useState<Sparepart[]>([]);
+  const [materialLoading, setMaterialLoading] = useState(false);
+  const [materialError, setMaterialError] = useState("");
+  const [materialSparepartID, setMaterialSparepartID] = useState("");
+  const [materialQty, setMaterialQty] = useState("1");
+  const [materialOptional, setMaterialOptional] = useState(false);
+  const [materialNotes, setMaterialNotes] = useState("");
+  const [materialBusy, setMaterialBusy] = useState(false);
 
   const assigneeOptions = users.filter((item) => ["admin", "planner", "mechanic"].includes(item.role));
   const supervisorOptions = users.filter((item) => ["admin", "planner"].includes(item.role));
@@ -370,6 +385,79 @@ export function PMView() {
       setPlanError(saveError instanceof ApiError ? saveError.message : "Plan PM tidak dapat disimpan.");
     } finally {
       setPlanBusy(false);
+    }
+  };
+
+  const loadMaterials = useCallback(async (planID: number) => {
+    const result = await proxyGet<DataResponse<PMPlanMaterial[]>>(`/pm/plans/${planID}/materials`);
+    setMaterials(result.data);
+  }, []);
+
+  const openMaterials = async (plan: PMPlan) => {
+    setMaterialPlan(plan);
+    setMaterialError("");
+    setMaterialLoading(true);
+    setMaterialSparepartID("");
+    setMaterialQty("1");
+    setMaterialOptional(false);
+    setMaterialNotes("");
+    try {
+      const [, optionResult] = await Promise.all([
+        loadMaterials(plan.id),
+        proxyGet<ListResponse<Sparepart>>("/spareparts?limit=100&active_only=true&sort=code&order=asc"),
+      ]);
+      setMaterialOptions(optionResult.data);
+    } catch (loadError) {
+      setMaterialError(loadError instanceof ApiError ? loadError.message : "Material plan tidak dapat dimuat.");
+    } finally {
+      setMaterialLoading(false);
+    }
+  };
+
+  const addMaterial = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!materialPlan || materialBusy) return;
+    const qty = Number(materialQty);
+    if (!materialSparepartID) {
+      setMaterialError("Pilih sparepart terlebih dahulu.");
+      return;
+    }
+    if (!Number.isFinite(qty) || qty <= 0) {
+      setMaterialError("Qty material harus lebih dari 0.");
+      return;
+    }
+    setMaterialBusy(true);
+    setMaterialError("");
+    try {
+      await proxyPost<DataResponse<PMPlanMaterial>>(`/pm/plans/${materialPlan.id}/materials`, {
+        sparepart_id: Number(materialSparepartID),
+        qty,
+        is_optional: materialOptional,
+        notes: materialNotes.trim(),
+      });
+      setMaterialSparepartID("");
+      setMaterialQty("1");
+      setMaterialOptional(false);
+      setMaterialNotes("");
+      setSuccess(`Material plan ${materialPlan.name} diperbarui.`);
+      await loadMaterials(materialPlan.id);
+    } catch (saveError) {
+      setMaterialError(saveError instanceof ApiError ? saveError.message : "Material plan tidak dapat disimpan.");
+    } finally {
+      setMaterialBusy(false);
+    }
+  };
+
+  const removeMaterial = async (material: PMPlanMaterial) => {
+    if (!materialPlan) return;
+    if (!window.confirm(`Hapus ${material.sparepart_code} - ${material.sparepart_name} dari material plan?`)) return;
+    setMaterialError("");
+    try {
+      await proxyDelete(`/pm/plans/${materialPlan.id}/materials/${material.id}`);
+      setSuccess(`Material ${material.sparepart_code} dihapus dari plan.`);
+      await loadMaterials(materialPlan.id);
+    } catch (deleteError) {
+      setMaterialError(deleteError instanceof ApiError ? deleteError.message : "Material plan tidak dapat dihapus.");
     }
   };
 
@@ -558,6 +646,9 @@ export function PMView() {
                           <div className="flex flex-wrap gap-1">
                             <Button type="button" size="xs" variant="outline" onClick={() => openEdit(plan)}>
                               <Pencil aria-hidden="true" /> Edit
+                            </Button>
+                            <Button type="button" size="xs" variant="outline" onClick={() => void openMaterials(plan)}>
+                              <PackageSearch aria-hidden="true" /> Material
                             </Button>
                             {plan.status !== "active" ? (
                               <Button type="button" size="xs" onClick={() => void changePlanStatus(plan, "active")}>
@@ -1077,6 +1168,108 @@ export function PMView() {
               </Button>
             </SheetFooter>
           </form>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={materialPlan !== null} onOpenChange={(open) => { if (!open) setMaterialPlan(null); }}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>Material plan</SheetTitle>
+            <SheetDescription>
+              {materialPlan ? `${materialPlan.name} · template kebutuhan sparepart untuk PM` : ""}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex flex-col gap-4 px-4 pb-4">
+            <Alert>
+              <PackageSearch aria-hidden="true" />
+              <AlertTitle>Template saja</AlertTitle>
+              <AlertDescription>
+                Material plan belum melakukan reservasi atau cek kesiapan stok. Perhitungan readiness masuk M6.
+              </AlertDescription>
+            </Alert>
+            {materialError ? <FieldError>{materialError}</FieldError> : null}
+            {materialLoading ? (
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : materials.length === 0 ? (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon"><PackageSearch aria-hidden="true" /></EmptyMedia>
+                  <EmptyTitle>Belum ada material</EmptyTitle>
+                  <EmptyDescription>Tambahkan sparepart yang biasa dibutuhkan plan ini.</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Sparepart</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Opsional</TableHead>
+                      <TableHead>Catatan</TableHead>
+                      <TableHead>Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {materials.map((material) => (
+                      <TableRow key={material.id}>
+                        <TableCell>
+                          <p className="font-medium">{material.sparepart_code}</p>
+                          <p className="text-xs text-muted-foreground">{material.sparepart_name}</p>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{material.qty} {material.uom}</TableCell>
+                        <TableCell>{material.is_optional ? "Ya" : "Tidak"}</TableCell>
+                        <TableCell className="max-w-48 truncate text-sm text-muted-foreground">{material.notes || "-"}</TableCell>
+                        <TableCell>
+                          <Button type="button" size="xs" variant="outline" onClick={() => void removeMaterial(material)}>
+                            <Trash2 aria-hidden="true" /> Hapus
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            <form className="flex flex-col gap-3 rounded-lg border border-border p-3" onSubmit={addMaterial}>
+              <p className="text-sm font-medium">Tambah material</p>
+              <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+                <Field>
+                  <FieldLabel htmlFor="pm-material-sparepart">Sparepart</FieldLabel>
+                  <NativeSelect id="pm-material-sparepart" value={materialSparepartID} onChange={(event) => setMaterialSparepartID(event.target.value)} required>
+                    <NativeSelectOption value="">Pilih sparepart</NativeSelectOption>
+                    {materialOptions.map((option) => (
+                      <NativeSelectOption key={option.id} value={option.id}>
+                        {option.code} - {option.name}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="pm-material-qty">Qty</FieldLabel>
+                  <Input id="pm-material-qty" type="number" min={0.001} step="0.001" value={materialQty} onChange={(event) => setMaterialQty(event.target.value)} required />
+                </Field>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={materialOptional} onChange={(event) => setMaterialOptional(event.target.checked)} className="size-4 rounded border-border" />
+                Material opsional
+              </label>
+              <Field>
+                <FieldLabel htmlFor="pm-material-notes">Catatan</FieldLabel>
+                <Input id="pm-material-notes" value={materialNotes} maxLength={500} onChange={(event) => setMaterialNotes(event.target.value)} placeholder="Opsional" />
+              </Field>
+              <SheetFooter className="px-0">
+                <Button type="submit" disabled={materialBusy}>
+                  {materialBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
+                  Tambah material
+                </Button>
+              </SheetFooter>
+            </form>
+          </div>
         </SheetContent>
       </Sheet>
 

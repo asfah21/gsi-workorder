@@ -413,6 +413,279 @@ export type SettingHistory = {
   changed_at: string;
 };
 
+export type SparepartNumberType = "oem" | "aftermarket" | "superseded";
+export type CompatibilityStatus =
+  | "pending_verification"
+  | "approved_compatible"
+  | "conditional_compatible"
+  | "not_compatible";
+
+export type SparepartNumber = {
+  id: number;
+  sparepart_id: number;
+  part_number: string;
+  brand: string;
+  number_type: SparepartNumberType;
+  is_primary: boolean;
+  notes: string;
+  created_at: string;
+};
+
+export type SparepartAlternative = {
+  id: number;
+  sparepart_id: number;
+  sparepart_code: string;
+  sparepart_name: string;
+  alternative_sparepart_id: number;
+  alternative_sparepart_code: string;
+  alternative_sparepart_name: string;
+  relation_type: "equivalent" | "superseded" | "substitute";
+  verification_status: CompatibilityStatus;
+  notes: string;
+  verified_by?: number;
+  verified_by_name: string;
+  verified_at?: string;
+  direction: "outgoing" | "incoming";
+  created_at: string;
+  updated_at: string;
+};
+
+export type SparepartCompatibility = {
+  id: number;
+  sparepart_id: number;
+  unit_model_id?: number;
+  unit_model_name: string;
+  engine_model_id?: number;
+  engine_model_name: string;
+  configuration: string;
+  status: CompatibilityStatus;
+  condition_note: string;
+  source: string;
+  notes: string;
+  verified_by?: number;
+  verified_by_name: string;
+  verified_at?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Sparepart = {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  uom: string;
+  description: string;
+  is_active: boolean;
+  primary_part_number: string;
+  compatibility_count: number;
+  approved_compatibility_count: number;
+  numbers: SparepartNumber[];
+  alternatives: SparepartAlternative[];
+  compatibility: SparepartCompatibility[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type PMPlanMaterial = {
+  id: number;
+  pm_plan_id: number;
+  sparepart_id: number;
+  sparepart_code: string;
+  sparepart_name: string;
+  uom: string;
+  qty: number;
+  is_optional: boolean;
+  notes: string;
+};
+
+export type Warehouse = {
+  id: number;
+  code: string;
+  name: string;
+  site_location: string;
+  is_active: boolean;
+  location_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WarehouseLocation = {
+  id: number;
+  warehouse_id: number;
+  warehouse_code: string;
+  warehouse_name: string;
+  code: string;
+  name: string;
+  location_type: "rack" | "bin" | "yard" | "staging";
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StockPolicy = {
+  id: number;
+  sparepart_id: number;
+  sparepart_code: string;
+  sparepart_name: string;
+  uom: string;
+  warehouse_location_id: number;
+  warehouse_id: number;
+  warehouse_code: string;
+  location_code: string;
+  location_name: string;
+  min_qty: number;
+  critical_qty: number;
+  reorder_qty?: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InventoryBalance = {
+  sparepart_id: number;
+  sparepart_code: string;
+  sparepart_name: string;
+  category: string;
+  uom: string;
+  sparepart_active: boolean;
+  warehouse_location_id: number;
+  warehouse_id: number;
+  warehouse_code: string;
+  warehouse_name: string;
+  location_code: string;
+  location_name: string;
+  location_type: string;
+  on_hand: number;
+  reserved: number;
+  available: number;
+  policy_id?: number;
+  min_qty: number;
+  critical_qty: number;
+  reorder_qty?: number;
+  stock_status: "no_policy" | "ok" | "low" | "critical";
+  updated_at?: string;
+};
+
+export type InventoryTransactionType =
+  | "receipt"
+  | "issue"
+  | "return"
+  | "transfer"
+  | "adjustment"
+  | "opname";
+
+export type InventoryTransactionItem = {
+  id: number;
+  transaction_id: number;
+  sparepart_id: number;
+  sparepart_code: string;
+  sparepart_name: string;
+  uom: string;
+  from_location_id?: number;
+  from_location: string;
+  to_location_id?: number;
+  to_location: string;
+  qty: number;
+  notes: string;
+};
+
+export type InventoryTransaction = {
+  id: number;
+  code: string;
+  type: InventoryTransactionType;
+  status: "posted" | "reversed";
+  reference_type: string;
+  reference_id?: number;
+  reference_no: string;
+  reversal_of_id?: number;
+  idempotency_key: string;
+  posted_by?: number;
+  posted_by_name: string;
+  posted_at: string;
+  notes: string;
+  item_count: number;
+  items: InventoryTransactionItem[];
+  created_at: string;
+};
+
+export type InventoryMovement = {
+  id: number;
+  transaction_id: number;
+  transaction_code: string;
+  type: InventoryTransactionType;
+  status: "posted" | "reversed";
+  reference_no: string;
+  posted_at: string;
+  sparepart_id: number;
+  sparepart_code: string;
+  sparepart_name: string;
+  uom: string;
+  from_location_id?: number;
+  from_location: string;
+  to_location_id?: number;
+  to_location: string;
+  qty: number;
+  notes: string;
+};
+
+export type OpnameStatus = "draft" | "counting" | "review" | "posted" | "cancelled";
+
+export type OpnameItem = {
+  id: number;
+  session_id: number;
+  sparepart_id: number;
+  sparepart_code: string;
+  sparepart_name: string;
+  uom: string;
+  location_id: number;
+  warehouse_code: string;
+  location_code: string;
+  location_name: string;
+  system_qty: number;
+  counted_qty?: number;
+  difference?: number;
+  notes: string;
+};
+
+export type OpnameSession = {
+  id: number;
+  code: string;
+  warehouse_id: number;
+  warehouse_code: string;
+  warehouse_name: string;
+  status: OpnameStatus;
+  started_at?: string;
+  posted_at?: string;
+  posted_by?: number;
+  posted_by_name: string;
+  notes: string;
+  cancel_reason: string;
+  cancelled_at?: string;
+  created_by?: number;
+  item_count: number;
+  counted_count: number;
+  items: OpnameItem[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type InventoryReconciliation = {
+  rows: {
+    sparepart_id: number;
+    sparepart_code: string;
+    sparepart_name: string;
+    warehouse_location_id: number;
+    warehouse_code: string;
+    location_code: string;
+    balance_on_hand: number;
+    ledger_on_hand: number;
+    difference: number;
+  }[];
+  mismatch: number;
+  checked_at: string;
+};
+
 export type ListResponse<T> = {
   data: T[];
   meta: {

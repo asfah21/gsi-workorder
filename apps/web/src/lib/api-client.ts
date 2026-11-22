@@ -71,6 +71,19 @@ export function proxyPatch<T>(path: string, body: unknown): Promise<T> {
   });
 }
 
+export async function proxyDelete(path: string): Promise<void> {
+  const response = await fetch(`/api/proxy${path}`, {
+    method: "DELETE",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as ApiErrorBody | null;
+    throw new ApiError(response.status, body);
+  }
+}
+
 export function proxyUpload<T>(path: string, formData: FormData): Promise<T> {
   return request(`/api/proxy${path}`, {
     method: "POST",
