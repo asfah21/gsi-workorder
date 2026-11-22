@@ -142,7 +142,7 @@ export function NotificationMenu() {
         ) : null}
       </SheetTrigger>
 
-      <SheetContent side="right" className="w-full gap-0 border-l-0 bg-background p-0 data-[side=right]:sm:max-w-md">
+      <SheetContent className="w-full gap-0 bg-background p-0 sm:max-w-md">
         <SheetHeader className="border-b border-border p-6">
           <div className="flex items-start justify-between gap-4 pr-10">
             <div>

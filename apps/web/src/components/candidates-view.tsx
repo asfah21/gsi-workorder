@@ -751,7 +751,7 @@ export function CandidatesView() {
       >
         <SheetContent
           side="right"
-          className="w-full gap-0 border-l-0 bg-background p-0 data-[side=right]:sm:max-w-2xl"
+          className="w-full gap-0 bg-background p-0 sm:max-w-2xl"
         >
           <SheetHeader className="border-b border-border p-6 pr-16">
             <div className="flex flex-wrap items-center gap-2">
@@ -997,7 +997,7 @@ export function CandidatesView() {
           }
         }}
       >
-        <SheetContent side="right" className="w-full gap-0 border-l-0 bg-background p-0 data-[side=right]:sm:max-w-md">
+        <SheetContent className="w-full gap-0 bg-background p-0 sm:max-w-md">
           <SheetHeader className="border-b border-border p-6 pr-16">
             <SheetTitle className="text-lg font-semibold">
               {bulkAction === "approve" ? "Setujui usulan terpilih" : "Tolak usulan terpilih"}

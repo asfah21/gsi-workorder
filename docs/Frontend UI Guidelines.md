@@ -178,10 +178,14 @@ Aturan:
 - Form desktop memakai grid 2 kolom jika field lebih dari 3.
 - Field full-width memakai `className="md:col-span-2"`.
 - Semua input memakai komponen `Input`; textarea memakai `Textarea`.
-- Sheet detail/form memakai `SheetContent` dengan `w-full` dan `sm:max-w-*` yang sesuai.
+- Semua modal wajib berada di tengah layar, bukan panel kanan/kiri.
+- Gunakan `SheetContent` yang sudah dioverride menjadi dialog terpusat.
+- Modal memakai `w-full`, `sm:max-w-*` sesuai kompleksitas, `max-h-[calc(100dvh-2rem)]`, dan scroll internal.
+- Overlay wajib menutup area belakang dan mendukung light dismiss.
 - Tombol simpan berada di `SheetFooter`.
 - Button utama memakai `size="sm"` di sheet/form compact, atau default di halaman.
 - Jangan mencampur `h-8` dan `h-9` dalam satu form.
+- Jangan membuat side sheet baru dengan `side="right"` untuk form/detail.
 
 ## Typography
 
@@ -247,6 +251,8 @@ Jangan memakai `text-xl font-medium` untuk page title.
 - Table tanpa `overflow-x-auto`.
 - Empty state teks polos tanpa `Empty`.
 - Link internal memakai `<a>`.
+- Modal/form/detail yang muncul dari kanan layar.
+- `SheetContent` dengan positioning side sheet manual.
 
 ## Definition of done
 

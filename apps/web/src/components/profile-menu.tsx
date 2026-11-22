@@ -70,7 +70,7 @@ export function ProfileMenu({
 
       <SheetContent
         side="right"
-        className="w-full gap-4 border-l-0 bg-background p-0 sm:max-w-sm"
+        className="w-full gap-4 bg-background p-0 sm:max-w-sm"
       >
         <SheetHeader className="items-center p-6 text-center">
           <div className="flex flex-col items-center gap-4 pt-10">
