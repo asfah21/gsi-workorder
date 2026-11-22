@@ -30,7 +30,7 @@ Fakta M0:
 
 > **Verification note:** runtime Docker/Linux M0 dan sync Odoo nyata sudah terverifikasi di server UAT. Route auth, unit, P2H, candidate, notification, dan settings sudah terdaftar dan diuji di router API. Jangan mengubah migrasi atau kode M0.
 >
-> **README:** README masih menyatakan status M0 dan hanya mencantumkan migrasi `000001`/`000002`; kondisi ini belum mencerminkan M1/M2. Untuk status engineering gunakan Brief ini; jangan mengubah README tanpa approval.
+> **README:** Tabel status milestone di README sudah diselaraskan dengan Brief ini pada 2026-11-22. Untuk rincian acceptance dan verifikasi tetap gunakan Brief ini; perubahan status README berikutnya memerlukan approval.
 
 ---
 

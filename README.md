@@ -425,15 +425,18 @@ tidak ikut diparsing.
 
 ## Status milestone
 
+Status lokal per 2026-11-22. Lihat `docs/Agent Brief.md` untuk rincian acceptance.
+
 | Milestone | Status |
 |---|---|
-| M0 — scaffold, compose, migrasi, seed, healthcheck, web | Diimplementasikan; menunggu verifikasi Docker di server Linux |
-| M1 — auth Odoo, JWT, sinkron user | Belum dimulai |
-| M2 — sinkron P2H, temuan, usulan | Belum dimulai |
-| M3 — UI approve/skip, bulk | Belum dimulai |
-| M4 — notifikasi, reminder, toggle | Belum dimulai |
-| M5 — siklus WO, lampiran | Belum dimulai |
-| M6 — dashboard, halaman unit | Belum dimulai |
-| M7 — panel sinkron, metrics, hardening | Belum dimulai |
+| M0 — scaffold, compose, migrasi, seed, healthcheck, web | Diimplementasikan; terverifikasi di server UAT Linux |
+| M1 — auth Odoo, JWT, sinkron user | Accepted |
+| M2 — sinkron P2H, temuan, usulan | Accepted |
+| M3 — UI approve/skip, bulk | Accepted |
+| M4 — notifikasi, reminder, toggle, PM core | Accepted di server (`000007_m4_pm_core`) |
+| M5 — sparepart, compatibility, inventory | Selesai lokal (`000008_m5_spareparts_inventory`); menunggu acceptance server |
+| M6 — material requirement & readiness | Selesai lokal (`000009_m6_material_requirements`); menunggu acceptance server |
+| M7A — unit history, timeline, downtime | Selesai lokal (`000010_m7_history_reporting`); menunggu acceptance server |
+| M7B — dashboard, report CSV, audit hardening | Selesai lokal (`000011_m7b_reporting`); menunggu acceptance server |
 
 Jangan melanjutkan ke milestone berikutnya tanpa instruksi eksplisit.
