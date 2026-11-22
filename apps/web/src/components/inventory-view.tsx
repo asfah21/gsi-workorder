@@ -9,12 +9,12 @@ import {
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
+  Filter,
   Loader2,
   Plus,
   RefreshCw,
   RotateCcw,
   Scale,
-  Search,
   ShieldCheck,
   SlidersHorizontal,
   Trash2,
@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
+import { FilterBar } from "@/components/list/list-filter-bar";
 import { SearchInput } from "@/components/list/list-search";
 import { ActiveBadge } from "@/components/status-badges";
 import { TablePagination } from "@/components/table-pagination";
@@ -39,6 +40,7 @@ import {
 } from "@/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -949,6 +951,55 @@ export function InventoryView() {
 
   const sparepartLabel = (sparepart: Sparepart) => `${sparepart.code} - ${sparepart.name}`;
 
+  const stockHasFilters =
+    balanceQueryInput.trim() !== "" ||
+    balanceQuery.trim() !== "" ||
+    balanceWarehouse !== "" ||
+    balanceStatus !== "";
+  const txHasFilters =
+    txTypeFilter !== "receipt" ||
+    txQuery.trim() !== "" ||
+    txFrom !== "" ||
+    txTo !== "";
+  const movementHasFilters =
+    movementQuery.trim() !== "" ||
+    movementType !== "" ||
+    movementFrom !== "" ||
+    movementTo !== "";
+  const opnameHasFilters = opnameStatus !== "" || opnameWarehouse !== "";
+  const reservationHasFilters = reservationStatus !== "";
+
+  const resetStockFilters = () => {
+    setBalanceQueryInput("");
+    setBalanceQuery("");
+    setBalanceWarehouse("");
+    setBalanceStatus("");
+    setBalancePage(1);
+  };
+  const resetTxFilters = () => {
+    setTxTypeFilter("receipt");
+    setTxQuery("");
+    setTxFrom("");
+    setTxTo("");
+    setTransactionPage(1);
+  };
+  const resetMovementFilters = () => {
+    setMovementQuery("");
+    setMovementType("");
+    setMovementFrom("");
+    setMovementTo("");
+    setMovementPage(1);
+  };
+  const resetOpnameFilters = () => {
+    setOpnameStatus("");
+    setOpnameWarehouse("");
+    setOpnamePage(1);
+  };
+  const resetReservationFilters = () => {
+    setReservationStatus("");
+    setReservationPage(1);
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
@@ -1065,24 +1116,26 @@ export function InventoryView() {
             <CardDescription>
               Saldo tersedia per sparepart dan lokasi. Reserved berasal dari reservasi material aktif.
             </CardDescription>
-            <form
-              className="grid gap-3 md:grid-cols-2 xl:grid-cols-5"
+            <FilterBar
+              className="mt-2"
+              aria-label="Cari dan filter saldo stok"
               onSubmit={(event) => {
                 event.preventDefault();
                 setBalancePage(1);
                 setBalanceQuery(balanceQueryInput);
               }}
             >
-              <Field className="xl:col-span-2">
+              <Field className="min-w-0 flex-1">
                 <FieldLabel htmlFor="stock-search">Cari sparepart</FieldLabel>
                 <SearchInput
                   id="stock-search"
+                  name="q"
                   value={balanceQueryInput}
                   onChange={(event) => setBalanceQueryInput(event.target.value)}
                   placeholder="Kode atau nama sparepart..."
                 />
               </Field>
-              <Field>
+              <Field className="md:w-44">
                 <FieldLabel htmlFor="stock-warehouse">Gudang</FieldLabel>
                 <NativeSelect
                   id="stock-warehouse"
@@ -1091,6 +1144,7 @@ export function InventoryView() {
                     setBalanceWarehouse(event.target.value);
                     setBalancePage(1);
                   }}
+                  className="w-full"
                 >
                   <NativeSelectOption value="">Semua gudang</NativeSelectOption>
                   {warehouses.map((warehouse) => (
@@ -1100,7 +1154,7 @@ export function InventoryView() {
                   ))}
                 </NativeSelect>
               </Field>
-              <Field>
+              <Field className="md:w-44">
                 <FieldLabel htmlFor="stock-status">Status</FieldLabel>
                 <NativeSelect
                   id="stock-status"
@@ -1109,6 +1163,7 @@ export function InventoryView() {
                     setBalanceStatus(event.target.value);
                     setBalancePage(1);
                   }}
+                  className="w-full"
                 >
                   <NativeSelectOption value="">Semua status</NativeSelectOption>
                   {Object.entries(stockStatusLabels).map(([value, label]) => (
@@ -1116,38 +1171,41 @@ export function InventoryView() {
                   ))}
                 </NativeSelect>
               </Field>
-              <div className="flex items-end gap-2">
-                <Button type="submit"><Search aria-hidden="true" /> Cari</Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setBalanceQueryInput("");
-                    setBalanceQuery("");
-                    setBalanceWarehouse("");
-                    setBalanceStatus("");
-                    setBalancePage(1);
-                  }}
-                >
-                  Reset
+              <div className="flex gap-2 md:ml-auto">
+                <Button type="submit" variant="outline">
+                  <Filter aria-hidden="true" />
+                  Terapkan
                 </Button>
+                {stockHasFilters ? (
+                  <Button type="button" variant="ghost" onClick={resetStockFilters}>
+                    <RotateCcw aria-hidden="true" />
+                    Reset
+                  </Button>
+                ) : null}
               </div>
-            </form>
+            </FilterBar>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {balanceLoading ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Skeleton key={index} className="h-14 w-full rounded-lg" />
+                ))}
               </div>
             ) : balances.length === 0 ? (
-              <Empty>
+              <Empty className="border border-dashed">
                 <EmptyHeader>
                   <EmptyMedia variant="icon"><Boxes aria-hidden="true" /></EmptyMedia>
                   <EmptyTitle>Tidak ada saldo stok</EmptyTitle>
                   <EmptyDescription>Ubah filter atau posting penerimaan pertama.</EmptyDescription>
                 </EmptyHeader>
+                {stockHasFilters ? (
+                  <EmptyContent>
+                    <Button type="button" variant="outline" onClick={resetStockFilters}>
+                      Reset filter
+                    </Button>
+                  </EmptyContent>
+                ) : null}
               </Empty>
             ) : (
               <div className="overflow-x-auto">
@@ -1228,8 +1286,12 @@ export function InventoryView() {
                 ) : null,
               )}
             </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-              <Field>
+            <FilterBar
+              className="mt-2"
+              aria-label="Cari dan filter transaksi inventory"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <Field className="md:w-44">
                 <FieldLabel htmlFor="tx-type">Jenis transaksi</FieldLabel>
                 <NativeSelect
                   id="tx-type"
@@ -1238,6 +1300,7 @@ export function InventoryView() {
                     setTxTypeFilter(event.target.value as InventoryTransactionType);
                     setTransactionPage(1);
                   }}
+                  className="w-full"
                 >
                   {Object.entries(txEndpoints).map(([type]) => (
                     <NativeSelectOption key={type} value={type}>
@@ -1246,38 +1309,67 @@ export function InventoryView() {
                   ))}
                 </NativeSelect>
               </Field>
-              <Field className="xl:col-span-2">
+              <Field className="min-w-0 flex-1">
                 <FieldLabel htmlFor="tx-search">Cari kode/referensi</FieldLabel>
                 <SearchInput
                   id="tx-search"
+                  name="q"
                   value={txQuery}
                   onChange={(event) => { setTxQuery(event.target.value); setTransactionPage(1); }}
                   placeholder="Kode transaksi atau nomor referensi..."
                 />
               </Field>
-              <Field>
+              <Field className="md:w-44">
                 <FieldLabel htmlFor="tx-from">Dari tanggal</FieldLabel>
-                <Input id="tx-from" type="date" value={txFrom} onChange={(event) => { setTxFrom(event.target.value); setTransactionPage(1); }} />
+                <Input
+                  id="tx-from"
+                  type="date"
+                  value={txFrom}
+                  onChange={(event) => { setTxFrom(event.target.value); setTransactionPage(1); }}
+                  className="w-full"
+                />
               </Field>
-              <Field>
+              <Field className="md:w-44">
                 <FieldLabel htmlFor="tx-to">Sampai tanggal</FieldLabel>
-                <Input id="tx-to" type="date" value={txTo} onChange={(event) => { setTxTo(event.target.value); setTransactionPage(1); }} />
+                <Input
+                  id="tx-to"
+                  type="date"
+                  value={txTo}
+                  onChange={(event) => { setTxTo(event.target.value); setTransactionPage(1); }}
+                  className="w-full"
+                />
               </Field>
-            </div>
+              {txHasFilters ? (
+                <div className="flex gap-2 md:ml-auto">
+                  <Button type="button" variant="ghost" onClick={resetTxFilters}>
+                    <RotateCcw aria-hidden="true" />
+                    Reset
+                  </Button>
+                </div>
+              ) : null}
+            </FilterBar>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {transactionLoading ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Skeleton key={index} className="h-14 w-full rounded-lg" />
+                ))}
               </div>
             ) : transactions.length === 0 ? (
-              <Empty>
+              <Empty className="border border-dashed">
                 <EmptyHeader>
                   <EmptyMedia variant="icon"><ArrowLeftRight aria-hidden="true" /></EmptyMedia>
                   <EmptyTitle>Belum ada transaksi</EmptyTitle>
                   <EmptyDescription>Transaksi {txTypeLabels[txTypeFilter]} belum tercatat.</EmptyDescription>
                 </EmptyHeader>
+                {txHasFilters ? (
+                  <EmptyContent>
+                    <Button type="button" variant="outline" onClick={resetTxFilters}>
+                      Reset filter
+                    </Button>
+                  </EmptyContent>
+                ) : null}
               </Empty>
             ) : (
               <div className="overflow-x-auto">
@@ -1342,22 +1434,28 @@ export function InventoryView() {
               <SlidersHorizontal className="size-4" aria-hidden="true" /> Pergerakan stok
             </CardTitle>
             <CardDescription>Ledger immutable per item transaksi, termasuk transaksi reversal.</CardDescription>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-              <Field className="xl:col-span-2">
+            <FilterBar
+              className="mt-2"
+              aria-label="Cari dan filter pergerakan stok"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <Field className="min-w-0 flex-1">
                 <FieldLabel htmlFor="movement-search">Cari</FieldLabel>
                 <SearchInput
                   id="movement-search"
+                  name="q"
                   value={movementQuery}
                   onChange={(event) => { setMovementQuery(event.target.value); setMovementPage(1); }}
                   placeholder="Kode transaksi, sparepart, referensi..."
                 />
               </Field>
-              <Field>
+              <Field className="md:w-44">
                 <FieldLabel htmlFor="movement-type">Jenis</FieldLabel>
                 <NativeSelect
                   id="movement-type"
                   value={movementType}
                   onChange={(event) => { setMovementType(event.target.value); setMovementPage(1); }}
+                  className="w-full"
                 >
                   <NativeSelectOption value="">Semua jenis</NativeSelectOption>
                   {Object.entries(txTypeLabels).map(([value, label]) => (
@@ -1365,29 +1463,57 @@ export function InventoryView() {
                   ))}
                 </NativeSelect>
               </Field>
-              <Field>
+              <Field className="md:w-44">
                 <FieldLabel htmlFor="movement-from">Dari tanggal</FieldLabel>
-                <Input id="movement-from" type="date" value={movementFrom} onChange={(event) => { setMovementFrom(event.target.value); setMovementPage(1); }} />
+                <Input
+                  id="movement-from"
+                  type="date"
+                  value={movementFrom}
+                  onChange={(event) => { setMovementFrom(event.target.value); setMovementPage(1); }}
+                  className="w-full"
+                />
               </Field>
-              <Field>
+              <Field className="md:w-44">
                 <FieldLabel htmlFor="movement-to">Sampai tanggal</FieldLabel>
-                <Input id="movement-to" type="date" value={movementTo} onChange={(event) => { setMovementTo(event.target.value); setMovementPage(1); }} />
+                <Input
+                  id="movement-to"
+                  type="date"
+                  value={movementTo}
+                  onChange={(event) => { setMovementTo(event.target.value); setMovementPage(1); }}
+                  className="w-full"
+                />
               </Field>
-            </div>
+              {movementHasFilters ? (
+                <div className="flex gap-2 md:ml-auto">
+                  <Button type="button" variant="ghost" onClick={resetMovementFilters}>
+                    <RotateCcw aria-hidden="true" />
+                    Reset
+                  </Button>
+                </div>
+              ) : null}
+            </FilterBar>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {movementLoading ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Skeleton key={index} className="h-14 w-full rounded-lg" />
+                ))}
               </div>
             ) : movements.length === 0 ? (
-              <Empty>
+              <Empty className="border border-dashed">
                 <EmptyHeader>
                   <EmptyMedia variant="icon"><SlidersHorizontal aria-hidden="true" /></EmptyMedia>
                   <EmptyTitle>Belum ada pergerakan</EmptyTitle>
                   <EmptyDescription>Ledger akan terisi setelah transaksi diposting.</EmptyDescription>
                 </EmptyHeader>
+                {movementHasFilters ? (
+                  <EmptyContent>
+                    <Button type="button" variant="outline" onClick={resetMovementFilters}>
+                      Reset filter
+                    </Button>
+                  </EmptyContent>
+                ) : null}
               </Empty>
             ) : (
               <div className="overflow-x-auto">
@@ -1454,13 +1580,18 @@ export function InventoryView() {
             <CardDescription>
               Snapshot saldo per gudang, hitung fisik, lalu posting selisih sebagai adjustment.
             </CardDescription>
-            <div className="grid gap-3 md:grid-cols-3">
-              <Field>
+            <FilterBar
+              className="mt-2"
+              aria-label="Cari dan filter sesi opname"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <Field className="md:w-44">
                 <FieldLabel htmlFor="opname-status">Status</FieldLabel>
                 <NativeSelect
                   id="opname-status"
                   value={opnameStatus}
                   onChange={(event) => { setOpnameStatus(event.target.value); setOpnamePage(1); }}
+                  className="w-full"
                 >
                   <NativeSelectOption value="">Semua status</NativeSelectOption>
                   {Object.entries(opnameStatusLabels).map(([value, label]) => (
@@ -1468,12 +1599,13 @@ export function InventoryView() {
                   ))}
                 </NativeSelect>
               </Field>
-              <Field>
+              <Field className="md:w-56">
                 <FieldLabel htmlFor="opname-warehouse">Gudang</FieldLabel>
                 <NativeSelect
                   id="opname-warehouse"
                   value={opnameWarehouse}
                   onChange={(event) => { setOpnameWarehouse(event.target.value); setOpnamePage(1); }}
+                  className="w-full"
                 >
                   <NativeSelectOption value="">Semua gudang</NativeSelectOption>
                   {warehouses.map((warehouse) => (
@@ -1483,21 +1615,37 @@ export function InventoryView() {
                   ))}
                 </NativeSelect>
               </Field>
-            </div>
+              {opnameHasFilters ? (
+                <div className="flex gap-2 md:ml-auto">
+                  <Button type="button" variant="ghost" onClick={resetOpnameFilters}>
+                    <RotateCcw aria-hidden="true" />
+                    Reset
+                  </Button>
+                </div>
+              ) : null}
+            </FilterBar>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {opnameLoading ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Skeleton key={index} className="h-14 w-full rounded-lg" />
+                ))}
               </div>
             ) : opnameSessions.length === 0 ? (
-              <Empty>
+              <Empty className="border border-dashed">
                 <EmptyHeader>
                   <EmptyMedia variant="icon"><ClipboardList aria-hidden="true" /></EmptyMedia>
                   <EmptyTitle>Belum ada sesi opname</EmptyTitle>
                   <EmptyDescription>Buat sesi untuk memulai penghitungan fisik.</EmptyDescription>
                 </EmptyHeader>
+                {opnameHasFilters ? (
+                  <EmptyContent>
+                    <Button type="button" variant="outline" onClick={resetOpnameFilters}>
+                      Reset filter
+                    </Button>
+                  </EmptyContent>
+                ) : null}
               </Empty>
             ) : (
               <div className="overflow-x-auto">
@@ -1565,34 +1713,57 @@ export function InventoryView() {
             <CardDescription>
               Reservasi hanya menambah reserved. On hand tidak berubah sampai material di-issue.
             </CardDescription>
-            <Field className="max-w-xs">
-              <FieldLabel htmlFor="reservation-status">Status</FieldLabel>
-              <NativeSelect
-                id="reservation-status"
-                value={reservationStatus}
-                onChange={(event) => { setReservationStatus(event.target.value); setReservationPage(1); }}
-              >
-                <NativeSelectOption value="">Semua status</NativeSelectOption>
-                <NativeSelectOption value="active">Active</NativeSelectOption>
-                <NativeSelectOption value="consumed">Consumed</NativeSelectOption>
-                <NativeSelectOption value="released">Released</NativeSelectOption>
-                <NativeSelectOption value="cancelled">Cancelled</NativeSelectOption>
-              </NativeSelect>
-            </Field>
+            <FilterBar
+              className="mt-2"
+              aria-label="Filter reservasi inventory"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <Field className="md:w-56">
+                <FieldLabel htmlFor="reservation-status">Status</FieldLabel>
+                <NativeSelect
+                  id="reservation-status"
+                  value={reservationStatus}
+                  onChange={(event) => { setReservationStatus(event.target.value); setReservationPage(1); }}
+                  className="w-full"
+                >
+                  <NativeSelectOption value="">Semua status</NativeSelectOption>
+                  <NativeSelectOption value="active">Active</NativeSelectOption>
+                  <NativeSelectOption value="consumed">Consumed</NativeSelectOption>
+                  <NativeSelectOption value="released">Released</NativeSelectOption>
+                  <NativeSelectOption value="cancelled">Cancelled</NativeSelectOption>
+                </NativeSelect>
+              </Field>
+              {reservationHasFilters ? (
+                <div className="flex gap-2 md:ml-auto">
+                  <Button type="button" variant="ghost" onClick={resetReservationFilters}>
+                    <RotateCcw aria-hidden="true" />
+                    Reset
+                  </Button>
+                </div>
+              ) : null}
+            </FilterBar>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {reservationLoading ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Skeleton key={index} className="h-14 w-full rounded-lg" />
+                ))}
               </div>
             ) : reservations.length === 0 ? (
-              <Empty>
+              <Empty className="border border-dashed">
                 <EmptyHeader>
                   <EmptyMedia variant="icon"><ShieldCheck aria-hidden="true" /></EmptyMedia>
                   <EmptyTitle>Belum ada reservasi</EmptyTitle>
                   <EmptyDescription>Reservasi dibuat dari material requirement work order.</EmptyDescription>
                 </EmptyHeader>
+                {reservationHasFilters ? (
+                  <EmptyContent>
+                    <Button type="button" variant="outline" onClick={resetReservationFilters}>
+                      Reset filter
+                    </Button>
+                  </EmptyContent>
+                ) : null}
               </Empty>
             ) : (
               <div className="overflow-x-auto">
@@ -2007,14 +2178,16 @@ export function InventoryView() {
       ) : null}
 
       <Sheet open={txFormOpen} onOpenChange={setTxFormOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-4xl">
-          <SheetHeader>
-            <SheetTitle>Catat {txTypeLabels[txFormType]}</SheetTitle>
+        <SheetContent className="w-full gap-0 bg-background p-0 sm:max-w-4xl">
+          <SheetHeader className="border-b border-border p-6 pr-16">
+            <SheetTitle className="text-lg font-semibold">
+              Catat {txTypeLabels[txFormType]}
+            </SheetTitle>
             <SheetDescription>
               Transaksi langsung posted. Gunakan kunci idempotensi yang sama bila retry setelah gangguan jaringan.
             </SheetDescription>
           </SheetHeader>
-          <form className="flex flex-col gap-4 px-4 pb-4" onSubmit={submitTx}>
+          <form className="flex flex-1 flex-col gap-4 overflow-y-auto p-6" onSubmit={submitTx}>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="tx-reference">Nomor referensi</FieldLabel>
@@ -2180,7 +2353,7 @@ export function InventoryView() {
             </Button>
 
             {txFormError ? <FieldError>{txFormError}</FieldError> : null}
-            <SheetFooter className="px-0">
+            <SheetFooter className="px-0 pt-0 pb-0">
               <Button type="submit" disabled={txFormBusy}>
                 {txFormBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
                 Posting {txTypeLabels[txFormType]}
@@ -2191,19 +2364,27 @@ export function InventoryView() {
       </Sheet>
 
       <Sheet open={txDetailOpen} onOpenChange={setTxDetailOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
-          <SheetHeader>
-            <SheetTitle>{txDetail ? txDetail.code : "Detail transaksi"}</SheetTitle>
+        <SheetContent className="w-full gap-0 bg-background p-0 sm:max-w-3xl">
+          <SheetHeader className="border-b border-border p-6 pr-16">
+            <SheetTitle className="text-lg font-semibold">
+              {txDetail ? txDetail.code : "Detail transaksi"}
+            </SheetTitle>
             <SheetDescription>
               {txDetail ? `${txTypeLabels[txDetail.type as InventoryTransactionType] || txDetail.type} · ${formatWita(txDetail.posted_at)}` : "Memuat detail..."}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex flex-col gap-4 px-4 pb-4">
-            {txDetailError ? <FieldError>{txDetailError}</FieldError> : null}
+          <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">
+            {txDetailError ? (
+              <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+                <CircleAlert aria-hidden="true" />
+                <AlertTitle>Gagal memuat detail</AlertTitle>
+                <AlertDescription>{txDetailError}</AlertDescription>
+              </Alert>
+            ) : null}
             {txDetailLoading ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
+              <div className="space-y-3">
+                <Skeleton className="h-24 w-full rounded-lg" />
+                <Skeleton className="h-40 w-full rounded-lg" />
               </div>
             ) : txDetail ? (
               <>
@@ -2282,14 +2463,14 @@ export function InventoryView() {
       </Sheet>
 
       <Sheet open={opnameCreateOpen} onOpenChange={setOpnameCreateOpen}>
-        <SheetContent className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>Buat sesi stock opname</SheetTitle>
+        <SheetContent className="w-full gap-0 bg-background p-0 sm:max-w-lg">
+          <SheetHeader className="border-b border-border p-6 pr-16">
+            <SheetTitle className="text-lg font-semibold">Buat sesi stock opname</SheetTitle>
             <SheetDescription>
               Snapshot saldo seluruh lokasi aktif pada gudang terpilih akan dibuat.
             </SheetDescription>
           </SheetHeader>
-          <form className="flex flex-col gap-4 px-4 pb-4" onSubmit={submitOpnameCreate}>
+          <form className="flex flex-1 flex-col gap-4 overflow-y-auto p-6" onSubmit={submitOpnameCreate}>
             <Field>
               <FieldLabel htmlFor="opname-create-warehouse">Gudang</FieldLabel>
               <NativeSelect
@@ -2317,7 +2498,7 @@ export function InventoryView() {
               />
             </Field>
             {opnameCreateError ? <FieldError>{opnameCreateError}</FieldError> : null}
-            <SheetFooter className="px-0">
+            <SheetFooter className="px-0 pt-0 pb-0">
               <Button type="submit" disabled={opnameCreateBusy}>
                 {opnameCreateBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <ClipboardCheck aria-hidden="true" />}
                 Buat dan mulai hitung
@@ -2328,19 +2509,27 @@ export function InventoryView() {
       </Sheet>
 
       <Sheet open={opnameDetailOpen} onOpenChange={setOpnameDetailOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-5xl">
-          <SheetHeader>
-            <SheetTitle>{opnameDetail ? opnameDetail.code : "Detail stock opname"}</SheetTitle>
+        <SheetContent className="w-full gap-0 bg-background p-0 sm:max-w-5xl">
+          <SheetHeader className="border-b border-border p-6 pr-16">
+            <SheetTitle className="text-lg font-semibold">
+              {opnameDetail ? opnameDetail.code : "Detail stock opname"}
+            </SheetTitle>
             <SheetDescription>
               {opnameDetail ? `${opnameDetail.warehouse_code} - ${opnameDetail.warehouse_name}` : "Memuat detail..."}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex flex-col gap-4 px-4 pb-4">
-            {opnameDetailError ? <FieldError>{opnameDetailError}</FieldError> : null}
+          <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">
+            {opnameDetailError ? (
+              <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+                <CircleAlert aria-hidden="true" />
+                <AlertTitle>Gagal memuat detail</AlertTitle>
+                <AlertDescription>{opnameDetailError}</AlertDescription>
+              </Alert>
+            ) : null}
             {opnameDetailLoading ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
+              <div className="space-y-3">
+                <Skeleton className="h-24 w-full rounded-lg" />
+                <Skeleton className="h-40 w-full rounded-lg" />
               </div>
             ) : opnameDetail ? (
               <>

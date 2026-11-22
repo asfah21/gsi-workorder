@@ -3,19 +3,21 @@
 import {
   CheckCircle2,
   CircleAlert,
+  Filter,
   GitCompareArrows,
   Layers3,
   Loader2,
   PackageSearch,
   Pencil,
   Plus,
-  Search,
+  RotateCcw,
   ShieldCheck,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
+import { FilterBar } from "@/components/list/list-filter-bar";
 import { SearchInput } from "@/components/list/list-search";
 import { ActiveBadge } from "@/components/status-badges";
 import { TablePagination } from "@/components/table-pagination";
@@ -31,6 +33,7 @@ import {
 } from "@/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -69,7 +72,7 @@ import type {
   SparepartNumber,
   UnitModel,
 } from "@/lib/types";
-import { formatWita } from "@/lib/time";
+import { formatNumber, formatWita } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 const compatibilityLabels: Record<CompatibilityStatus, string> = {
@@ -306,6 +309,14 @@ export function SparepartsView() {
     setPage(1);
   };
 
+  const hasFilters =
+    searchInput.trim() !== "" ||
+    query.trim() !== "" ||
+    !activeOnly ||
+    statusFilter !== "" ||
+    unitModelFilter !== "" ||
+    engineModelFilter !== "";
+
   const openCreate = () => {
     setEditingID(null);
     setForm(emptySparepartForm);
@@ -510,11 +521,16 @@ export function SparepartsView() {
         title="Sparepart"
         description="Master sparepart, nomor OEM/aftermarket, alternatif, dan compatibility tanpa data harga."
         actions={
-          canManage ? (
-            <Button type="button" onClick={openCreate}>
-              <Plus aria-hidden="true" /> Tambah sparepart
-            </Button>
-          ) : null
+          <>
+            <Badge variant="secondary" className="h-6 px-2.5">
+              {formatNumber(total)} sparepart
+            </Badge>
+            {canManage ? (
+              <Button type="button" onClick={openCreate}>
+                <Plus aria-hidden="true" /> Tambah sparepart
+              </Button>
+            ) : null}
+          </>
         }
       />
 
@@ -534,37 +550,40 @@ export function SparepartsView() {
       ) : null}
 
       <Card>
-        <CardHeader className="gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <PackageSearch className="size-4" aria-hidden="true" /> Pencarian sparepart
-            </CardTitle>
-            <CardDescription>
-              Cari kode, nama, nomor part, brand, unit model, engine model, atau status compatibility.
-            </CardDescription>
-          </div>
-          <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-6" onSubmit={submitSearch}>
-            <Field className="xl:col-span-2">
+        <CardContent>
+          <FilterBar onSubmit={submitSearch} aria-label="Cari dan filter sparepart">
+            <Field className="min-w-0 flex-1">
               <FieldLabel htmlFor="sparepart-search">Kata kunci</FieldLabel>
               <SearchInput
                 id="sparepart-search"
+                name="q"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Kode, nama, part number, brand..."
               />
             </Field>
-            <Field>
+            <Field className="md:w-44">
               <FieldLabel htmlFor="sparepart-status">Compatibility</FieldLabel>
-              <NativeSelect id="sparepart-status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+              <NativeSelect
+                id="sparepart-status"
+                value={statusFilter}
+                onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}
+                className="w-full"
+              >
                 <NativeSelectOption value="">Semua status</NativeSelectOption>
                 {Object.entries(compatibilityLabels).map(([value, label]) => (
                   <NativeSelectOption key={value} value={value}>{label}</NativeSelectOption>
                 ))}
               </NativeSelect>
             </Field>
-            <Field>
+            <Field className="md:w-44">
               <FieldLabel htmlFor="sparepart-unit-model">Unit model</FieldLabel>
-              <NativeSelect id="sparepart-unit-model" value={unitModelFilter} onChange={(event) => { setUnitModelFilter(event.target.value); setPage(1); }}>
+              <NativeSelect
+                id="sparepart-unit-model"
+                value={unitModelFilter}
+                onChange={(event) => { setUnitModelFilter(event.target.value); setPage(1); }}
+                className="w-full"
+              >
                 <NativeSelectOption value="">Semua model</NativeSelectOption>
                 {unitModels.map((model) => (
                   <NativeSelectOption key={model.id} value={model.id}>
@@ -573,9 +592,14 @@ export function SparepartsView() {
                 ))}
               </NativeSelect>
             </Field>
-            <Field>
+            <Field className="md:w-44">
               <FieldLabel htmlFor="sparepart-engine-model">Engine model</FieldLabel>
-              <NativeSelect id="sparepart-engine-model" value={engineModelFilter} onChange={(event) => { setEngineModelFilter(event.target.value); setPage(1); }}>
+              <NativeSelect
+                id="sparepart-engine-model"
+                value={engineModelFilter}
+                onChange={(event) => { setEngineModelFilter(event.target.value); setPage(1); }}
+                className="w-full"
+              >
                 <NativeSelectOption value="">Semua engine</NativeSelectOption>
                 {engineModels.map((model) => (
                   <NativeSelectOption key={model.id} value={model.id}>
@@ -584,11 +608,7 @@ export function SparepartsView() {
                 ))}
               </NativeSelect>
             </Field>
-            <div className="flex items-end gap-2">
-              <Button type="submit"><Search aria-hidden="true" /> Cari</Button>
-              <Button type="button" variant="outline" onClick={resetFilters}>Reset</Button>
-            </div>
-            <label className="flex items-center gap-2 text-sm md:col-span-2 xl:col-span-6">
+            <label className="flex items-center gap-2 text-sm md:ml-auto">
               <input
                 type="checkbox"
                 checked={activeOnly}
@@ -597,22 +617,52 @@ export function SparepartsView() {
               />
               Hanya sparepart aktif
             </label>
-          </form>
+            <div className="flex gap-2">
+              <Button type="submit" variant="outline">
+                <Filter aria-hidden="true" />
+                Terapkan
+              </Button>
+              {hasFilters ? (
+                <Button type="button" variant="ghost" onClick={resetFilters}>
+                  <RotateCcw aria-hidden="true" />
+                  Reset
+                </Button>
+              ) : null}
+            </div>
+          </FilterBar>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PackageSearch className="size-4" aria-hidden="true" /> Daftar sparepart
+          </CardTitle>
+          <CardDescription>
+            Cari kode, nama, nomor part, brand, unit model, engine model, atau status compatibility.
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {loading ? (
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton key={index} className="h-14 w-full rounded-lg" />
+              ))}
             </div>
           ) : items.length === 0 ? (
-            <Empty>
+            <Empty className="border border-dashed">
               <EmptyHeader>
                 <EmptyMedia variant="icon"><PackageSearch aria-hidden="true" /></EmptyMedia>
                 <EmptyTitle>Tidak ada sparepart</EmptyTitle>
                 <EmptyDescription>Ubah filter atau tambahkan master sparepart baru.</EmptyDescription>
               </EmptyHeader>
+              {hasFilters ? (
+                <EmptyContent>
+                  <Button type="button" variant="outline" onClick={resetFilters}>
+                    Reset filter
+                  </Button>
+                </EmptyContent>
+              ) : null}
             </Empty>
           ) : (
             <div className="overflow-x-auto">
@@ -672,12 +722,14 @@ export function SparepartsView() {
       </Card>
 
       <Sheet open={formOpen} onOpenChange={setFormOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>{editingID ? "Edit sparepart" : "Tambah sparepart"}</SheetTitle>
+        <SheetContent className="w-full gap-0 bg-background p-0 sm:max-w-lg">
+          <SheetHeader className="border-b border-border p-6 pr-16">
+            <SheetTitle className="text-lg font-semibold">
+              {editingID ? "Edit sparepart" : "Tambah sparepart"}
+            </SheetTitle>
             <SheetDescription>Master ini tidak menyimpan harga, cost, vendor price, atau data procurement.</SheetDescription>
           </SheetHeader>
-          <form className="flex flex-col gap-4 px-4 pb-4" onSubmit={submitForm}>
+          <form className="flex flex-col gap-4 p-6" onSubmit={submitForm}>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="sparepart-code">Kode internal</FieldLabel>
@@ -705,7 +757,7 @@ export function SparepartsView() {
               Sparepart aktif
             </label>
             {formError ? <FieldError>{formError}</FieldError> : null}
-            <SheetFooter className="px-0">
+            <SheetFooter className="px-0 pt-0 pb-0">
               <Button type="submit" disabled={formBusy}>
                 {formBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}
                 Simpan
@@ -716,19 +768,27 @@ export function SparepartsView() {
       </Sheet>
 
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-5xl">
-          <SheetHeader>
-            <SheetTitle>{detail ? `${detail.code} · ${detail.name}` : "Detail sparepart"}</SheetTitle>
+        <SheetContent className="w-full gap-0 bg-background p-0 sm:max-w-5xl">
+          <SheetHeader className="border-b border-border p-6 pr-16">
+            <SheetTitle className="text-lg font-semibold">
+              {detail ? `${detail.code} · ${detail.name}` : "Detail sparepart"}
+            </SheetTitle>
             <SheetDescription>
               {detail ? `${detail.category || "Tanpa kategori"} · ${detail.uom} · ${detail.is_active ? "Aktif" : "Nonaktif"}` : "Memuat detail..."}
             </SheetDescription>
           </SheetHeader>
-          <div className="flex flex-col gap-4 px-4 pb-4">
-            {detailError ? <FieldError>{detailError}</FieldError> : null}
+          <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">
+            {detailError ? (
+              <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+                <CircleAlert aria-hidden="true" />
+                <AlertTitle>Gagal memuat detail</AlertTitle>
+                <AlertDescription>{detailError}</AlertDescription>
+              </Alert>
+            ) : null}
             {detailLoading && !detail ? (
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
+              <div className="space-y-3">
+                <Skeleton className="h-24 w-full rounded-lg" />
+                <Skeleton className="h-40 w-full rounded-lg" />
               </div>
             ) : detail ? (
               <>
@@ -1008,12 +1068,12 @@ export function SparepartsView() {
       </Sheet>
 
       <Sheet open={verify !== null} onOpenChange={(open) => { if (!open) setVerify(null); }}>
-        <SheetContent className="w-full sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>Verifikasi compatibility</SheetTitle>
+        <SheetContent className="w-full gap-0 bg-background p-0 sm:max-w-lg">
+          <SheetHeader className="border-b border-border p-6 pr-16">
+            <SheetTitle className="text-lg font-semibold">Verifikasi compatibility</SheetTitle>
             <SheetDescription>{verify?.label || ""}</SheetDescription>
           </SheetHeader>
-          <form className="flex flex-col gap-4 px-4 pb-4" onSubmit={submitVerify}>
+          <form className="flex flex-col gap-4 p-6" onSubmit={submitVerify}>
             <Field>
               <FieldLabel htmlFor="verify-status">Status</FieldLabel>
               <NativeSelect id="verify-status" value={verify?.status || "approved_compatible"} onChange={(event) => setVerify((current) => current ? { ...current, status: event.target.value as CompatibilityStatus } : current)}>
@@ -1046,7 +1106,7 @@ export function SparepartsView() {
               />
             </Field>
             {verifyError ? <FieldError>{verifyError}</FieldError> : null}
-            <SheetFooter className="px-0">
+            <SheetFooter className="px-0 pt-0 pb-0">
               <Button type="submit" disabled={verifyBusy}>
                 {verifyBusy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
                 Simpan verifikasi
