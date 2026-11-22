@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -38,6 +39,8 @@ type M2Services struct {
 	Spareparts    spareparts.Service
 	Inventory     inventory.Service
 	Materials     material.Service
+	Reporting     ReportingService
+	AppLocation   *time.Location
 	UploadDir     string
 }
 
@@ -75,8 +78,13 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 	admin.Use(handler.RequireRoles(auth.RoleAdmin))
 	admin.PATCH("/users/:id/role", handler.UpdateRole)
 
+	var location *time.Location
+	if m2 != nil {
+		location = m2.AppLocation
+	}
+	var unitHandler *UnitHandler
 	if unitService != nil {
-		unitHandler := NewUnitHandler(unitService, logger)
+		unitHandler = NewUnitHandler(unitService, logger, location)
 		authorized.GET("/unit-models", unitHandler.ListUnitModels)
 		authorized.GET("/engine-models", unitHandler.ListEngineModels)
 		authorized.GET("/units", unitHandler.ListUnits)
@@ -87,7 +95,9 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 		authorized.GET("/units/:id/component-intervals", unitHandler.ListComponentIntervals)
 		authorized.GET("/units/:id/downtime", unitHandler.UnitDowntime)
 		authorized.GET("/components", unitHandler.ListComponents)
-		authorized.GET("/dashboard/summary", unitHandler.DashboardSummary)
+		if m2 == nil {
+			authorized.GET("/dashboard/summary", unitHandler.DashboardSummary)
+		}
 
 		unitWriters := authorized.Group("")
 		unitWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner))
@@ -104,6 +114,17 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 	}
 
 	if m2 != nil {
+		if m2.Reporting != nil {
+			reportingHandler := NewReportingHandler(m2.Reporting, location, logger)
+			authorized.GET("/dashboard/summary", reportingHandler.Summary)
+			authorized.GET("/dashboard/pm", reportingHandler.PM)
+			authorized.GET("/dashboard/material", reportingHandler.Material)
+			authorized.GET("/dashboard/inventory", reportingHandler.Inventory)
+			authorized.GET("/dashboard/maintenance", reportingHandler.Maintenance)
+			authorized.GET("/reports/:name", reportingHandler.Report)
+		} else if unitHandler != nil {
+			authorized.GET("/dashboard/summary", unitHandler.DashboardSummary)
+		}
 		if m2.Candidates != nil {
 			candidateHandler := NewCandidateHandler(m2.Candidates, logger)
 			authorized.GET("/wo-candidates", candidateHandler.List)

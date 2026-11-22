@@ -6,6 +6,7 @@ import {
   CircleAlert,
   ClipboardCheck,
   ClipboardList,
+  FileText,
   LayoutDashboard,
   ListChecks,
   PackageSearch,
@@ -76,7 +77,10 @@ type NavigationItem = {
 const navigationGroups: { label: string; items: NavigationItem[] }[] = [
   {
     label: "Ringkasan",
-    items: [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }],
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/reports", label: "Laporan", icon: FileText },
+    ],
   },
   {
     label: "Operasional",

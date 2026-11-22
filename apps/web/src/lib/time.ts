@@ -1,5 +1,29 @@
 export const APP_TIMEZONE = "Asia/Makassar";
 
+function witaCalendarParts(value: Date): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(value);
+  const find = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return { year: find("year"), month: find("month"), day: find("day") };
+}
+
+/** WITA calendar date for today, formatted as YYYY-MM-DD. */
+export function todayWitaDate(): string {
+  const { year, month, day } = witaCalendarParts(new Date());
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** WITA calendar date N days before today, formatted as YYYY-MM-DD. */
+export function daysAgoWitaDate(days: number): string {
+  const { year, month, day } = witaCalendarParts(new Date());
+  const value = new Date(Date.UTC(year, month - 1, day - days));
+  return value.toISOString().slice(0, 10);
+}
+
 export function formatWita(
   value: string | number | Date,
   options: Intl.DateTimeFormatOptions = {},

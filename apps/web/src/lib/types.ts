@@ -206,6 +206,53 @@ export type DashboardSummary = {
   unit_models: number;
   engine_models: number;
   readings_last_30_days: number;
+  pm_overdue?: number;
+  pm_due?: number;
+  pm_due_soon?: number;
+  material_shortage?: number;
+  stock_low?: number;
+  stock_critical?: number;
+  waiting_part_units?: number;
+  wo_open?: number;
+  wo_in_progress?: number;
+  breakdown_open?: number;
+  downtime_minutes_30d?: number;
+  mttr_minutes_30d?: number;
+};
+
+export type ReportColumn = {
+  key: string;
+  label: string;
+};
+
+export type ReportTable = {
+  columns: ReportColumn[];
+  rows: Array<Record<string, unknown>>;
+  meta: { page: number; limit: number; total: number };
+};
+
+export type DashboardPM = {
+  summary: Record<string, number>;
+  due: ReportTable;
+};
+
+export type DashboardMaterial = {
+  summary: Record<string, number>;
+  requirements: ReportTable;
+  aging: ReportTable;
+};
+
+export type DashboardInventory = {
+  summary: Record<string, number>;
+  low_stock: ReportTable;
+  movements: ReportTable;
+};
+
+export type DashboardMaintenance = {
+  summary: Record<string, number>;
+  activity: ReportTable;
+  downtime: ReportTable;
+  waiting: ReportTable;
 };
 
 export type P2HFinding = {

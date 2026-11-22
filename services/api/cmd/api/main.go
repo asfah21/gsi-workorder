@@ -22,6 +22,7 @@ import (
 	"gsi-workorder/internal/odoo"
 	"gsi-workorder/internal/p2h"
 	"gsi-workorder/internal/pm"
+	"gsi-workorder/internal/reporting"
 	"gsi-workorder/internal/settings"
 	"gsi-workorder/internal/spareparts"
 	"gsi-workorder/internal/store"
@@ -49,7 +50,7 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	logger.Info("starting api", "milestone", "m4", "app_timezone", cfg.AppTimezone)
+	logger.Info("starting api", "milestone", "m7b", "app_timezone", cfg.AppTimezone)
 
 	if err := db.Migrate(cfg.DatabaseURL, cfg.MigrationsDir, logger); err != nil {
 		return err
@@ -97,6 +98,10 @@ func run(logger *slog.Logger) error {
 	inventoryService := inventory.NewRepository(pool, cfg.AppLocation)
 	materialService := material.NewRepository(pool, inventoryService, cfg.AppLocation)
 	workOrderService.SetMaterialRepository(materialService)
+	reportingService := reporting.NewService(
+		reporting.NewRepository(pool, cfg.AppLocation),
+		cfg.AppLocation,
+	)
 
 	server := &http.Server{
 		Addr: ":" + cfg.Port,
@@ -111,6 +116,8 @@ func run(logger *slog.Logger) error {
 			Spareparts:    sparepartService,
 			Inventory:     inventoryService,
 			Materials:     materialService,
+			Reporting:     reportingService,
+			AppLocation:   cfg.AppLocation,
 			UploadDir:     cfg.UploadDir,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,

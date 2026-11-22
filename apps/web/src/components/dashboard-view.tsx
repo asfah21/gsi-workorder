@@ -18,7 +18,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { roleLabels, useSession } from "@/components/app-shell";
+import { DashboardOperations } from "@/components/dashboard-operations";
 import { FleetStatusChart } from "@/components/fleet-status-chart";
+import { PageHeader } from "@/components/layout/page-header";
 import { UnitStatusBadge } from "@/components/status-badges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -141,34 +143,31 @@ export function DashboardView() {
       <div className="grid gap-4 lg:grid-cols-12">
         <Card className="lg:col-span-8">
           <CardContent className="flex flex-1 flex-col justify-between gap-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {today || "Ringkasan hari ini"}
-                </p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-                  Selamat datang, {user.name || user.nik || "Pengguna"}
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                  Ringkasan master unit dan pembacaan HM/KM terbaru. Gunakan menu
-                  Unit untuk melihat detail dan riwayat reading.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={refresh}
-                disabled={loading || previewLoading}
-                aria-label="Muat ulang ringkasan"
-                title="Muat ulang ringkasan"
-              >
-                <RefreshCcw
-                  className={loading || previewLoading ? "animate-spin" : undefined}
-                  aria-hidden="true"
-                />
-              </Button>
-            </div>
+            <PageHeader
+              title={`Selamat datang, ${user.name || user.nik || "Pengguna"}`}
+              description={
+                <span>
+                  {today ? `${today}. ` : ""}
+                  Ringkasan master unit dan aktivitas maintenance terbaru.
+                </span>
+              }
+              actions={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={refresh}
+                  disabled={loading || previewLoading}
+                  aria-label="Muat ulang ringkasan"
+                  title="Muat ulang ringkasan"
+                >
+                  <RefreshCcw
+                    className={loading || previewLoading ? "animate-spin" : undefined}
+                    aria-hidden="true"
+                  />
+                </Button>
+              }
+            />
 
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">{user.role ? roleLabels[user.role] : "-"}</Badge>
@@ -452,8 +451,11 @@ export function DashboardView() {
         </Card>
       </div>
 
+      <DashboardOperations />
+
       <p className="text-xs text-muted-foreground">
-        Modul P2H, work order, PM, dan inventory belum termasuk Milestone 1.
+        Data operasional dihitung dari transaksi aktual; seluruh tanggal dan bucket
+        memakai batas hari WITA.
       </p>
     </div>
   );

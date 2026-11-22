@@ -19,6 +19,7 @@ const ALLOWED_PREFIXES = new Set([
   "unit-models",
   "engine-models",
   "dashboard",
+  "reports",
   "wo-candidates",
   "p2h",
   "notifications",

@@ -26,7 +26,7 @@ Fakta M0:
 | Auto-WO P2H | default `false`; hanya jika setting `true` |
 | Timezone saat ini | `APP_TIMEZONE` default `Asia/Makassar` dan divalidasi saat startup; `.env.example` dan `docker-compose.yml` masih memakai `TZ=Asia/Jakarta`. Target proses `TZ=UTC` + `APP_TIMEZONE=Asia/Makassar`; perubahan config butuh approval terpisah |
 
-**Fase saat ini (status per 2026-11-22):** M1, M2, M3, dan M4 sudah **accepted**. Verifikasi lokal M1/M2/M3/M4 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL) lulus. Sync Odoo nyata diverifikasi pada 2026-11-21: 4.454 report, 8.519 finding, 2.501 kandidat unik (587 pending, 1.914 archived), `work_orders` hasil sync = 0, dan `raw` tanpa foto. Sync kedua idempoten. Kontrak skip divalidasi sebagai 400 dan bulk tetap 422. M4 PM core accepted di server pada migration `000007_m4_pm_core`, termasuk job evaluasi PM 07:00 WITA. M5 Sparepart & Inventory sudah diimplementasikan lokal di migration `000008_m5_spareparts_inventory`: master sparepart/nomor/alternatif/compatibility, PM material template, warehouse/location, transaksi inventory immutable, saldo, stock policy, opname, rekonsiliasi, dan alert stok harian 07:30 WITA. M6 Material sudah diimplementasikan lokal di migration `000009_m6_material_requirements`: material requirement per WO, readiness/shortage, reservasi/release, issue/return + usage, PM snapshot, waiting-part guard, shortage aging, dan rekonsiliasi reserved. M5 dan M6 sama-sama **menunggu acceptance server**.
+**Fase saat ini (status per 2026-11-22):** M1, M2, M3, dan M4 sudah **accepted**. Verifikasi lokal M1/M2/M3/M4 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL) lulus. Sync Odoo nyata diverifikasi pada 2026-11-21: 4.454 report, 8.519 finding, 2.501 kandidat unik (587 pending, 1.914 archived), `work_orders` hasil sync = 0, dan `raw` tanpa foto. Sync kedua idempoten. Kontrak skip divalidasi sebagai 400 dan bulk tetap 422. M4 PM core accepted di server pada migration `000007_m4_pm_core`, termasuk job evaluasi PM 07:00 WITA. M5 Sparepart & Inventory sudah diimplementasikan lokal di migration `000008_m5_spareparts_inventory`: master sparepart/nomor/alternatif/compatibility, PM material template, warehouse/location, transaksi inventory immutable, saldo, stock policy, opname, rekonsiliasi, dan alert stok harian 07:30 WITA. M6 Material sudah diimplementasikan lokal di migration `000009_m6_material_requirements`: material requirement per WO, readiness/shortage, reservasi/release, issue/return + usage, PM snapshot, waiting-part guard, shortage aging, dan rekonsiliasi reserved. M7A (history & downtime unit) selesai lokal dan ter-commit di `fde629d` (migration `000010_m7_history_reporting`). M7B (dashboard operasional, laporan JSON/CSV, agregasi benchmark, audit hardening) selesai lokal di migration `000011_m7b_reporting` dengan endpoint `/dashboard/pm|material|inventory|maintenance` dan `/reports/:name`; seluruh verifikasi lokal lulus (Go test/vet/build dengan PostgreSQL, ESLint, Next build). M5, M6, M7A, dan M7B **menunggu acceptance server** karena akses VPS belum pulih.
 
 > **Verification note:** runtime Docker/Linux M0 dan sync Odoo nyata sudah terverifikasi di server UAT. Route auth, unit, P2H, candidate, notification, dan settings sudah terdaftar dan diuji di router API. Jangan mengubah migrasi atau kode M0.
 >
@@ -171,12 +171,15 @@ Fakta M0:
 
 * [x] Unit profile, timeline, component history, HM/KM, downtime.
 * [x] Component replacement interval dari usage.
-* [ ] Dashboard PM/material/stock/maintenance/downtime.
-* [ ] Report PM compliance, shortage aging, consumption, movement, component.
-* [ ] CSV export; WITA buckets.
-* [ ] p95 list <300 ms, dashboard <500 ms; audit hardening.
+* [x] Dashboard PM/material/stock/maintenance/downtime.
+* [x] Report PM compliance, shortage aging, consumption, movement, component.
+* [x] CSV export; WITA buckets.
+* [x] Audit hardening: timezone IANA dari config tanpa fallback fixed offset; parameter SQL terikat, tidak ada hardcode zona.
+* [ ] p95 list <300 ms, dashboard <500 ms — perlu pengukuran di server UAT setelah deployment.
 
-> Catatan M7A: migration `000010_m7_history_reporting` menambahkan view timeline unit, history komponen (fallback sparepart), downtime, frequency/interval komponen, dan index performa. Unit profile memiliki tab Ringkasan, Timeline, Sparepart, HM/KM, Downtime, dan Interval; issue material dapat memilih komponen opsional. Dashboard/report/CSV/benchmark/audit tetap M7B.
+> Catatan M7A: migration `000010_m7_history_reporting` menambahkan view timeline unit, history komponen (fallback sparepart), downtime, frequency/interval komponen, dan index performa. Unit profile memiliki tab Ringkasan, Timeline, Sparepart, HM/KM, Downtime, dan Interval; issue material dapat memilih komponen opsional.
+>
+> Catatan M7B: migration `000011_m7b_reporting` menambahkan view agregat `v_pm_due`, `v_pm_compliance`, `v_waiting_part_units`, `v_sparepart_consumption`, dan `v_inventory_movement` plus index. Paket `internal/reporting` bersifat read-only dan mengembalikan tabel generik `{columns, rows, meta}` di dalam envelope `{data}`. Semua filter tanggal memakai batas hari WITA yang dikonversi ke UTC (`to` = awal hari berikutnya, eksklusif). CSV memakai BOM, CRLF, timestamp WITA, dan escape formula injection. Halaman `/reports` dan widget dashboard operasional memakai komponen UI bersama. Tidak ada data harga, vendor, PR/PO, atau Accurate.
 
 ---
 

@@ -43,13 +43,28 @@ type UnitService interface {
 type UnitHandler struct {
 	service UnitService
 	logger  *slog.Logger
+	loc     *time.Location
 }
 
-func NewUnitHandler(service UnitService, logger *slog.Logger) *UnitHandler {
+func NewUnitHandler(service UnitService, logger *slog.Logger, loc ...*time.Location) *UnitHandler {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &UnitHandler{service: service, logger: logger}
+	location := appLocation(loc)
+	return &UnitHandler{service: service, logger: logger, loc: location}
+}
+
+// appLocation resolves the configured IANA location. A missing location is a
+// configuration error: there is deliberately no fixed-offset fallback.
+func appLocation(locations []*time.Location) *time.Location {
+	if len(locations) > 0 && locations[0] != nil {
+		return locations[0]
+	}
+	location, err := time.LoadLocation("Asia/Makassar")
+	if err != nil {
+		panic("invalid application timezone Asia/Makassar: " + err.Error())
+	}
+	return location
 }
 
 type unitModelRequest struct {
@@ -404,7 +419,7 @@ func (h *UnitHandler) ListMaintenanceHistory(c *gin.Context) {
 		return
 	}
 	page, limit := parsePagination(c)
-	from, to, err := parseUnitPeriod(c)
+	from, to, err := h.parseUnitPeriod(c)
 	if err != nil {
 		writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter periode tidak valid", nil)
 		return
@@ -430,7 +445,7 @@ func (h *UnitHandler) ListUnitComponents(c *gin.Context) {
 		return
 	}
 	page, limit := parsePagination(c)
-	from, to, err := parseUnitPeriod(c)
+	from, to, err := h.parseUnitPeriod(c)
 	if err != nil {
 		writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter periode tidak valid", nil)
 		return
@@ -466,7 +481,7 @@ func (h *UnitHandler) UnitDowntime(c *gin.Context) {
 	if !ok {
 		return
 	}
-	from, to, err := parseUnitPeriod(c)
+	from, to, err := h.parseUnitPeriod(c)
 	if err != nil {
 		writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter periode tidak valid", nil)
 		return
@@ -571,22 +586,14 @@ func parseID(c *gin.Context) (int64, bool) {
 	return id, true
 }
 
-var witaLocation = func() *time.Location {
-	location, err := time.LoadLocation("Asia/Makassar")
-	if err != nil {
-		return time.FixedZone("WITA", 8*60*60)
-	}
-	return location
-}()
-
 // parseUnitPeriod treats from/to as inclusive WITA calendar dates. The upper
 // bound is converted to the next day's WITA midnight and remains exclusive.
-func parseUnitPeriod(c *gin.Context) (*time.Time, *time.Time, error) {
-	from, err := parseUnitDate(c.Query("from"))
+func (h *UnitHandler) parseUnitPeriod(c *gin.Context) (*time.Time, *time.Time, error) {
+	from, err := parseUnitDate(c.Query("from"), h.loc)
 	if err != nil {
 		return nil, nil, err
 	}
-	to, err := parseUnitDate(c.Query("to"))
+	to, err := parseUnitDate(c.Query("to"), h.loc)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -597,12 +604,12 @@ func parseUnitPeriod(c *gin.Context) (*time.Time, *time.Time, error) {
 	return from, to, nil
 }
 
-func parseUnitDate(raw string) (*time.Time, error) {
+func parseUnitDate(raw string, loc *time.Location) (*time.Time, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil, nil
 	}
-	value, err := time.ParseInLocation("2006-01-02", raw, witaLocation)
+	value, err := time.ParseInLocation("2006-01-02", raw, loc)
 	if err != nil {
 		return nil, err
 	}
