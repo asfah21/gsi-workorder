@@ -1,24 +1,47 @@
 "use client";
 
-import { CircleAlert, Eye, EyeOff, Loader2, Wrench } from "lucide-react";
+import {
+  Building2,
+  CircleAlert,
+  LifeBuoy,
+  Loader2,
+  Wrench,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ApiError, login } from "@/lib/api-client";
+
+const REMEMBERED_NIK_KEY = "gsi-login-nik";
 
 export function LoginForm() {
   const router = useRouter();
+  const nikRef = useRef<HTMLInputElement>(null);
   const [nik, setNik] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [rememberNik, setRememberNik] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ nik?: string; password?: string }>({});
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    try {
+      const remembered = window.localStorage.getItem(REMEMBERED_NIK_KEY);
+      if (remembered) {
+        setNik(remembered);
+        setRememberNik(true);
+      }
+    } catch {
+      // Remembered NIK is optional; ignore unavailable storage.
+    }
+  }, []);
 
   const focusFirstError = (errors: { nik?: string; password?: string }) => {
     const first = (["nik", "password"] as const).find((key) => errors[key]);
@@ -53,6 +76,15 @@ export function LoginForm() {
     setPending(true);
     try {
       await login(nik.trim(), password);
+      try {
+        if (rememberNik) {
+          window.localStorage.setItem(REMEMBERED_NIK_KEY, nik.trim());
+        } else {
+          window.localStorage.removeItem(REMEMBERED_NIK_KEY);
+        }
+      } catch {
+        // Login succeeds even if browser storage is unavailable.
+      }
       router.replace("/dashboard");
       router.refresh();
     } catch (loginError) {
@@ -78,143 +110,195 @@ export function LoginForm() {
   };
 
   return (
-    <main className="relative flex min-h-dvh min-w-0 items-center justify-center bg-accent px-4 py-10">
-      <div className="absolute right-4 top-4">
-        <ThemeToggle />
-      </div>
-
-      <div className="w-full min-w-0 max-w-md">
-        <div className="mb-6 flex items-center justify-center gap-3">
-          <span className="grid size-9 place-items-center rounded-md bg-primary text-primary-foreground">
-            <Wrench className="size-4" aria-hidden="true" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">GSI Work Order</p>
-            <p className="text-xs text-muted-foreground">Maintenance &amp; Unit</p>
+    <section className="flex min-h-screen items-center justify-center overflow-hidden bg-background">
+      <div className="flex min-h-screen w-full items-stretch">
+        <div className="dark hidden lg:flex lg:w-[32rem]">
+          <div className="relative flex w-full flex-col items-center justify-center bg-background p-16 text-center text-foreground">
+            <div className="z-10 flex max-w-sm flex-col items-center gap-6">
+              <Link href="/" aria-label="GSI Work Order" className="grid size-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-white backdrop-blur-sm">
+                <Wrench className="size-5" aria-hidden="true" />
+              </Link>
+              <p className="text-3xl font-medium">Selamat Datang Kembali</p>
+            </div>
+            <div className="absolute z-0 h-full w-full">
+              <video
+                className="h-full w-full object-cover"
+                loop
+                autoPlay
+                muted
+                playsInline
+              >
+                <source src="/videos/wave-video-loop.mp4" type="video/mp4" />
+              </video>
+            </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-background p-6 shadow-lg sm:p-8">
-          <div className="mb-6">
-            <h1 id="login-heading" className="text-xl font-semibold">
-              Masuk ke Work Order
-            </h1>
-            <p id="login-help" className="mt-2 text-sm text-muted-foreground">
-              Gunakan akun Odoo yang sudah terdaftar di aplikasi.
-            </p>
-          </div>
+        <div className="flex min-w-0 flex-1 flex-col items-center justify-center p-8 md:p-12">
+          <div className="flex w-full min-w-0 max-w-md flex-col items-center gap-6">
+            <Link href="/" aria-label="GSI Work Order" className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
+              <Wrench className="size-5" aria-hidden="true" />
+            </Link>
 
-          <form
-            className="space-y-4"
-            onSubmit={(event) => void handleSubmit(event)}
-            aria-labelledby="login-heading"
-            aria-describedby="login-help"
-            aria-busy={pending}
-            noValidate
-          >
-            <Field data-invalid={Boolean(fieldErrors.nik)}>
-              <FieldLabel htmlFor="nik" className="text-muted-foreground">
-                NIK / Login <span aria-hidden="true" className="text-destructive">*</span>
-              </FieldLabel>
-              <Input
-                id="nik"
-                name="nik"
-                type="text"
-                autoComplete="username"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                enterKeyHint="next"
-                required
-                value={nik}
-                onChange={(event) => {
-                  setNik(event.target.value);
-                  clearFieldError("nik");
+            <div className="flex flex-col gap-1 text-center">
+              <h1 id="login-heading" className="text-2xl font-medium text-foreground">
+                Masuk ke GSI Work Order
+              </h1>
+              <p id="login-help" className="text-sm font-normal text-muted-foreground">
+                Gunakan akun Odoo yang sudah terdaftar
+              </p>
+            </div>
+
+            <div className="flex w-full flex-col items-center justify-center gap-3 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 w-full flex-1 gap-2 rounded-lg px-5 text-sm font-medium"
+                onClick={() => {
+                  setShowHelp(false);
+                  nikRef.current?.focus();
                 }}
-                aria-invalid={Boolean(fieldErrors.nik)}
-                aria-describedby={fieldErrors.nik ? "nik-error" : undefined}
-                placeholder="Masukkan NIK atau login Odoo"
-              />
-              {fieldErrors.nik ? (
-                <FieldError id="nik-error">{fieldErrors.nik}</FieldError>
-              ) : null}
-            </Field>
-
-            <Field data-invalid={Boolean(fieldErrors.password)}>
-              <FieldLabel htmlFor="password" className="text-muted-foreground">
-                Password <span aria-hidden="true" className="text-destructive">*</span>
-              </FieldLabel>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  enterKeyHint="done"
-                  required
-                  value={password}
-                  onChange={(event) => {
-                    setPassword(event.target.value);
-                    clearFieldError("password");
-                  }}
-                  aria-invalid={Boolean(fieldErrors.password)}
-                  aria-describedby={fieldErrors.password ? "password-error" : undefined}
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-                  aria-pressed={showPassword}
-                  aria-controls="password"
-                  onClick={() => setShowPassword((current) => !current)}
-                  className="absolute inset-y-0 right-0 grid w-9 place-items-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  {showPassword ? (
-                    <EyeOff className="size-4" aria-hidden="true" />
-                  ) : (
-                    <Eye className="size-4" aria-hidden="true" />
-                  )}
-                </button>
-              </div>
-              {fieldErrors.password ? (
-                <FieldError id="password-error">{fieldErrors.password}</FieldError>
-              ) : null}
-            </Field>
-
-            {error ? (
-              <Alert
-                id="login-error"
-                tabIndex={-1}
-                variant="destructive"
-                className="border-destructive/30 bg-destructive/5"
               >
-                <CircleAlert aria-hidden="true" />
-                <AlertTitle>Login gagal</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+                <Building2 className="size-4" aria-hidden="true" />
+                Akun Odoo
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 w-full flex-1 gap-2 rounded-lg px-5 text-sm font-medium"
+                aria-expanded={showHelp}
+                aria-controls="access-help"
+                onClick={() => setShowHelp((current) => !current)}
+              >
+                <LifeBuoy className="size-4" aria-hidden="true" />
+                Bantuan akses
+              </Button>
+            </div>
+
+            <div className="flex w-full items-center gap-3 text-sm font-normal text-muted-foreground before:h-px before:flex-1 before:bg-border before:content-[''] after:h-px after:flex-1 after:bg-border after:content-['']">
+              atau masuk dengan
+            </div>
+
+            {showHelp ? (
+              <p id="access-help" className="w-full rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                Akun dikelola melalui Odoo. Hubungi admin internal GSI jika NIK belum terdaftar atau password perlu direset.
+              </p>
             ) : null}
 
-            <Button type="submit" disabled={pending} className="w-full">
-              {pending ? (
-                <>
-                  <Loader2 className="animate-spin" aria-hidden="true" />
-                  Memproses...
-                </>
-              ) : (
-                "Masuk"
-              )}
-            </Button>
-          </form>
+            <form
+              className="w-full min-w-0 space-y-6"
+              onSubmit={(event) => void handleSubmit(event)}
+              aria-labelledby="login-heading"
+              aria-describedby="login-help"
+              aria-busy={pending}
+              noValidate
+            >
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="nik" className="text-sm font-normal text-muted-foreground">
+                    NIK / Login<span aria-hidden="true">*</span>
+                  </Label>
+                  <Input
+                    ref={nikRef}
+                    id="nik"
+                    name="nik"
+                    type="text"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="next"
+                    required
+                    value={nik}
+                    onChange={(event) => {
+                      setNik(event.target.value);
+                      clearFieldError("nik");
+                    }}
+                    aria-invalid={Boolean(fieldErrors.nik)}
+                    aria-describedby={fieldErrors.nik ? "nik-error" : undefined}
+                    placeholder="Masukkan NIK atau login Odoo"
+                    className="h-8 rounded-lg px-2.5 py-1 text-base shadow-none md:text-sm"
+                  />
+                  {fieldErrors.nik ? <FieldError id="nik-error">{fieldErrors.nik}</FieldError> : null}
+                </div>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            Akses internal PT GSI. Hubungi admin bila akun belum terdaftar.
-          </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-sm font-normal text-muted-foreground">
+                    Password<span aria-hidden="true">*</span>
+                  </Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    enterKeyHint="done"
+                    required
+                    value={password}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      clearFieldError("password");
+                    }}
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    aria-describedby={fieldErrors.password ? "password-error" : undefined}
+                    placeholder="Masukkan password"
+                    className="h-8 rounded-lg px-2.5 py-1 text-base shadow-none md:text-sm"
+                  />
+                  {fieldErrors.password ? <FieldError id="password-error">{fieldErrors.password}</FieldError> : null}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
+                  <label htmlFor="remember" className="flex cursor-pointer items-center gap-2 text-sm font-normal text-muted-foreground">
+                    <input
+                      id="remember"
+                      name="remember"
+                      type="checkbox"
+                      checked={rememberNik}
+                      onChange={(event) => setRememberNik(event.target.checked)}
+                      className="size-4 cursor-pointer rounded-[4px] border border-input accent-primary"
+                    />
+                    Ingat NIK di perangkat ini
+                  </label>
+                  <button
+                    type="button"
+                    className="text-sm font-medium underline-offset-4 transition-all hover:underline"
+                    onClick={() => setShowHelp(true)}
+                  >
+                    Lupa password?
+                  </button>
+                </div>
+              </div>
+
+              {error ? (
+                <Alert
+                  id="login-error"
+                  tabIndex={-1}
+                  variant="destructive"
+                  className="border-destructive/30 bg-destructive/5"
+                >
+                  <CircleAlert aria-hidden="true" />
+                  <AlertTitle>Login gagal</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <Button type="submit" disabled={pending} className="h-9 w-full rounded-lg">
+                {pending ? (
+                  <>
+                    <Loader2 className="animate-spin" aria-hidden="true" />
+                    Memproses...
+                  </>
+                ) : (
+                  "Masuk"
+                )}
+              </Button>
+
+              <p className="text-center text-sm font-normal text-muted-foreground">
+                Akses internal GSI. Hubungi admin jika akun belum terdaftar.
+              </p>
+            </form>
+          </div>
         </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          GSI Work Order · Internal
-        </p>
       </div>
-    </main>
+    </section>
   );
 }

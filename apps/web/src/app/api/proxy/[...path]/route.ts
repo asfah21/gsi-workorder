@@ -26,8 +26,13 @@ const ALLOWED_PREFIXES = new Set([
   "workorders",
   "users",
   "pm",
+  "spareparts",
+  "inventory",
+  "warehouses",
+  "warehouse-locations",
+  "material-requirements",
 ]);
-const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH"]);
+const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "DELETE"]);
 
 export async function GET(request: NextRequest, context: RouteContext) {
   return proxy(request, context);
@@ -38,6 +43,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
+  return proxy(request, context);
+}
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
   return proxy(request, context);
 }
 
@@ -76,7 +85,10 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<NextR
     return errorResponse(401, "unauthorized", "Sesi tidak valid");
   }
 
-  const body = request.method === "GET" ? undefined : await request.arrayBuffer();
+  const body =
+    request.method === "GET" || request.method === "DELETE"
+      ? undefined
+      : await request.arrayBuffer();
   const contentType = request.headers.get("content-type") || undefined;
   const target = new URL(`/api/${path.join("/")}`, apiBaseUrl());
   target.search = request.nextUrl.search;

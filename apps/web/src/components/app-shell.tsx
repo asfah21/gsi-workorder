@@ -240,7 +240,7 @@ function AppShellFrame({
       </a>
 
       <Sidebar variant="inset" collapsible="icon">
-        <SidebarHeader className="flex flex-row items-center justify-between gap-2 p-2 px-3 pt-2 pb-4">
+        <SidebarHeader className="flex flex-row items-center justify-between gap-2 p-2 pb-4">
           <Link
             href="/dashboard"
             onClick={closeMobileNav}
@@ -277,7 +277,7 @@ function AppShellFrame({
             }
             return (
               <SidebarGroup key={group.label}>
-                <SidebarGroupLabel className="mb-2 h-auto px-2 text-xs font-semibold uppercase text-sidebar-foreground/70">
+                <SidebarGroupLabel className="mb-2 h-auto px-0 text-xs font-semibold uppercase text-sidebar-foreground/70">
                   {group.label}
                 </SidebarGroupLabel>
                 <SidebarMenu className="gap-0.5">
@@ -320,8 +320,8 @@ function AppShellFrame({
         className="m-2 rounded-none border border-border bg-background md:rounded-xl md:shadow-sm"
       >
         <header className="sticky top-0 z-20 min-h-14 border-b border-border bg-background md:rounded-t-xl">
-          <div className="flex flex-wrap items-center justify-between gap-2 p-2">
-            <div className="flex min-w-0 items-center gap-2">
+          <div className="flex items-center justify-between gap-2 p-2">
+            <div className="flex h-9 min-w-0 items-center gap-2">
               <Link
                 href="/dashboard"
                 className={`${isMobile ? "flex" : "hidden"} min-w-0 items-center gap-2`}
@@ -344,7 +344,10 @@ function AppShellFrame({
                 className="size-9 shrink-0"
               />
 
-              <Separator orientation="vertical" className="h-4 self-center" />
+              <Separator
+                orientation="vertical"
+                className="mx-0.5 h-6 shrink-0 self-center"
+              />
 
               <form
                 role="search"
