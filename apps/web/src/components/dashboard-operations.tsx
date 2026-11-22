@@ -1,19 +1,16 @@
 "use client";
 
-import {
-  CalendarClock,
-  CircleAlert,
-  Clock,
-  PackageSearch,
-  RefreshCcw,
-  TriangleAlert,
-  Wrench,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { FilterBar } from "@/components/list/list-filter-bar";
+import { FleetStatusChart } from "@/components/fleet-status-chart";
+import {
+  BucketBarChart,
+  type BucketDatum,
+  MaintenanceActivityChart,
+  type ActivityDatum,
+} from "@/components/dashboard-charts";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -23,43 +20,65 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ApiError, proxyGet } from "@/lib/api-client";
 import {
   daysAgoWitaDate,
-  formatDateTimeWita,
   formatDurationMinutes,
-  formatNumber,
   todayWitaDate,
 } from "@/lib/time";
 import type {
-  DashboardInventory,
   DashboardMaintenance,
   DashboardMaterial,
   DashboardPM,
   DataResponse,
-  ReportTable,
 } from "@/lib/types";
+
+const periods = [
+  { value: "7", label: "7H" },
+  { value: "30", label: "30H" },
+  { value: "90", label: "90H" },
+] as const;
+
+const monthLabels = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "Mei",
+  "Jun",
+  "Jul",
+  "Agu",
+  "Sep",
+  "Okt",
+  "Nov",
+  "Des",
+];
+
+type FleetSnapshot = {
+  total: number;
+  active: number;
+  breakdown: number;
+  loading: boolean;
+  failed: boolean;
+};
 
 type OperationsData = {
   pm?: DashboardPM;
   material?: DashboardMaterial;
-  inventory?: DashboardInventory;
   maintenance?: DashboardMaintenance;
 };
 
-export function DashboardOperations() {
-  const [days, setDays] = useState("30");
+export function DashboardOperations({
+  days,
+  onDaysChange,
+  refreshKey,
+  fleet,
+}: {
+  days: string;
+  onDaysChange: (days: string) => void;
+  refreshKey: number;
+  fleet: FleetSnapshot;
+}) {
   const [data, setData] = useState<OperationsData>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -69,17 +88,16 @@ export function DashboardOperations() {
     const params = new URLSearchParams({
       from: daysAgoWitaDate(Number(days)),
       to: todayWitaDate(),
-      bucket: "day",
-      limit: "6",
+      bucket: days === "7" ? "day" : "week",
+      limit: "100",
     });
     try {
-      const [pm, material, inventory, maintenance] = await Promise.all([
+      const [pm, material, maintenance] = await Promise.all([
         proxyGet<DataResponse<DashboardPM>>(`/dashboard/pm?${params}`),
         proxyGet<DataResponse<DashboardMaterial>>(`/dashboard/material?${params}`),
-        proxyGet<DataResponse<DashboardInventory>>(`/dashboard/inventory?${params}`),
         proxyGet<DataResponse<DashboardMaintenance>>(`/dashboard/maintenance?${params}`),
       ]);
-      setData({ pm: pm.data, material: material.data, inventory: inventory.data, maintenance: maintenance.data });
+      setData({ pm: pm.data, material: material.data, maintenance: maintenance.data });
       setError("");
     } catch (loadError) {
       setError(
@@ -94,40 +112,47 @@ export function DashboardOperations() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   const pm = data.pm;
   const material = data.material;
-  const inventory = data.inventory;
   const maintenance = data.maintenance;
-  const lowStock = numberValue(inventory?.summary.low) + numberValue(inventory?.summary.critical);
+  const periodLabel =
+    days === "7" ? "7 hari terakhir" : days === "90" ? "90 hari terakhir" : "30 hari terakhir";
+
+  const activityData = buildActivityData(maintenance?.activity.rows ?? []);
+  const pmData = buildPmData(pm?.summary);
+  const agingData = buildAgingData(material?.aging.rows ?? []);
+  const downtimeData = buildDowntimeData(maintenance?.summary);
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="pt-6">
-          <FilterBar aria-label="Filter periode dashboard operasional">
-            <Field className="md:w-52">
-              <FieldLabel htmlFor="operations-period">Periode</FieldLabel>
-              <NativeSelect
-                id="operations-period"
-                value={days}
-                onChange={(event) => setDays(event.target.value)}
-              >
-                <NativeSelectOption value="7">7 hari terakhir</NativeSelectOption>
-                <NativeSelectOption value="30">30 hari terakhir</NativeSelectOption>
-                <NativeSelectOption value="90">90 hari terakhir</NativeSelectOption>
-              </NativeSelect>
-            </Field>
-            <div className="flex gap-2 md:ml-auto">
-              <Button type="button" variant="outline" onClick={() => void load()} disabled={loading}>
-                <RefreshCcw className={loading ? "animate-spin" : undefined} aria-hidden="true" />
-                Muat ulang
-              </Button>
-            </div>
-          </FilterBar>
-        </CardContent>
-      </Card>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-base font-medium">Operasional</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Aktivitas maintenance, PM, material, dan downtime {periodLabel}.
+          </p>
+        </div>
+        <div
+          role="group"
+          aria-label="Periode dashboard operasional"
+          className="flex items-center gap-1 rounded-lg border border-border p-1"
+        >
+          {periods.map((period) => (
+            <Button
+              key={period.value}
+              type="button"
+              size="sm"
+              variant={days === period.value ? "secondary" : "ghost"}
+              aria-pressed={days === period.value}
+              onClick={() => onDaysChange(period.value)}
+            >
+              {period.label}
+            </Button>
+          ))}
+        </div>
+      </div>
 
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
@@ -137,233 +162,202 @@ export function DashboardOperations() {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label="PM terlambat"
-          value={pm?.summary.overdue}
-          loading={loading && !pm}
-          icon={CalendarClock}
-          hint="Jadwal overdue aktif"
-        />
-        <MetricCard
-          label="Material shortage"
-          value={material?.summary.shortage}
-          loading={loading && !material}
-          icon={TriangleAlert}
-          hint="WO dengan item kurang"
-        />
-        <MetricCard
-          label="Stok rendah/kritis"
-          value={inventory ? lowStock : undefined}
-          loading={loading && !inventory}
-          icon={PackageSearch}
-          hint="Sparepart di bawah policy"
-        />
-        <MetricCard
-          label="Downtime"
-          value={maintenance?.summary.total_minutes}
-          loading={loading && !maintenance}
-          icon={Clock}
-          hint="Menit, selesai dalam periode"
-          duration
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
+      <div className="grid gap-4 lg:grid-cols-12">
+        <Card className="lg:col-span-8">
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
             <div>
-              <CardTitle>Kesiapan PM &amp; material</CardTitle>
-              <CardDescription>Bucket jatuh tempo dan umur shortage.</CardDescription>
+              <CardTitle>Aktivitas maintenance</CardTitle>
+              <CardDescription>
+                Work order dibuat dan selesai per bucket pada {periodLabel}.
+              </CardDescription>
             </div>
-            <Link href="/reports" className={buttonVariants({ variant: "outline", size: "sm" })}>
-              Laporan
+            <div className="hidden items-center gap-4 text-xs text-muted-foreground sm:flex">
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: "var(--chart-1)" }}
+                  aria-hidden="true"
+                />
+                WO dibuat
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: "var(--chart-2)" }}
+                  aria-hidden="true"
+                />
+                WO selesai
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <MaintenanceActivityChart
+              data={activityData}
+              loading={loading && !maintenance}
+              failed={Boolean(error) && !maintenance}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-4">
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle>Status unit</CardTitle>
+              <CardDescription>Komposisi status unit saat ini.</CardDescription>
+            </div>
+            <Link
+              href="/units"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Lihat
             </Link>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <SectionLabel icon={CalendarClock} label="Jadwal PM" />
-            <BucketList table={pm?.due} loading={loading && !pm} labelKey="bucket" valueKey="unit_code" />
-            <SectionLabel icon={TriangleAlert} label="Umur shortage" />
-            <BucketList table={material?.aging} loading={loading && !material} labelKey="age_bucket" valueKey="items" />
+          <CardContent>
+            <FleetStatusChart
+              unitsTotal={fleet.total}
+              unitsActive={fleet.active}
+              unitsBreakdown={fleet.breakdown}
+              loading={fleet.loading}
+              failed={fleet.failed}
+            />
           </CardContent>
         </Card>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Aktivitas &amp; downtime</CardTitle>
-            <CardDescription>Ringkasan WO dan unit yang menunggu sparepart.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <MiniValue label="WO selesai" value={maintenance?.summary.done} loading={loading && !maintenance} />
-              <MiniValue label="Backlog" value={maintenance?.summary.backlog} loading={loading && !maintenance} />
-              <MiniValue label="Breakdown" value={maintenance?.summary.breakdown} loading={loading && !maintenance} />
-              <MiniValue label="MTTR" value={maintenance?.summary.mttr_minutes} loading={loading && !maintenance} duration />
-            </div>
-            <SectionLabel icon={Wrench} label="Downtime per bucket" />
-            <BucketList table={maintenance?.downtime} loading={loading && !maintenance} labelKey="bucket" valueKey="downtime_minutes" />
-            <SectionLabel icon={Clock} label="Menunggu sparepart" />
-            <CompactTable table={maintenance?.waiting} loading={loading && !maintenance} columns={["wo_code", "unit_code", "waiting_minutes"]} />
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ChartCard
+          title="Jadwal PM"
+          description="Bucket jatuh tempo dalam periode."
+        >
+          <BucketBarChart
+            data={pmData}
+            loading={loading && !pm}
+            failed={Boolean(error) && !pm}
+            valueLabel="Jadwal"
+            emptyTitle="Tidak ada jadwal PM"
+            emptyDescription="Jadwal PM pada periode ini akan muncul di sini."
+          />
+        </ChartCard>
+
+        <ChartCard
+          title="Umur shortage"
+          description="Distribusi item shortage berdasarkan umur."
+        >
+          <BucketBarChart
+            data={agingData}
+            loading={loading && !material}
+            failed={Boolean(error) && !material}
+            valueLabel="Item"
+            emptyTitle="Tidak ada shortage"
+            emptyDescription="Tidak ada item shortage pada periode ini."
+          />
+        </ChartCard>
+
+        <ChartCard
+          title="Downtime"
+          description="Perbandingan downtime planned dan unplanned."
+        >
+          <BucketBarChart
+            data={downtimeData}
+            loading={loading && !maintenance}
+            failed={Boolean(error) && !maintenance}
+            valueLabel="Durasi"
+            formatValue={formatDurationMinutes}
+            emptyTitle="Tidak ada downtime"
+            emptyDescription="Downtime pada periode ini akan muncul di sini."
+          />
+        </ChartCard>
       </div>
     </div>
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  loading,
-  icon: Icon,
-  hint,
-  duration,
+function ChartCard({
+  title,
+  description,
+  children,
 }: {
-  label: string;
-  value?: number;
-  loading: boolean;
-  icon: LucideIcon;
-  hint: string;
-  duration?: boolean;
+  title: string;
+  description: string;
+  children: React.ReactNode;
 }) {
   return (
-    <Card className="min-h-[132px]">
-      <CardContent className="flex flex-1 flex-col gap-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            {loading ? (
-              <Skeleton className="mt-2 h-8 w-16" />
-            ) : (
-              <p className="mt-2 text-2xl font-semibold">
-                {duration ? formatDurationMinutes(numberValue(value)) : formatNumber(numberValue(value))}
-              </p>
-            )}
-          </div>
-          <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-muted/40 text-muted-foreground">
-            <Icon className="size-4" aria-hidden="true" />
-          </span>
-        </div>
-        <p className="mt-auto text-xs text-muted-foreground">{hint}</p>
-      </CardContent>
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
     </Card>
   );
 }
 
-function SectionLabel({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  return (
-    <p className="flex items-center gap-2 text-sm font-medium">
-      <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
-      {label}
-    </p>
-  );
+function buildActivityData(rows: Array<Record<string, unknown>>): ActivityDatum[] {
+  const buckets = new Map<string, { created: number; completed: number }>();
+  for (const row of rows) {
+    const bucket = typeof row.bucket === "string" ? row.bucket : "";
+    if (!bucket) {
+      continue;
+    }
+    const current = buckets.get(bucket) ?? { created: 0, completed: 0 };
+    current.created += numberValue(row.wo_count);
+    current.completed += numberValue(row.completed);
+    buckets.set(bucket, current);
+  }
+  return [...buckets.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .slice(-12)
+    .map(([bucket, value]) => ({
+      label: formatBucket(bucket),
+      created: value.created,
+      completed: value.completed,
+    }));
 }
 
-function MiniValue({ label, value, loading, duration }: { label: string; value?: number; loading: boolean; duration?: boolean }) {
-  return (
-    <div className="rounded-lg border border-border bg-muted/20 p-2">
-      <p className="type-overline-xs text-muted-foreground">{label}</p>
-      {loading ? (
-        <Skeleton className="mt-1 h-5 w-12" />
-      ) : (
-        <p className="mt-1 text-lg font-semibold">
-          {duration ? formatDurationMinutes(numberValue(value)) : formatNumber(numberValue(value))}
-        </p>
-      )}
-    </div>
-  );
+function buildPmData(summary?: Record<string, number>): BucketDatum[] {
+  const value = (key: string) => numberValue(summary?.[key]);
+  const dueSoon = summary?.["due soon"] ?? summary?.due_soon ?? 0;
+  return [
+    { label: "Overdue", value: value("overdue"), fill: "var(--chart-1)" },
+    { label: "Due", value: value("due"), fill: "var(--chart-3)" },
+    { label: "Due soon", value: numberValue(dueSoon), fill: "var(--chart-4)" },
+    { label: "Upcoming", value: value("upcoming"), fill: "var(--chart-2)" },
+    { label: "Scheduled", value: value("scheduled"), fill: "var(--chart-5)" },
+  ];
 }
 
-function BucketList({
-  table,
-  loading,
-  labelKey,
-  valueKey = "count",
-}: {
-  table?: ReportTable;
-  loading: boolean;
-  labelKey: string;
-  valueKey?: string;
-}) {
-  if (loading || !table) {
-    return (
-      <div className="space-y-2" role="status" aria-label="Memuat ringkasan bucket">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-7 w-full" />
-        ))}
-      </div>
-    );
-  }
-  if (table.rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">Tidak ada data pada periode ini.</p>;
-  }
-  return (
-    <div className="flex flex-wrap gap-2">
-      {table.rows.slice(0, 6).map((row, index) => (
-        <span
-          key={`${String(row[labelKey] ?? "")}-${index}`}
-          className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1 text-xs"
-        >
-          <span className="font-medium">{cell(row[labelKey])}</span>
-          <span className="text-muted-foreground">{cell(row[valueKey])}</span>
-        </span>
-      ))}
-    </div>
-  );
+function buildAgingData(rows: Array<Record<string, unknown>>): BucketDatum[] {
+  return rows.map((row) => ({
+    label: String(row.age_bucket ?? "-"),
+    value: numberValue(row.items),
+    fill: "var(--chart-3)",
+  }));
 }
 
-function CompactTable({
-  table,
-  loading,
-  columns,
-}: {
-  table?: ReportTable;
-  loading: boolean;
-  columns: string[];
-}) {
-  if (loading || !table) {
-    return <Skeleton className="h-24 w-full" />;
-  }
-  if (table.rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">Tidak ada unit yang menunggu sparepart.</p>;
-  }
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {columns.map((key) => (
-              <TableHead key={key}>{table.columns.find((column) => column.key === key)?.label ?? key}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {table.rows.map((row, index) => (
-            <TableRow key={`${String(row.wo_code ?? "")}-${index}`}>
-              {columns.map((key) => (
-                <TableCell key={key}>{cell(row[key])}</TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
+function buildDowntimeData(summary?: Record<string, number>): BucketDatum[] {
+  return [
+    {
+      label: "Planned",
+      value: numberValue(summary?.planned_minutes),
+      fill: "var(--chart-2)",
+    },
+    {
+      label: "Unplanned",
+      value: numberValue(summary?.unplanned_minutes),
+      fill: "var(--chart-1)",
+    },
+  ];
 }
 
-function numberValue(value?: number): number {
+function formatBucket(value: string): string {
+  const [year, month, day] = value.split("-");
+  const monthLabel = monthLabels[Number(month) - 1] ?? month;
+  if (!day) {
+    return `${monthLabel} ${year}`;
+  }
+  return `${Number(day)} ${monthLabel}`;
+}
+
+function numberValue(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
-function cell(value: unknown): string {
-  if (value === null || value === undefined) {
-    return "-";
-  }
-  if (typeof value === "number") {
-    return formatNumber(value);
-  }
-  if (typeof value === "string") {
-    return /^\d{4}-\d{2}-\d{2}T/.test(value) ? formatDateTimeWita(value) : value;
-  }
-  return String(value);
 }

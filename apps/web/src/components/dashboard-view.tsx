@@ -1,29 +1,27 @@
 "use client";
 
 import {
-  Activity,
   ArrowRight,
   Boxes,
-  CheckCircle2,
+  CalendarClock,
   CircleAlert,
-  Gauge,
+  FileText,
+  PackageSearch,
   Plus,
   RefreshCcw,
   TriangleAlert,
   Truck,
-  Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { roleLabels, useSession } from "@/components/app-shell";
+import { useSession } from "@/components/app-shell";
 import { DashboardOperations } from "@/components/dashboard-operations";
-import { FleetStatusChart } from "@/components/fleet-status-chart";
+import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/layout/page-header";
 import { UnitStatusBadge } from "@/components/status-badges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -63,6 +61,8 @@ export function DashboardView() {
   const [error, setError] = useState("");
   const [previewError, setPreviewError] = useState("");
   const [today, setToday] = useState("");
+  const [days, setDays] = useState("30");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const canWrite = user.role === "admin" || user.role === "planner";
 
@@ -114,6 +114,7 @@ export function DashboardView() {
   }, []);
 
   const refresh = useCallback(() => {
+    setRefreshKey((current) => current + 1);
     void loadSummary();
     void loadPreview();
   }, [loadPreview, loadSummary]);
@@ -126,12 +127,63 @@ export function DashboardView() {
   const unitsTotal = summary?.units_total ?? 0;
   const unitsActive = summary?.units_active ?? 0;
   const breakdown = Math.max(0, summary?.units_breakdown ?? 0);
-  const healthy = Math.max(0, unitsActive - breakdown);
-  const inactive = Math.max(0, unitsTotal - unitsActive);
-  const readiness = percentage(unitsActive, unitsTotal);
+
+  const unitHint = summary
+    ? `${formatNumber(summary.units_total)} unit · ${formatNumber(breakdown)} breakdown`
+    : error
+      ? "Data tidak tersedia"
+      : "Memuat data unit";
+  const pmHint = summary
+    ? `${formatNumber(summary.pm_due ?? 0)} due · ${formatNumber(summary.pm_due_soon ?? 0)} due soon`
+    : error
+      ? "Data tidak tersedia"
+      : "Memuat jadwal PM";
+  const materialHint = summary
+    ? `${formatNumber(summary.waiting_part_units ?? 0)} unit menunggu part`
+    : error
+      ? "Data tidak tersedia"
+      : "Memuat kesiapan material";
+  const stockHint = summary
+    ? `${formatNumber(summary.stock_low ?? 0)} menipis · ${formatNumber(summary.stock_critical ?? 0)} kritis`
+    : error
+      ? "Data tidak tersedia"
+      : "Memuat status stok";
 
   return (
     <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Dashboard"
+        description={
+          <>
+            {user.name || user.nik ? `Selamat datang, ${user.name || user.nik}. ` : ""}
+            {today ? `${today}. ` : ""}
+            Ringkasan armada, maintenance, dan operasional gudang.
+          </>
+        }
+        actions={
+          <>
+            <Link href="/reports" className={buttonVariants({ variant: "outline" })}>
+              <FileText aria-hidden="true" />
+              Laporan
+            </Link>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={refresh}
+              disabled={loading || previewLoading}
+              aria-label="Muat ulang dashboard"
+              title="Muat ulang dashboard"
+            >
+              <RefreshCcw
+                className={loading || previewLoading ? "animate-spin" : undefined}
+                aria-hidden="true"
+              />
+            </Button>
+          </>
+        }
+      />
+
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
           <CircleAlert aria-hidden="true" />
@@ -140,205 +192,53 @@ export function DashboardView() {
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-8">
-          <CardContent className="flex flex-1 flex-col justify-between gap-6">
-            <PageHeader
-              title={`Selamat datang, ${user.name || user.nik || "Pengguna"}`}
-              description={
-                <span>
-                  {today ? `${today}. ` : ""}
-                  Ringkasan master unit dan aktivitas maintenance terbaru.
-                </span>
-              }
-              actions={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={refresh}
-                  disabled={loading || previewLoading}
-                  aria-label="Muat ulang ringkasan"
-                  title="Muat ulang ringkasan"
-                >
-                  <RefreshCcw
-                    className={loading || previewLoading ? "animate-spin" : undefined}
-                    aria-hidden="true"
-                  />
-                </Button>
-              }
-            />
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{user.role ? roleLabels[user.role] : "-"}</Badge>
-              <Link
-                href="/units"
-                className={buttonVariants({ variant: "default" })}
-              >
-                Lihat daftar unit
-                <ArrowRight aria-hidden="true" />
-              </Link>
-              {canWrite ? (
-                <Link
-                  href="/units/new"
-                  className={buttonVariants({ variant: "outline" })}
-                >
-                  <Plus aria-hidden="true" />
-                  Tambah unit
-                </Link>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="size-4 text-muted-foreground" aria-hidden="true" />
-              Ringkasan kunci
-            </CardTitle>
-            <CardDescription>Data master saat ini.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-1.5">
-            <Insight
-              icon={Truck}
-              label="Total unit"
-              value={summary?.units_total}
-              loading={loading && !summary}
-            />
-            <Insight
-              icon={CheckCircle2}
-              label="Unit aktif"
-              value={summary?.units_active}
-              loading={loading && !summary}
-            />
-            <Insight
-              icon={TriangleAlert}
-              label="Breakdown"
-              value={summary?.units_breakdown}
-              loading={loading && !summary}
-            />
-            <Insight
-              icon={Activity}
-              label="Reading 30d"
-              value={summary?.readings_last_30_days}
-              loading={loading && !summary}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-8 lg:min-h-[475px]">
-          <CardHeader className="flex flex-row items-start justify-between gap-3 border-b">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Gauge className="size-4 text-muted-foreground" aria-hidden="true" />
-                Kesiapan unit
-              </CardTitle>
-              <CardDescription>Komposisi status unit dari master.</CardDescription>
-            </div>
-            <Badge variant="outline">
-              {loading && !summary ? <Skeleton className="h-4 w-8" /> : `${readiness}%`}
-            </Badge>
-          </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-between gap-4">
-            <div className="grid flex-1 items-center gap-6 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-              <div className="flex flex-col justify-center rounded-xl border border-border bg-muted/30 p-4">
-                <p className="type-overline text-muted-foreground">Kesiapan</p>
-                <p className="mt-2 text-2xl font-semibold">
-                  {loading && !summary ? (
-                    <Skeleton className="h-9 w-20" />
-                  ) : (
-                    `${readiness}%`
-                  )}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {formatOptionalNumber(summary?.units_active)} dari{" "}
-                  {formatOptionalNumber(summary?.units_total)} unit aktif
-                </p>
-              </div>
-
-              <div className="flex flex-col justify-center gap-4">
-                <StatusBar
-                  label="Aktif sehat"
-                  value={healthy}
-                  total={unitsTotal}
-                  color="var(--chart-2)"
-                />
-                <StatusBar
-                  label="Breakdown"
-                  value={breakdown}
-                  total={unitsTotal}
-                  color="var(--chart-1)"
-                />
-                <StatusBar
-                  label="Nonaktif"
-                  value={inactive}
-                  total={unitsTotal}
-                  color="var(--chart-4)"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-2 border-t pt-4 text-xs text-muted-foreground">
-              <span>Data sesuai master unit saat ini.</span>
-              <Link
-                href="/units"
-                className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
-              >
-                Lihat unit
-                <ArrowRight className="size-3.5" aria-hidden="true" />
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Distribusi status</CardTitle>
-            <CardDescription>Perbandingan unit aktif dan breakdown.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FleetStatusChart
-              unitsTotal={unitsTotal}
-              unitsActive={unitsActive}
-              unitsBreakdown={breakdown}
-              loading={loading && !summary}
-              failed={Boolean(error) && !summary}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-12">
-        <StatCard
-          className="lg:col-span-4"
-          label="Unit model"
-          value={summary?.unit_models}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label="Unit aktif"
+          value={summary?.units_active}
           loading={loading && !summary}
-          icon={Boxes}
-          note="Referensi model unit"
-          href="/master"
-        />
-        <StatCard
-          className="lg:col-span-4"
-          label="Engine model"
-          value={summary?.engine_models}
-          loading={loading && !summary}
-          icon={Wrench}
-          note="Referensi engine"
-          href="/master"
-        />
-        <StatCard
-          className="lg:col-span-4"
-          label="Reading 30 hari"
-          value={summary?.readings_last_30_days}
-          loading={loading && !summary}
-          icon={Activity}
-          note="HM/KM tercatat"
+          icon={Truck}
           href="/units"
+          hint={unitHint}
+        />
+        <KpiCard
+          label="PM terlambat"
+          value={summary?.pm_overdue}
+          loading={loading && !summary}
+          icon={CalendarClock}
+          href="/pm"
+          hint={pmHint}
+        />
+        <KpiCard
+          label="Material shortage"
+          value={summary?.material_shortage}
+          loading={loading && !summary}
+          icon={PackageSearch}
+          href="/workorders"
+          hint={materialHint}
+        />
+        <KpiCard
+          label="Stok kritis"
+          value={summary?.stock_critical}
+          loading={loading && !summary}
+          icon={TriangleAlert}
+          href="/inventory"
+          hint={stockHint}
         />
       </div>
+
+      <DashboardOperations
+        days={days}
+        onDaysChange={setDays}
+        refreshKey={refreshKey}
+        fleet={{
+          total: unitsTotal,
+          active: unitsActive,
+          breakdown,
+          loading: loading && !summary,
+          failed: Boolean(error) && !summary,
+        }}
+      />
 
       <div className="grid gap-4 lg:grid-cols-12">
         <Card className="lg:col-span-8">
@@ -451,126 +351,11 @@ export function DashboardView() {
         </Card>
       </div>
 
-      <DashboardOperations />
-
       <p className="text-xs text-muted-foreground">
         Data operasional dihitung dari transaksi aktual; seluruh tanggal dan bucket
         memakai batas hari WITA.
       </p>
     </div>
-  );
-}
-
-function Insight({
-  icon: Icon,
-  label,
-  value,
-  loading,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value?: number;
-  loading: boolean;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-muted/20 p-2">
-      <div className="type-overline-xs flex items-center gap-1.5 whitespace-nowrap text-muted-foreground">
-        <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-        {label}
-      </div>
-      {loading ? (
-        <Skeleton className="mt-1 h-5 w-14" />
-      ) : (
-        <p className="mt-1 text-2xl font-semibold">
-          {formatOptionalNumber(value)}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function StatusBar({
-  label,
-  value,
-  total,
-  color,
-}: {
-  label: string;
-  value: number;
-  total: number;
-  color: string;
-}) {
-  const percent = Math.min(100, percentage(value, total));
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="flex items-center gap-2 text-muted-foreground">
-          <span
-            className="size-2.5 rounded-full"
-            style={{ backgroundColor: color }}
-            aria-hidden="true"
-          />
-          {label}
-        </span>
-        <span className="font-medium">{formatNumber(value)}</span>
-      </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-        <div
-          className="h-full rounded-full transition-[width]"
-          style={{ width: `${percent}%`, backgroundColor: color }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function StatCard({
-  className,
-  label,
-  value,
-  loading,
-  icon: Icon,
-  note,
-  href,
-}: {
-  className?: string;
-  label: string;
-  value?: number;
-  loading: boolean;
-  icon: LucideIcon;
-  note: string;
-  href: string;
-}) {
-  return (
-    <Card className={`min-h-[142px] ${className ?? ""}`}>
-      <CardContent className="flex flex-1 flex-col gap-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            {loading ? (
-              <Skeleton className="mt-2 h-8 w-16" />
-            ) : (
-              <p className="mt-2 text-2xl font-semibold">
-                {formatOptionalNumber(value)}
-              </p>
-            )}
-          </div>
-          <span className="grid size-9 shrink-0 place-items-center rounded-md border border-border bg-muted/40 text-muted-foreground">
-            <Icon className="size-4" aria-hidden="true" />
-          </span>
-        </div>
-        <div className="mt-auto flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">{note}</span>
-          <Link
-            href={href}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            Lihat
-            <ArrowRight aria-hidden="true" />
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -612,15 +397,4 @@ function modelLabel(unit: Unit): string {
     return `${unit.unit_model.manufacturer} ${unit.unit_model.model}`;
   }
   return unit.merk || "-";
-}
-
-function percentage(value: number, total: number): number {
-  if (total <= 0) {
-    return 0;
-  }
-  return Math.round((value / total) * 100);
-}
-
-function formatOptionalNumber(value?: number): string {
-  return typeof value === "number" ? formatNumber(value) : "-";
 }

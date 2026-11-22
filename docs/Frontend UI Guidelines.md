@@ -24,6 +24,7 @@ Jangan menambah library UI, state, chart, atau icon baru tanpa approval.
 8. Semua form memakai `Field`, `FieldLabel`, `FieldError`, `Input`, `NativeSelect`, dan `Textarea`.
 9. Semua halaman harus menangani loading, empty, error, dan unauthorized state.
 10. Jangan memakai `<a>` untuk navigasi internal; gunakan `next/link`.
+11. Semua kontrol form dan labelnya memakai `text-sm`; jangan mencampur `text-base` atau `text-lg` dalam satu field, filter bar, atau kartu metrik.
 
 ## Page shell
 
@@ -132,6 +133,8 @@ Aturan:
 - Tombol reset memakai `variant="ghost"`.
 - Jangan memakai custom `<label className="h-9">`; gunakan `Field`.
 - Untuk filter kompleks (4 field atau lebih), boleh memakai `grid gap-3 md:grid-cols-2 xl:grid-cols-6`; semua search tetap memakai `SearchInput` dan semua kontrol tetap `h-9`.
+- Semua label (`FieldLabel`) dan kontrol (`Input`, `NativeSelect`, `SearchInput`) dalam satu filter bar wajib memakai `text-sm`. Date picker memakai `Input type="date"`, bukan `<input>` native.
+- Jangan meng-override ukuran teks kontrol per halaman; perbaiki komponen shared di `components/ui` jika ada penyimpangan.
 
 ## Card dan table
 
@@ -185,21 +188,52 @@ Aturan:
 - Tombol simpan berada di `SheetFooter`.
 - Button utama memakai `size="sm"` di sheet/form compact, atau default di halaman.
 - Jangan mencampur `h-8` dan `h-9` dalam satu form.
+- Teks kontrol (`Input`, `Textarea`, `NativeSelect`) selalu `text-sm`; `Input` dan `NativeSelect` memakai `leading-5`, `Textarea` memakai `leading-6`.
+- Jangan menimpa ukuran teks kontrol di level halaman; gunakan default komponen shared.
 - Jangan membuat side sheet baru dengan `side="right"` untuk form/detail.
 
 ## Typography
 
+Satu jenis elemen hanya boleh memakai satu ukuran teks. Jangan mencampur `text-sm`, `text-base`, dan `text-lg` untuk elemen yang setara.
+
 | Elemen | Class |
 |---|---|
 | Page title | `text-2xl font-semibold tracking-tight` |
-| Section title | `text-base font-medium` |
+| Section title halaman (`h2`) | `text-base font-medium` |
 | Card title | `CardTitle` default |
+| Card section label (di dalam `Card`) | `text-sm font-medium` |
+| Form label | `FieldLabel` default (`text-sm font-medium leading-5`) |
+| Form control (`Input`, `NativeSelect`) | `text-sm leading-5` |
+| Form control (`Textarea`) | `text-sm leading-6` |
+| Form description | `text-sm text-muted-foreground` |
 | Body | `text-sm` |
 | Muted description | `text-sm text-muted-foreground` |
+| KPI/metric label | `text-sm text-muted-foreground` |
+| KPI/metric value | `text-2xl font-semibold` |
+| KPI/metric hint | `text-xs text-muted-foreground` |
 | Table metadata | `text-xs text-muted-foreground` |
+| Chart/legend label | `type-overline-xs` (khusus label grafik) |
 | Badge | `h-5` atau `h-6` dengan padding konsisten |
 
-Jangan memakai `text-xl font-medium` untuk page title.
+Aturan tambahan:
+
+- Jangan memakai `text-xl font-medium` untuk page title.
+- Semua field dalam satu filter bar harus memiliki ukuran teks yang sama; date input tidak boleh lebih besar dari select.
+- Nilai KPI tidak boleh memakai `text-lg`; gunakan `text-2xl font-semibold` secara konsisten, termasuk untuk kartu metrik ringkas.
+- `type-overline` dan `type-overline-xs` hanya untuk label grafik atau metadata, bukan untuk label form maupun label KPI.
+- `Skeleton` harus mengikuti tinggi teks final (misalnya `h-8` untuk KPI `text-2xl`).
+- Pengecualian yang sudah disepakati: `SheetTitle` (`text-lg font-semibold`), `FieldLegend`, judul kartu bawaan, label grafik, dan form login yang mengikuti referensi demo. Jangan menambah pengecualian baru tanpa approval.
+
+## Dashboard dan metrik
+
+- Urutan dashboard: `PageHeader` → KPI row → filter periode → chart utama → chart pendukung → table/panel.
+- KPI row memakai 4 card dengan pola yang sama: label `text-sm`, value `text-2xl font-semibold`, hint `text-xs text-muted-foreground`.
+- Jangan menduplikasi metrik yang sama pada beberapa card atau section.
+- Chart memakai `ChartContainer` dan token `--chart-*`; jangan memakai warna hardcoded.
+- Setiap chart wajib memiliki loading (`Skeleton`), empty (`Empty`), dan failed state.
+- Chart utama memakai grid 8/4 pada desktop; chart pendukung memakai grid 3 kolom.
+- Satu kontrol periode harus memengaruhi semua chart dan tabel operasional.
+- Table pada dashboard tetap dibungkus `overflow-x-auto`.
 
 ## Button
 
@@ -251,6 +285,10 @@ Jangan memakai `text-xl font-medium` untuk page title.
 - Table tanpa `overflow-x-auto`.
 - Empty state teks polos tanpa `Empty`.
 - Link internal memakai `<a>`.
+- `text-base` atau `text-lg` pada `Input`, `Textarea`, `NativeSelect`, atau `SearchInput`.
+- Mencampur ukuran teks label dan kontrol dalam satu field atau filter bar.
+- `text-lg` untuk nilai KPI/metrik.
+- Memakai `type-overline`/`type-overline-xs` sebagai label form atau label KPI.
 - Modal/form/detail yang muncul dari kanan layar.
 - `SheetContent` dengan positioning side sheet manual.
 
@@ -263,4 +301,7 @@ Jangan memakai `text-xl font-medium` untuk page title.
 - Dark dan light mode dicek.
 - Tidak ada overflow horizontal.
 - Search, filter, table, pagination, empty state, dan error state konsisten.
+- Audit `rg -n "text-base|text-lg|type-overline" apps/web/src` hanya menampilkan pengecualian yang terdokumentasi.
+- Label dan nilai KPI memakai satu skala tipografi yang sama di seluruh dashboard.
+- `npm run check:typography` lulus.
 - Screenshot perbandingan dengan demo target bila memungkinkan.

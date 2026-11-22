@@ -18,7 +18,7 @@ export function SearchInput({
       <Input
         type={type}
         enterKeyHint="search"
-        className={cn("h-9 pl-9 text-sm leading-5", className)}
+        className={cn("h-9 pl-9", className)}
         {...props}
       />
     </div>

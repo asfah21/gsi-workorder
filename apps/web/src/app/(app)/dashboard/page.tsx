@@ -4,7 +4,7 @@ import { DashboardView } from "@/components/dashboard-view";
 
 export const metadata: Metadata = {
   title: "Dashboard | GSI Work Order",
-  description: "Ringkasan unit dan pembacaan HM/KM",
+  description: "Ringkasan armada, maintenance, dan operasional gudang",
 };
 
 export default function DashboardPage() {

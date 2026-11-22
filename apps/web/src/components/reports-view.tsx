@@ -15,6 +15,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
@@ -304,12 +311,17 @@ export function ReportsView() {
 
 function EmptyState() {
   return (
-    <div className="rounded-md border border-dashed border-border py-12 text-center">
-      <p className="text-sm font-medium">Tidak ada data</p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Ubah periode atau jenis laporan untuk melihat data.
-      </p>
-    </div>
+    <Empty className="py-12">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <FileText aria-hidden="true" />
+        </EmptyMedia>
+        <EmptyTitle>Tidak ada data</EmptyTitle>
+        <EmptyDescription>
+          Ubah periode atau jenis laporan untuk melihat data.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
   );
 }
 
