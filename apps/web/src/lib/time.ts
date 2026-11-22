@@ -31,6 +31,24 @@ export function formatNumber(value: number): string {
   }).format(value);
 }
 
+export function formatDurationMinutes(value?: number | null): string {
+  if (value === undefined || value === null || !Number.isFinite(value)) {
+    return "-";
+  }
+  const total = Math.max(0, Math.round(value));
+  if (total < 60) {
+    return `${total} mnt`;
+  }
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  if (hours < 24) {
+    return minutes > 0 ? `${hours}j ${minutes}m` : `${hours}j`;
+  }
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  return rest > 0 ? `${days}h ${rest}j` : `${days}h`;
+}
+
 export function toDatetimeLocalWita(date: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: APP_TIMEZONE,

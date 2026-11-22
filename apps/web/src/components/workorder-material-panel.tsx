@@ -35,6 +35,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, proxyGet, proxyPatch, proxyPost } from "@/lib/api-client";
 import type {
+  ComponentOption,
   DataResponse,
   InventoryReservation,
   ListResponse,
@@ -97,6 +98,7 @@ export function WorkOrderMaterialPanel({ woID, woStatus }: { woID: number; woSta
   const [reservations, setReservations] = useState<InventoryReservation[]>([]);
   const [spareparts, setSpareparts] = useState<Sparepart[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [components, setComponents] = useState<ComponentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -109,6 +111,7 @@ export function WorkOrderMaterialPanel({ woID, woStatus }: { woID: number; woSta
 
   const [issueOpen, setIssueOpen] = useState(false);
   const [issueQtys, setIssueQtys] = useState<Record<number, string>>({});
+  const [issueComponentIDs, setIssueComponentIDs] = useState<Record<number, string>>({});
   const [issueNotes, setIssueNotes] = useState("");
   const [issueKey, setIssueKey] = useState("");
 
@@ -145,12 +148,14 @@ export function WorkOrderMaterialPanel({ woID, woStatus }: { woID: number; woSta
 
   const loadReferences = useCallback(async () => {
     try {
-      const [sparepartResult, warehouseResult] = await Promise.all([
+      const [sparepartResult, warehouseResult, componentResult] = await Promise.all([
         proxyGet<ListResponse<Sparepart>>("/spareparts?limit=100&active_only=true&sort=code&order=asc"),
         proxyGet<ListResponse<Warehouse>>("/warehouses?limit=100&active_only=true"),
+        proxyGet<DataResponse<ComponentOption[]>>("/components?active_only=true"),
       ]);
       setSpareparts(sparepartResult.data);
       setWarehouses(warehouseResult.data);
+      setComponents(componentResult.data);
     } catch {
       // Reference data is best-effort; the panel still works with existing items.
     }
@@ -295,7 +300,15 @@ export function WorkOrderMaterialPanel({ woID, woStatus }: { woID: number; woSta
     const items = Object.entries(issueQtys)
       .map(([id, value]) => ({ id: Number(id), qty: Number(value) }))
       .filter((item) => item.id > 0 && Number.isFinite(item.qty) && item.qty > 0)
-      .map((item) => ({ material_requirement_item_id: item.id, qty: item.qty, notes: issueNotes.trim() }));
+      .map((item) => {
+        const componentID = Number(issueComponentIDs[item.id] || 0);
+        return {
+          material_requirement_item_id: item.id,
+          qty: item.qty,
+          ...(componentID > 0 ? { component_id: componentID } : {}),
+          notes: issueNotes.trim(),
+        };
+      });
     if (items.length === 0) {
       setError("Isi minimal satu qty issue.");
       return;
@@ -311,6 +324,7 @@ export function WorkOrderMaterialPanel({ woID, woStatus }: { woID: number; woSta
       setRequirement(result.data);
       setIssueOpen(false);
       setIssueQtys({});
+      setIssueComponentIDs({});
       setIssueNotes("");
       setSuccess("Issue material berhasil diposting.");
       await load();
@@ -324,6 +338,7 @@ export function WorkOrderMaterialPanel({ woID, woStatus }: { woID: number; woSta
   const openIssue = () => {
     setIssueKey(makeKey());
     setIssueQtys({});
+    setIssueComponentIDs({});
     setIssueNotes("");
     setIssueOpen(true);
     setReturnOpen(false);
@@ -578,6 +593,7 @@ export function WorkOrderMaterialPanel({ woID, woStatus }: { woID: number; woSta
                     <TableHead>Waktu</TableHead>
                     <TableHead>Tipe</TableHead>
                     <TableHead>Sparepart</TableHead>
+                    <TableHead>Komponen</TableHead>
                     <TableHead>Lokasi</TableHead>
                     <TableHead>Qty</TableHead>
                     <TableHead>Aksi</TableHead>
@@ -596,6 +612,7 @@ export function WorkOrderMaterialPanel({ woID, woStatus }: { woID: number; woSta
                         <p className="font-medium">{usage.sparepart_code}</p>
                         <p className="text-xs text-muted-foreground">{usage.sparepart_name}</p>
                       </TableCell>
+                      <TableCell className="text-sm">{usage.component_name || "-"}</TableCell>
                       <TableCell className="text-sm">{usage.warehouse_code}/{usage.location_code}</TableCell>
                       <TableCell>{usage.qty}</TableCell>
                       <TableCell>
@@ -706,7 +723,7 @@ export function WorkOrderMaterialPanel({ woID, woStatus }: { woID: number; woSta
         <form className="mt-3 flex flex-col gap-3 rounded-lg border border-border p-3" onSubmit={submitIssue}>
           <p className="text-sm font-medium">Issue material</p>
           {requirement.items.map((item) => (
-            <div key={item.id} className="grid items-end gap-2 sm:grid-cols-[1fr_130px]">
+            <div key={item.id} className="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_140px_190px]">
               <div>
                 <p className="text-sm font-medium">{item.sparepart_code} - {item.sparepart_name}</p>
                 <p className="text-xs text-muted-foreground">
@@ -723,6 +740,23 @@ export function WorkOrderMaterialPanel({ woID, woStatus }: { woID: number; woSta
                   value={issueQtys[item.id] ?? ""}
                   onChange={(event) => setIssueQtys((current) => ({ ...current, [item.id]: event.target.value }))}
                 />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`issue-component-${item.id}`}>Komponen (opsional)</FieldLabel>
+                <NativeSelect
+                  id={`issue-component-${item.id}`}
+                  value={issueComponentIDs[item.id] ?? ""}
+                  onChange={(event) =>
+                    setIssueComponentIDs((current) => ({ ...current, [item.id]: event.target.value }))
+                  }
+                >
+                  <NativeSelectOption value="">Tanpa komponen</NativeSelectOption>
+                  {components.map((component) => (
+                    <NativeSelectOption key={component.id} value={component.id}>
+                      {component.code} - {component.name}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
               </Field>
             </div>
           ))}

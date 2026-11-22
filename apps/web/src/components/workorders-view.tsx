@@ -22,6 +22,13 @@ import { PageHeader } from "@/components/layout/page-header";
 import { FilterBar } from "@/components/list/list-filter-bar";
 import { SearchInput } from "@/components/list/list-search";
 import { TablePagination } from "@/components/table-pagination";
+import {
+  WorkOrderPriorityBadge,
+  WorkOrderStatusBadge,
+  workOrderMaintenanceLabels as maintenanceLabels,
+  workOrderPriorityLabels as priorityLabels,
+  workOrderStatusLabels as statusLabels,
+} from "@/components/workorder-badges";
 import { WorkOrderMaterialPanel } from "@/components/workorder-material-panel";
 import { TableSortHeader } from "@/components/table-sort-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -78,71 +85,12 @@ import type {
   WorkOrderAttachment,
   WorkOrderChecklistItem,
   WorkOrderDetail,
-  WorkOrderMaintenanceType,
-  WorkOrderPriority,
   WorkOrderRecord,
   WorkOrderUpdate,
 } from "@/lib/types";
 import { formatDateTimeWita, formatWita } from "@/lib/time";
-import { cn } from "@/lib/utils";
 
 const sortableColumns = ["created_at", "updated_at", "code", "title", "priority", "status"] as const;
-
-const statusLabels: Record<string, string> = {
-  open: "Open",
-  in_progress: "In progress",
-  waiting_part: "Waiting part",
-  done: "Done",
-  cancelled: "Cancelled",
-};
-
-const maintenanceLabels: Record<WorkOrderMaintenanceType, string> = {
-  preventive: "Preventive",
-  corrective: "Corrective",
-  breakdown: "Breakdown",
-  inspection: "Inspection",
-};
-
-const priorityLabels: Record<WorkOrderPriority, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  critical: "Critical",
-};
-
-function WorkOrderStatusBadge({ status }: { status: string }) {
-  return (
-    <Badge
-      variant="secondary"
-      className={cn(
-        "h-5 border-transparent px-2",
-        status === "open" && "bg-sky-500/10 text-sky-700 dark:text-sky-300",
-        status === "in_progress" && "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-        status === "waiting_part" && "bg-orange-500/10 text-orange-700 dark:text-orange-300",
-        status === "done" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-        status === "cancelled" && "bg-muted text-muted-foreground",
-      )}
-    >
-      {statusLabels[status] || status || "-"}
-    </Badge>
-  );
-}
-
-function WorkOrderPriorityBadge({ priority }: { priority: WorkOrderPriority }) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "h-5 px-2",
-        priority === "critical" && "border-destructive/30 text-destructive",
-        priority === "high" && "border-amber-500/30 text-amber-700 dark:text-amber-300",
-        priority === "medium" && "border-sky-500/30 text-sky-700 dark:text-sky-300",
-      )}
-    >
-      {priorityLabels[priority] || priority}
-    </Badge>
-  );
-}
 
 export function WorkOrdersView() {
   const { user } = useSession();

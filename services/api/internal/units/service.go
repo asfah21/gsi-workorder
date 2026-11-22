@@ -226,6 +226,12 @@ type Repository interface {
 	ListMeterReadings(ctx context.Context, unitID int64, limit int) ([]MeterReading, error)
 	AddManualReading(ctx context.Context, unitID int64, input MeterReadingInput, actorRole string) (MeterReading, error)
 	DashboardSummary(ctx context.Context) (DashboardSummary, error)
+
+	ListMaintenanceHistory(ctx context.Context, unitID int64, filter HistoryFilter) ([]MaintenanceHistory, int, error)
+	ListComponentHistory(ctx context.Context, unitID int64, filter ComponentHistoryFilter) ([]ComponentHistory, int, error)
+	ListComponentIntervals(ctx context.Context, unitID int64) ([]ComponentInterval, error)
+	ListUnitDowntime(ctx context.Context, unitID int64, filter DowntimeFilter) ([]DowntimeEvent, error)
+	ListComponents(ctx context.Context, activeOnly bool) ([]Component, error)
 }
 
 type Service struct {

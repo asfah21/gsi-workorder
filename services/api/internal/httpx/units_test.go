@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -21,6 +22,8 @@ type fakeUnitService struct {
 	listFilter        units.UnitFilter
 	unitModelFilter   units.ModelFilter
 	engineModelFilter units.ModelFilter
+	historyFilter     units.HistoryFilter
+	downtimeFilter    units.DowntimeFilter
 }
 
 func (f *fakeUnitService) ListUnitModels(_ context.Context, filter units.ModelFilter) ([]units.UnitModel, int, error) {
@@ -71,6 +74,26 @@ func (f *fakeUnitService) AddManualReading(context.Context, int64, units.MeterRe
 }
 func (f *fakeUnitService) DashboardSummary(context.Context) (units.DashboardSummary, error) {
 	return units.DashboardSummary{UnitsTotal: 1}, nil
+}
+func (f *fakeUnitService) ListMaintenanceHistory(_ context.Context, _ int64, filter units.HistoryFilter) ([]units.MaintenanceHistory, int, error) {
+	f.historyFilter = filter
+	return []units.MaintenanceHistory{}, 0, nil
+}
+func (f *fakeUnitService) ListComponentHistory(context.Context, int64, units.ComponentHistoryFilter) ([]units.ComponentHistory, int, error) {
+	return []units.ComponentHistory{}, 0, nil
+}
+func (f *fakeUnitService) ListComponentIntervals(context.Context, int64) ([]units.ComponentInterval, error) {
+	return []units.ComponentInterval{}, nil
+}
+func (f *fakeUnitService) UnitDowntime(_ context.Context, _ int64, filter units.DowntimeFilter) (units.UnitDowntime, error) {
+	f.downtimeFilter = filter
+	if filter.From != nil && filter.To != nil && !filter.From.Before(*filter.To) {
+		return units.UnitDowntime{}, &units.ValidationError{Fields: map[string]string{"period": "Periode tidak valid"}}
+	}
+	return units.UnitDowntime{Events: []units.DowntimeEvent{}}, nil
+}
+func (f *fakeUnitService) ListComponents(context.Context, bool) ([]units.Component, error) {
+	return []units.Component{}, nil
 }
 
 func unitTestRouter(authUser auth.User, unitService UnitService) *gin.Engine {
@@ -196,5 +219,46 @@ func TestListUnitModelsPassesSortAndPagination(t *testing.T) {
 	filter := unitService.unitModelFilter
 	if filter.Page != 2 || filter.Limit != 10 || filter.Sort != "model" || filter.Order != "desc" {
 		t.Fatalf("filter = %#v", filter)
+	}
+}
+
+func TestUnitHistoryParsesWitaPeriod(t *testing.T) {
+	unitService := &fakeUnitService{}
+	router := unitTestRouter(auth.User{ID: 1, Role: auth.RoleViewer, IsActive: true}, unitService)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/units/1/history?from=2026-11-10&to=2026-11-10&status=done&maintenance_type=breakdown", nil)
+	request.Header.Set("Authorization", "Bearer good")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	filter := unitService.historyFilter
+	if filter.From == nil || filter.To == nil {
+		t.Fatalf("period = %#v", filter)
+	}
+	if filter.From.UTC().Format(time.RFC3339) != "2026-11-09T16:00:00Z" {
+		t.Fatalf("from = %s", filter.From.UTC())
+	}
+	if filter.To.UTC().Format(time.RFC3339) != "2026-11-10T16:00:00Z" {
+		t.Fatalf("to = %s", filter.To.UTC())
+	}
+	if filter.Status != "done" || filter.MaintenanceType != "breakdown" {
+		t.Fatalf("filter = %#v", filter)
+	}
+}
+
+func TestUnitDowntimeRejectsInvalidPeriod(t *testing.T) {
+	unitService := &fakeUnitService{}
+	router := unitTestRouter(auth.User{ID: 1, Role: auth.RoleViewer, IsActive: true}, unitService)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/units/1/downtime?from=2026-11-10&to=2026-11-01", nil)
+	request.Header.Set("Authorization", "Bearer good")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
 }

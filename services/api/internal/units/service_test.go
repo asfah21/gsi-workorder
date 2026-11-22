@@ -19,6 +19,8 @@ type fakeRepository struct {
 	createdUnitErr    error
 	reading           MeterReading
 	readingErr        error
+	historyFilter     HistoryFilter
+	downtimeEvents    []DowntimeEvent
 }
 
 func (f *fakeRepository) ListUnitModels(_ context.Context, filter ModelFilter) ([]UnitModel, int, error) {
@@ -73,6 +75,22 @@ func (f *fakeRepository) AddManualReading(context.Context, int64, MeterReadingIn
 }
 func (f *fakeRepository) DashboardSummary(context.Context) (DashboardSummary, error) {
 	return DashboardSummary{}, nil
+}
+func (f *fakeRepository) ListMaintenanceHistory(_ context.Context, _ int64, filter HistoryFilter) ([]MaintenanceHistory, int, error) {
+	f.historyFilter = filter
+	return nil, 0, nil
+}
+func (f *fakeRepository) ListComponentHistory(context.Context, int64, ComponentHistoryFilter) ([]ComponentHistory, int, error) {
+	return nil, 0, nil
+}
+func (f *fakeRepository) ListComponentIntervals(context.Context, int64) ([]ComponentInterval, error) {
+	return nil, nil
+}
+func (f *fakeRepository) ListUnitDowntime(context.Context, int64, DowntimeFilter) ([]DowntimeEvent, error) {
+	return f.downtimeEvents, nil
+}
+func (f *fakeRepository) ListComponents(context.Context, bool) ([]Component, error) {
+	return nil, nil
 }
 
 func TestCreateUnitNormalizesAndDefaults(t *testing.T) {

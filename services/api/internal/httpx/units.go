@@ -32,6 +32,12 @@ type UnitService interface {
 	ListMeterReadings(ctx context.Context, unitID int64, limit int) ([]units.MeterReading, error)
 	AddManualReading(ctx context.Context, unitID int64, input units.MeterReadingInput, actorRole string) (units.MeterReading, error)
 	DashboardSummary(ctx context.Context) (units.DashboardSummary, error)
+
+	ListMaintenanceHistory(ctx context.Context, unitID int64, filter units.HistoryFilter) ([]units.MaintenanceHistory, int, error)
+	ListComponentHistory(ctx context.Context, unitID int64, filter units.ComponentHistoryFilter) ([]units.ComponentHistory, int, error)
+	ListComponentIntervals(ctx context.Context, unitID int64) ([]units.ComponentInterval, error)
+	UnitDowntime(ctx context.Context, unitID int64, filter units.DowntimeFilter) (units.UnitDowntime, error)
+	ListComponents(ctx context.Context, activeOnly bool) ([]units.Component, error)
 }
 
 type UnitHandler struct {
@@ -392,6 +398,100 @@ func (h *UnitHandler) DashboardSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": item})
 }
 
+func (h *UnitHandler) ListMaintenanceHistory(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	page, limit := parsePagination(c)
+	from, to, err := parseUnitPeriod(c)
+	if err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter periode tidak valid", nil)
+		return
+	}
+	items, total, err := h.service.ListMaintenanceHistory(c.Request.Context(), id, units.HistoryFilter{
+		Page:            page,
+		Limit:           limit,
+		Status:          c.Query("status"),
+		MaintenanceType: c.Query("maintenance_type"),
+		From:            from,
+		To:              to,
+	})
+	if err != nil {
+		h.writeError(c, err, "list maintenance history")
+		return
+	}
+	writeList(c, items, page, limit, total)
+}
+
+func (h *UnitHandler) ListUnitComponents(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	page, limit := parsePagination(c)
+	from, to, err := parseUnitPeriod(c)
+	if err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter periode tidak valid", nil)
+		return
+	}
+	items, total, err := h.service.ListComponentHistory(c.Request.Context(), id, units.ComponentHistoryFilter{
+		Page:  page,
+		Limit: limit,
+		From:  from,
+		To:    to,
+	})
+	if err != nil {
+		h.writeError(c, err, "list component history")
+		return
+	}
+	writeList(c, items, page, limit, total)
+}
+
+func (h *UnitHandler) ListComponentIntervals(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	items, err := h.service.ListComponentIntervals(c.Request.Context(), id)
+	if err != nil {
+		h.writeError(c, err, "list component intervals")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+func (h *UnitHandler) UnitDowntime(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	from, to, err := parseUnitPeriod(c)
+	if err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter periode tidak valid", nil)
+		return
+	}
+	result, err := h.service.UnitDowntime(c.Request.Context(), id, units.DowntimeFilter{
+		From:  from,
+		To:    to,
+		Limit: parsePositiveInt(c.Query("limit"), 50),
+	})
+	if err != nil {
+		h.writeError(c, err, "unit downtime")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+func (h *UnitHandler) ListComponents(c *gin.Context) {
+	items, err := h.service.ListComponents(c.Request.Context(), parseBool(c.Query("active_only")))
+	if err != nil {
+		h.writeError(c, err, "list components")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
 func (h *UnitHandler) writeError(c *gin.Context, err error, operation string) {
 	var validation *units.ValidationError
 	switch {
@@ -469,4 +569,42 @@ func parseID(c *gin.Context) (int64, bool) {
 		return 0, false
 	}
 	return id, true
+}
+
+var witaLocation = func() *time.Location {
+	location, err := time.LoadLocation("Asia/Makassar")
+	if err != nil {
+		return time.FixedZone("WITA", 8*60*60)
+	}
+	return location
+}()
+
+// parseUnitPeriod treats from/to as inclusive WITA calendar dates. The upper
+// bound is converted to the next day's WITA midnight and remains exclusive.
+func parseUnitPeriod(c *gin.Context) (*time.Time, *time.Time, error) {
+	from, err := parseUnitDate(c.Query("from"))
+	if err != nil {
+		return nil, nil, err
+	}
+	to, err := parseUnitDate(c.Query("to"))
+	if err != nil {
+		return nil, nil, err
+	}
+	if to != nil {
+		next := to.AddDate(0, 0, 1)
+		to = &next
+	}
+	return from, to, nil
+}
+
+func parseUnitDate(raw string) (*time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	value, err := time.ParseInLocation("2006-01-02", raw, witaLocation)
+	if err != nil {
+		return nil, err
+	}
+	return &value, nil
 }

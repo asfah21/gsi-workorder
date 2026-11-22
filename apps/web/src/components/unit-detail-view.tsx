@@ -8,9 +8,14 @@ import {
   CircleCheck,
   ClipboardList,
   Gauge,
+  History,
+  LayoutDashboard,
   Loader2,
   MapPin,
+  PackageSearch,
   Pencil,
+  Repeat2,
+  TimerOff,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
@@ -19,6 +24,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/components/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { UnitStatusBadge } from "@/components/status-badges";
+import { UnitComponentPanel } from "@/components/unit-component-panel";
+import { UnitDowntimePanel } from "@/components/unit-downtime-panel";
+import { UnitIntervalPanel } from "@/components/unit-interval-panel";
+import { UnitTimelinePanel } from "@/components/unit-timeline-panel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -67,12 +76,24 @@ const sourceLabels: Record<MeterReading["source_type"], string> = {
   sync: "Sync",
 };
 
+type UnitTab = "overview" | "timeline" | "components" | "meters" | "downtime" | "intervals";
+
+const unitTabs: { id: UnitTab; label: string; icon: LucideIcon }[] = [
+  { id: "overview", label: "Ringkasan", icon: LayoutDashboard },
+  { id: "timeline", label: "Timeline", icon: History },
+  { id: "components", label: "Sparepart", icon: PackageSearch },
+  { id: "meters", label: "HM/KM", icon: Gauge },
+  { id: "downtime", label: "Downtime", icon: TimerOff },
+  { id: "intervals", label: "Interval", icon: Repeat2 },
+];
+
 export function UnitDetailView({ unitId }: { unitId: number }) {
   const { user } = useSession();
   const [unit, setUnit] = useState<Unit | null>(null);
   const [readings, setReadings] = useState<MeterReading[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [tab, setTab] = useState<UnitTab>("overview");
 
   const canWrite = user.role === "admin" || user.role === "planner";
   const canReadMeter = ["admin", "planner", "mechanic"].includes(user.role);
@@ -196,111 +217,149 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
         />
       </div>
 
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle>Identitas unit</CardTitle>
-          <CardDescription>Data master dan model yang terpasang.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Detail
-              label="Unit model"
-              value={
-                unit.unit_model
-                  ? `${unit.unit_model.manufacturer} ${unit.unit_model.model}`
-                  : "-"
-              }
-            />
-            <Detail
-              label="Engine model"
-              value={
-                unit.engine_model
-                  ? `${unit.engine_model.manufacturer} ${unit.engine_model.model}`
-                  : "-"
-              }
-            />
-            <Detail label="Nomor polisi" value={unit.license_plate || "-"} />
-            <Detail label="Serial unit" value={unit.serial_number || "-"} />
-            <Detail label="Serial engine" value={unit.engine_serial_number || "-"} />
-            <Detail label="Kelas unit" value={unit.class_unit || "-"} />
-            <Detail label="Lokasi" value={unit.site_location || "-"} icon={MapPin} />
-          </dl>
-        </CardContent>
-      </Card>
+      <div
+        className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-muted/30 p-1"
+        role="tablist"
+        aria-label="Profil unit"
+      >
+        {unitTabs.map((item) => {
+          const Icon = item.icon;
+          const active = tab === item.id;
+          return (
+            <Button
+              key={item.id}
+              type="button"
+              size="sm"
+              variant={active ? "secondary" : "ghost"}
+              className="shrink-0"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setTab(item.id)}
+            >
+              <Icon aria-hidden="true" />
+              {item.label}
+            </Button>
+          );
+        })}
+      </div>
 
-      {canReadMeter ? <MeterReadingForm unit={unit} onSaved={() => void load()} /> : null}
-
-      <Card className="gap-0 overflow-hidden">
-        <CardHeader className="border-b">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <CardTitle>Riwayat HM/KM</CardTitle>
-              <CardDescription>Terbaru 50 reading, waktu WITA.</CardDescription>
-            </div>
-            <Badge variant="secondary" className="h-6 shrink-0 px-2.5">
-              {readings.length} reading
-            </Badge>
-          </div>
-        </CardHeader>
-
-        {readings.length === 0 ? (
-          <CardContent className="py-10">
-            <Empty className="border-0">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <ClipboardList aria-hidden="true" />
-                </EmptyMedia>
-                <EmptyTitle>Belum ada reading.</EmptyTitle>
-                <EmptyDescription>
-                  Reading HM/KM yang disimpan akan muncul di sini.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
+      {tab === "overview" ? (
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>Identitas unit</CardTitle>
+            <CardDescription>Data master dan model yang terpasang.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Detail
+                label="Unit model"
+                value={
+                  unit.unit_model
+                    ? `${unit.unit_model.manufacturer} ${unit.unit_model.model}`
+                    : "-"
+                }
+              />
+              <Detail
+                label="Engine model"
+                value={
+                  unit.engine_model
+                    ? `${unit.engine_model.manufacturer} ${unit.engine_model.model}`
+                    : "-"
+                }
+              />
+              <Detail label="Nomor polisi" value={unit.license_plate || "-"} />
+              <Detail label="Serial unit" value={unit.serial_number || "-"} />
+              <Detail label="Serial engine" value={unit.engine_serial_number || "-"} />
+              <Detail label="Kelas unit" value={unit.class_unit || "-"} />
+              <Detail label="Lokasi" value={unit.site_location || "-"} icon={MapPin} />
+            </dl>
           </CardContent>
-        ) : (
-          <div>
-            <Table>
-              <TableCaption id="riwayat-reading" className="sr-only">
-                Riwayat pembacaan HM dan KM unit {unit.code}
-              </TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col">Waktu</TableHead>
-                  <TableHead scope="col">Tipe</TableHead>
-                  <TableHead scope="col" className="text-right">Nilai</TableHead>
-                  <TableHead scope="col">Sumber</TableHead>
-                  <TableHead scope="col">Catatan</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {readings.map((reading) => (
-                  <TableRow key={reading.id}>
-                    <TableHead scope="row" className="whitespace-normal">
-                      {formatDateTimeWita(reading.recorded_at)}
-                    </TableHead>
-                    <TableCell>
-                      <Badge variant="outline" className="h-6 px-2.5 uppercase">
-                        {reading.reading_type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatNumber(reading.value)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="h-6 px-2.5">
-                        {sourceLabels[reading.source_type]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {reading.notes || "-"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </Card>
+        </Card>
+      ) : null}
+
+      {tab === "timeline" ? <UnitTimelinePanel unitId={unit.id} /> : null}
+      {tab === "components" ? <UnitComponentPanel unitId={unit.id} /> : null}
+
+      {tab === "meters" ? (
+        <div className="flex flex-col gap-4">
+          {canReadMeter ? <MeterReadingForm unit={unit} onSaved={() => void load()} /> : null}
+
+          <Card className="gap-0 overflow-hidden">
+            <CardHeader className="border-b">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Riwayat HM/KM</CardTitle>
+                  <CardDescription>Terbaru 50 reading, waktu WITA.</CardDescription>
+                </div>
+                <Badge variant="secondary" className="h-6 shrink-0 px-2.5">
+                  {readings.length} reading
+                </Badge>
+              </div>
+            </CardHeader>
+
+            {readings.length === 0 ? (
+              <CardContent className="py-10">
+                <Empty className="border-0">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <ClipboardList aria-hidden="true" />
+                    </EmptyMedia>
+                    <EmptyTitle>Belum ada reading.</EmptyTitle>
+                    <EmptyDescription>
+                      Reading HM/KM yang disimpan akan muncul di sini.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              </CardContent>
+            ) : (
+              <div>
+                <Table>
+                  <TableCaption id="riwayat-reading" className="sr-only">
+                    Riwayat pembacaan HM dan KM unit {unit.code}
+                  </TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead scope="col">Waktu</TableHead>
+                      <TableHead scope="col">Tipe</TableHead>
+                      <TableHead scope="col" className="text-right">Nilai</TableHead>
+                      <TableHead scope="col">Sumber</TableHead>
+                      <TableHead scope="col">Catatan</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {readings.map((reading) => (
+                      <TableRow key={reading.id}>
+                        <TableHead scope="row" className="whitespace-normal">
+                          {formatDateTimeWita(reading.recorded_at)}
+                        </TableHead>
+                        <TableCell>
+                          <Badge variant="outline" className="h-6 px-2.5 uppercase">
+                            {reading.reading_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatNumber(reading.value)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="h-6 px-2.5">
+                            {sourceLabels[reading.source_type]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {reading.notes || "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </Card>
+        </div>
+      ) : null}
+
+      {tab === "downtime" ? <UnitDowntimePanel unitId={unit.id} /> : null}
+      {tab === "intervals" ? <UnitIntervalPanel unitId={unit.id} /> : null}
     </div>
   );
 }

@@ -169,12 +169,14 @@ Fakta M0:
 
 ### M7 — History & Reporting
 
-* [ ] Unit profile, timeline, component history, HM/KM, downtime.
-* [ ] Component replacement interval dari usage.
+* [x] Unit profile, timeline, component history, HM/KM, downtime.
+* [x] Component replacement interval dari usage.
 * [ ] Dashboard PM/material/stock/maintenance/downtime.
 * [ ] Report PM compliance, shortage aging, consumption, movement, component.
 * [ ] CSV export; WITA buckets.
 * [ ] p95 list <300 ms, dashboard <500 ms; audit hardening.
+
+> Catatan M7A: migration `000010_m7_history_reporting` menambahkan view timeline unit, history komponen (fallback sparepart), downtime, frequency/interval komponen, dan index performa. Unit profile memiliki tab Ringkasan, Timeline, Sparepart, HM/KM, Downtime, dan Interval; issue material dapat memilih komponen opsional. Dashboard/report/CSV/benchmark/audit tetap M7B.
 
 ---
 

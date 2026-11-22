@@ -31,6 +31,7 @@ const ALLOWED_PREFIXES = new Set([
   "warehouses",
   "warehouse-locations",
   "material-requirements",
+  "components",
 ]);
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "DELETE"]);
 

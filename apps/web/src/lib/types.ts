@@ -74,6 +74,131 @@ export type MeterReading = {
   created_at: string;
 };
 
+export type ComponentOption = {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  is_active: boolean;
+};
+
+export type UnitMaintenanceHistory = {
+  wo_id: number;
+  unit_id: number;
+  unit_code: string;
+  wo_code: string;
+  source: string;
+  maintenance_type: WorkOrderMaintenanceType;
+  status: string;
+  priority: WorkOrderPriority | string;
+  title: string;
+  description: string;
+  p2h_report_id?: number;
+  candidate_id?: number;
+  pm_schedule_id?: number;
+  assignee_id?: number;
+  assignee_name: string;
+  supervisor_id?: number;
+  supervisor_name: string;
+  created_by?: number;
+  created_by_name: string;
+  due_date?: string;
+  started_at?: string;
+  closed_at?: string;
+  created_at: string;
+  elapsed_minutes?: number;
+  checklist_total: number;
+  checklist_done: number;
+  checklist_not_ok: number;
+  findings_count: number;
+  usage_count: number;
+  usage_qty: number;
+  material_status: string;
+};
+
+export type UnitComponentHistory = {
+  unit_id: number;
+  unit_code: string;
+  wo_id: number;
+  wo_code: string;
+  wo_title: string;
+  maintenance_type: WorkOrderMaintenanceType;
+  wo_status: string;
+  closed_at?: string;
+  component_id?: number;
+  component_code: string;
+  component_name: string;
+  is_fallback: boolean;
+  fallback_sparepart_id?: number;
+  sparepart_codes: string;
+  sparepart_names: string;
+  sparepart_count: number;
+  qty: number;
+  used_at: string;
+  hm?: number;
+  km?: number;
+  replacement_no: number;
+  previous_used_at?: string;
+  days_since_previous?: number;
+  hm_since_previous?: number;
+  km_since_previous?: number;
+};
+
+export type UnitComponentInterval = {
+  unit_id: number;
+  unit_code: string;
+  component_id?: number;
+  fallback_sparepart_id?: number;
+  component_code: string;
+  component_name: string;
+  is_fallback: boolean;
+  replacement_count: number;
+  first_replaced_at: string;
+  last_replaced_at: string;
+  avg_interval_days?: number;
+  avg_interval_hm?: number;
+  avg_interval_km?: number;
+  total_qty: number;
+  last_hm?: number;
+  last_km?: number;
+};
+
+export type UnitDowntimeEvent = {
+  wo_id: number;
+  unit_id: number;
+  unit_code: string;
+  wo_code: string;
+  title: string;
+  maintenance_type: WorkOrderMaintenanceType;
+  priority: string;
+  assignee_id?: number;
+  assignee_name: string;
+  supervisor_id?: number;
+  supervisor_name: string;
+  started_at?: string;
+  downtime_start?: string;
+  downtime_end: string;
+  downtime_class: "planned" | "unplanned";
+  downtime_minutes?: number;
+  waiting_minutes: number;
+};
+
+export type UnitDowntimeSummary = {
+  total_minutes: number;
+  planned_minutes: number;
+  unplanned_minutes: number;
+  waiting_minutes: number;
+  mttr_minutes: number;
+  events: number;
+  planned_events: number;
+  unplanned_events: number;
+};
+
+export type UnitDowntimeResponse = {
+  summary: UnitDowntimeSummary;
+  events: UnitDowntimeEvent[];
+};
+
 export type DashboardSummary = {
   units_total: number;
   units_active: number;

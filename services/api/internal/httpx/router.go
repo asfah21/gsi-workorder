@@ -82,6 +82,11 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 		authorized.GET("/units", unitHandler.ListUnits)
 		authorized.GET("/units/:id", unitHandler.GetUnit)
 		authorized.GET("/units/:id/meter-readings", unitHandler.ListMeterReadings)
+		authorized.GET("/units/:id/history", unitHandler.ListMaintenanceHistory)
+		authorized.GET("/units/:id/components", unitHandler.ListUnitComponents)
+		authorized.GET("/units/:id/component-intervals", unitHandler.ListComponentIntervals)
+		authorized.GET("/units/:id/downtime", unitHandler.UnitDowntime)
+		authorized.GET("/components", unitHandler.ListComponents)
 		authorized.GET("/dashboard/summary", unitHandler.DashboardSummary)
 
 		unitWriters := authorized.Group("")
