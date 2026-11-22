@@ -15,6 +15,8 @@ import {
 import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
+import { SearchInput } from "@/components/list/list-search";
 import { ActiveBadge } from "@/components/status-badges";
 import { TablePagination } from "@/components/table-pagination";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -504,19 +506,17 @@ export function SparepartsView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Sparepart</h1>
-          <p className="text-sm text-muted-foreground">
-            Master sparepart, nomor OEM/aftermarket, alternatif, dan compatibility tanpa data harga.
-          </p>
-        </div>
-        {canManage ? (
-          <Button type="button" onClick={openCreate}>
-            <Plus aria-hidden="true" /> Tambah sparepart
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Sparepart"
+        description="Master sparepart, nomor OEM/aftermarket, alternatif, dan compatibility tanpa data harga."
+        actions={
+          canManage ? (
+            <Button type="button" onClick={openCreate}>
+              <Plus aria-hidden="true" /> Tambah sparepart
+            </Button>
+          ) : null
+        }
+      />
 
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
@@ -546,16 +546,12 @@ export function SparepartsView() {
           <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-6" onSubmit={submitSearch}>
             <Field className="xl:col-span-2">
               <FieldLabel htmlFor="sparepart-search">Kata kunci</FieldLabel>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                <Input
-                  id="sparepart-search"
-                  value={searchInput}
-                  onChange={(event) => setSearchInput(event.target.value)}
-                  placeholder="Kode, nama, part number, brand..."
-                  className="pl-9"
-                />
-              </div>
+              <SearchInput
+                id="sparepart-search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Kode, nama, part number, brand..."
+              />
             </Field>
             <Field>
               <FieldLabel htmlFor="sparepart-status">Compatibility</FieldLabel>

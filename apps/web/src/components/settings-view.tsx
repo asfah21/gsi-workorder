@@ -4,6 +4,7 @@ import { CircleAlert, Loader2, Save, Settings2, ShieldAlert } from "lucide-react
 import { useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -139,19 +140,15 @@ export function SettingsView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">Pengaturan</h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Kontrol global P2H dan kandidat work order. Setiap perubahan diaudit.
-            </p>
-          </div>
+      <PageHeader
+        title="Pengaturan"
+        description="Kontrol global P2H dan kandidat work order. Setiap perubahan diaudit."
+        actions={
           <Badge variant="secondary" className="h-6 px-2.5">
             Admin
           </Badge>
-        </CardContent>
-      </Card>
+        }
+      />
 
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">

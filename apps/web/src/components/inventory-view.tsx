@@ -23,6 +23,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
+import { SearchInput } from "@/components/list/list-search";
 import { ActiveBadge } from "@/components/status-badges";
 import { TablePagination } from "@/components/table-pagination";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -949,34 +951,32 @@ export function InventoryView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Inventory</h1>
-          <p className="text-sm text-muted-foreground">
-            Stok sparepart, transaksi immutable, stock opname, dan minimum stock per lokasi.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {tab === "transactions" && canMove ? (
-            <>
-              <Button type="button" size="sm" onClick={() => openTxForm("receipt")}>
-                <ArrowDownToLine aria-hidden="true" /> Penerimaan
+      <PageHeader
+        title="Inventory"
+        description="Stok sparepart, transaksi immutable, stock opname, dan minimum stock per lokasi."
+        actions={
+          <>
+            {tab === "transactions" && canMove ? (
+              <>
+                <Button type="button" size="sm" onClick={() => openTxForm("receipt")}>
+                  <ArrowDownToLine aria-hidden="true" /> Penerimaan
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => openTxForm("issue")}>
+                  <ArrowUpFromLine aria-hidden="true" /> Pengeluaran
+                </Button>
+              </>
+            ) : null}
+            {tab === "opname" && canCount ? (
+              <Button type="button" onClick={openOpnameCreate}>
+                <Plus aria-hidden="true" /> Sesi opname
               </Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => openTxForm("issue")}>
-                <ArrowUpFromLine aria-hidden="true" /> Pengeluaran
-              </Button>
-            </>
-          ) : null}
-          {tab === "opname" && canCount ? (
-            <Button type="button" onClick={openOpnameCreate}>
-              <Plus aria-hidden="true" /> Sesi opname
+            ) : null}
+            <Button type="button" variant="outline" onClick={() => void refreshAfterWrite()}>
+              <RefreshCw aria-hidden="true" /> Muat ulang
             </Button>
-          ) : null}
-          <Button type="button" variant="outline" onClick={() => void refreshAfterWrite()}>
-            <RefreshCw aria-hidden="true" /> Muat ulang
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
@@ -1075,16 +1075,12 @@ export function InventoryView() {
             >
               <Field className="xl:col-span-2">
                 <FieldLabel htmlFor="stock-search">Cari sparepart</FieldLabel>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                  <Input
-                    id="stock-search"
-                    value={balanceQueryInput}
-                    onChange={(event) => setBalanceQueryInput(event.target.value)}
-                    placeholder="Kode atau nama sparepart..."
-                    className="pl-9"
-                  />
-                </div>
+                <SearchInput
+                  id="stock-search"
+                  value={balanceQueryInput}
+                  onChange={(event) => setBalanceQueryInput(event.target.value)}
+                  placeholder="Kode atau nama sparepart..."
+                />
               </Field>
               <Field>
                 <FieldLabel htmlFor="stock-warehouse">Gudang</FieldLabel>
@@ -1252,7 +1248,7 @@ export function InventoryView() {
               </Field>
               <Field className="xl:col-span-2">
                 <FieldLabel htmlFor="tx-search">Cari kode/referensi</FieldLabel>
-                <Input
+                <SearchInput
                   id="tx-search"
                   value={txQuery}
                   onChange={(event) => { setTxQuery(event.target.value); setTransactionPage(1); }}
@@ -1349,7 +1345,7 @@ export function InventoryView() {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
               <Field className="xl:col-span-2">
                 <FieldLabel htmlFor="movement-search">Cari</FieldLabel>
-                <Input
+                <SearchInput
                   id="movement-search"
                   value={movementQuery}
                   onChange={(event) => { setMovementQuery(event.target.value); setMovementPage(1); }}

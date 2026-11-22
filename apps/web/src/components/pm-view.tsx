@@ -11,7 +11,6 @@ import {
   Play,
   Plus,
   RefreshCw,
-  Search,
   ShieldCheck,
   SkipForward,
   Trash2,
@@ -20,6 +19,9 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterBar } from "@/components/list/list-filter-bar";
+import { SearchInput } from "@/components/list/list-search";
 import { TablePagination } from "@/components/table-pagination";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -542,19 +544,17 @@ export function PMView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Preventive Maintenance</h1>
-          <p className="text-sm text-muted-foreground">
-            Plan per unit/model, interval HM/KM/calendar, schedule, dan generate WO PM.
-          </p>
-        </div>
-        {canManage ? (
-          <Button type="button" onClick={openCreate}>
-            <Plus aria-hidden="true" /> Buat plan PM
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Preventive Maintenance"
+        description="Plan per unit/model, interval HM/KM/calendar, schedule, dan generate WO PM."
+        actions={
+          canManage ? (
+            <Button type="button" onClick={openCreate}>
+              <Plus aria-hidden="true" /> Buat plan PM
+            </Button>
+          ) : null
+        }
+      />
 
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
@@ -686,8 +686,7 @@ export function PMView() {
             </div>
             <Badge variant="secondary" className="h-6 w-fit px-2.5">{bucketLabels[bucket] || "Semua"}</Badge>
           </div>
-          <form
-            className="flex flex-col gap-2 sm:flex-row sm:items-end"
+          <FilterBar
             onSubmit={(event) => {
               event.preventDefault();
               setPage(1);
@@ -696,18 +695,14 @@ export function PMView() {
           >
             <Field className="min-w-0 flex-1">
               <FieldLabel htmlFor="pm-search">Cari</FieldLabel>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                <Input
-                  id="pm-search"
-                  value={scheduleQuery}
-                  onChange={(event) => setScheduleQuery(event.target.value)}
-                  placeholder="Plan atau unit"
-                  className="pl-9 text-sm leading-5"
-                />
-              </div>
+              <SearchInput
+                id="pm-search"
+                value={scheduleQuery}
+                onChange={(event) => setScheduleQuery(event.target.value)}
+                placeholder="Plan atau unit"
+              />
             </Field>
-            <Field className="sm:w-52">
+            <Field className="md:w-52">
               <FieldLabel htmlFor="pm-bucket">Bucket</FieldLabel>
               <NativeSelect
                 id="pm-bucket"
@@ -743,7 +738,7 @@ export function PMView() {
             <Button type="button" variant="ghost" onClick={() => void loadSchedules()}>
               <RefreshCw aria-hidden="true" /> Refresh
             </Button>
-          </form>
+          </FilterBar>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {schedulesLoading ? (

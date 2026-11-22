@@ -5,13 +5,15 @@ import {
   Eye,
   Filter,
   RotateCcw,
-  Search,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterBar } from "@/components/list/list-filter-bar";
+import { SearchInput } from "@/components/list/list-search";
 import { CandidateStatusBadge, P2HStateBadge } from "@/components/p2h-badges";
 import { TablePagination } from "@/components/table-pagination";
 import { TableSortHeader } from "@/components/table-sort-header";
@@ -34,7 +36,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Sheet,
@@ -173,66 +174,49 @@ export function P2HReportsView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">Laporan P2H</h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Snapshot laporan dan temuan P2H yang tersinkron dari Odoo.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <nav aria-label="Breadcrumb" className="hidden items-center gap-2 text-sm sm:flex">
-              <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">
-                Dashboard
-              </Link>
-              <span className="text-muted-foreground" aria-hidden="true">/</span>
-              <span aria-current="page">P2H</span>
-            </nav>
-            <Badge variant="secondary" className="h-6 px-2.5">
-              {formatNumber(total)} laporan
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title="Laporan P2H"
+        description="Snapshot laporan dan temuan P2H yang tersinkron dari Odoo."
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
+            <Link href="/dashboard" className="hover:text-foreground">
+              Dashboard
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">P2H</span>
+          </nav>
+        }
+        actions={
+          <Badge variant="secondary" className="h-6 px-2.5">
+            {formatNumber(total)} laporan
+          </Badge>
+        }
+      />
 
       <Card>
         <CardContent>
-          <form
-            onSubmit={submitSearch}
-            aria-label="Cari dan filter laporan P2H"
-            className="flex flex-col gap-3 sm:flex-row sm:items-end"
-          >
+          <FilterBar onSubmit={submitSearch} aria-label="Cari dan filter laporan P2H">
             <Field className="min-w-0 flex-1" data-invalid={Boolean(queryError)}>
               <FieldLabel htmlFor="p2h-search">Cari laporan</FieldLabel>
-              <div className="relative">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden="true"
-                />
-                <Input
-                  id="p2h-search"
-                  name="q"
-                  type="search"
-                  enterKeyHint="search"
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setQueryError("");
-                  }}
-                  placeholder="Nama P2H, unit, foreman, atau lokasi"
-                  className="pl-9 text-sm leading-5"
-                />
-              </div>
+              <SearchInput
+                id="p2h-search"
+                name="q"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setQueryError("");
+                }}
+                placeholder="Nama P2H, unit, foreman, atau lokasi"
+              />
               {queryError ? <FieldError>{queryError}</FieldError> : null}
             </Field>
-            <Field className="sm:w-44">
+            <Field className="md:w-44">
               <FieldLabel htmlFor="p2h-state">State</FieldLabel>
               <NativeSelect
                 id="p2h-state"
                 value={state}
                 onChange={(event) => list.setFilter("state", event.target.value || null)}
-                className="w-full sm:w-44"
+                className="w-full"
               >
                 {Object.entries(stateLabels).map(([value, label]) => (
                   <NativeSelectOption key={value || "all"} value={value}>
@@ -241,7 +225,7 @@ export function P2HReportsView() {
                 ))}
               </NativeSelect>
             </Field>
-            <div className="flex gap-2">
+            <div className="flex gap-2 md:ml-auto">
               <Button type="submit" variant="outline">
                 <Filter aria-hidden="true" />
                 Terapkan
@@ -253,7 +237,7 @@ export function P2HReportsView() {
                 </Button>
               ) : null}
             </div>
-          </form>
+          </FilterBar>
         </CardContent>
       </Card>
 

@@ -11,7 +11,6 @@ import {
   Play,
   Plus,
   RefreshCw,
-  Search,
   Wrench,
   XCircle,
 } from "lucide-react";
@@ -19,6 +18,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { useSession } from "@/components/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterBar } from "@/components/list/list-filter-bar";
+import { SearchInput } from "@/components/list/list-search";
 import { TablePagination } from "@/components/table-pagination";
 import { WorkOrderMaterialPanel } from "@/components/workorder-material-panel";
 import { TableSortHeader } from "@/components/table-sort-header";
@@ -459,20 +461,18 @@ export function WorkOrdersView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Work Order</h1>
-          <p className="text-sm text-muted-foreground">
-            Work order manual, assignment, status, temuan P2H, dan lampiran.
-          </p>
-        </div>
-        {canCreate ? (
-          <Button type="button" onClick={() => void openCreate()}>
-            <Plus aria-hidden="true" />
-            Buat WO manual
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        title="Work Order"
+        description="Work order manual, assignment, status, temuan P2H, dan lampiran."
+        actions={
+          canCreate ? (
+            <Button type="button" onClick={() => void openCreate()}>
+              <Plus aria-hidden="true" />
+              Buat WO manual
+            </Button>
+          ) : null
+        }
+      />
 
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
@@ -502,8 +502,7 @@ export function WorkOrdersView() {
               {total} WO
             </Badge>
           </div>
-          <form
-            className="flex flex-col gap-2 lg:flex-row lg:items-end"
+          <FilterBar
             onSubmit={(event) => {
               event.preventDefault();
               list.setFilters({ q: queryInput.trim() || null, status: status || null, source: source || null });
@@ -511,18 +510,14 @@ export function WorkOrdersView() {
           >
             <Field className="min-w-0 flex-1">
               <FieldLabel htmlFor="wo-search">Cari</FieldLabel>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                <Input
-                  id="wo-search"
-                  value={queryInput}
-                  onChange={(event) => setQueryInput(event.target.value)}
-                  placeholder="Kode, judul, atau unit"
-                  className="pl-9 text-sm leading-5"
-                />
-              </div>
+              <SearchInput
+                id="wo-search"
+                value={queryInput}
+                onChange={(event) => setQueryInput(event.target.value)}
+                placeholder="Kode, judul, atau unit"
+              />
             </Field>
-            <Field className="lg:w-44">
+            <Field className="md:w-44">
               <FieldLabel htmlFor="wo-status">Status</FieldLabel>
               <NativeSelect
                 id="wo-status"
@@ -535,7 +530,7 @@ export function WorkOrdersView() {
                 ))}
               </NativeSelect>
             </Field>
-            <Field className="lg:w-40">
+            <Field className="md:w-40">
               <FieldLabel htmlFor="wo-source">Sumber</FieldLabel>
               <NativeSelect
                 id="wo-source"
@@ -548,10 +543,10 @@ export function WorkOrdersView() {
                 <NativeSelectOption value="pm">PM</NativeSelectOption>
               </NativeSelect>
             </Field>
-            <div className="flex gap-2">
+            <div className="flex gap-2 md:ml-auto">
               <Button type="submit" variant="outline">
                 <Filter aria-hidden="true" />
-                Filter
+                Terapkan
               </Button>
               <Button
                 type="button"
@@ -565,7 +560,7 @@ export function WorkOrdersView() {
                 Reset
               </Button>
             </div>
-          </form>
+          </FilterBar>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {loading ? (

@@ -7,7 +7,6 @@ import {
   Loader2,
   Plus,
   RotateCcw,
-  Search,
   Truck,
 } from "lucide-react";
 import Link from "next/link";
@@ -15,6 +14,9 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterBar } from "@/components/list/list-filter-bar";
+import { SearchInput } from "@/components/list/list-search";
 import { UnitStatusBadge } from "@/components/status-badges";
 import { TablePagination } from "@/components/table-pagination";
 import { TableSortHeader } from "@/components/table-sort-header";
@@ -38,7 +40,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -164,24 +165,20 @@ export function UnitsView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">Unit</h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Master unit, model, dan posisi HM/KM terakhir.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <nav aria-label="Breadcrumb" className="hidden items-center gap-2 text-sm sm:flex">
-              <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">
-                Dashboard
-              </Link>
-              <span className="text-muted-foreground" aria-hidden="true">
-                /
-              </span>
-              <span aria-current="page">Unit</span>
-            </nav>
+      <PageHeader
+        title="Unit"
+        description="Master unit, model, dan posisi HM/KM terakhir."
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
+            <Link href="/dashboard" className="hover:text-foreground">
+              Dashboard
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Unit</span>
+          </nav>
+        }
+        actions={
+          <>
             <Badge variant="secondary" className="h-6 px-2.5">
               {formatNumber(total)} unit
             </Badge>
@@ -191,48 +188,35 @@ export function UnitsView() {
                 Tambah unit
               </Link>
             ) : null}
-          </div>
-        </CardContent>
-      </Card>
+          </>
+        }
+      />
 
       <Card>
         <CardContent>
           <search>
-            <form
-              onSubmit={submitSearch}
-              aria-label="Cari dan filter unit"
-              className="flex flex-col gap-3 sm:flex-row sm:items-end"
-            >
+            <FilterBar onSubmit={submitSearch} aria-label="Cari dan filter unit">
               <Field className="min-w-0 flex-1" data-invalid={Boolean(queryError)}>
                 <FieldLabel htmlFor="unit-search">Cari unit</FieldLabel>
-                <div className="relative">
-                  <Search
-                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <Input
-                    id="unit-search"
-                    name="q"
-                    type="search"
-                    enterKeyHint="search"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    value={query}
-                    onChange={(event) => {
-                      setQuery(event.target.value);
-                      setQueryError("");
-                    }}
-                    aria-invalid={Boolean(queryError)}
-                    aria-describedby={queryError ? "unit-search-error" : undefined}
-                    placeholder="Kode, nopol, lokasi, atau merk"
-                    className="pl-9 text-sm leading-5"
-                  />
-                </div>
+                <SearchInput
+                  id="unit-search"
+                  name="q"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={query}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setQueryError("");
+                  }}
+                  aria-invalid={Boolean(queryError)}
+                  aria-describedby={queryError ? "unit-search-error" : undefined}
+                  placeholder="Kode, nopol, lokasi, atau merk"
+                />
                 {queryError ? (
                   <FieldError id="unit-search-error">{queryError}</FieldError>
                 ) : null}
               </Field>
-              <Field className="sm:w-40 sm:shrink-0">
+              <Field className="md:w-40 md:shrink-0">
                 <FieldLabel htmlFor="unit-active-filter">Status</FieldLabel>
                 <NativeSelect
                   id="unit-active-filter"
@@ -244,15 +228,15 @@ export function UnitsView() {
                         event.target.value === "active" ? null : event.target.value,
                     });
                   }}
-                  className="w-full sm:w-40"
+                  className="w-full"
                 >
                   <NativeSelectOption value="active">Aktif</NativeSelectOption>
                   <NativeSelectOption value="inactive">Nonaktif</NativeSelectOption>
                   <NativeSelectOption value="all">Semua</NativeSelectOption>
                 </NativeSelect>
               </Field>
-              <div className="flex gap-2">
-                <Button type="submit" variant="outline" className="flex-1 sm:flex-none">
+              <div className="flex gap-2 md:ml-auto">
+                <Button type="submit" variant="outline" className="flex-1 md:flex-none">
                   <Filter aria-hidden="true" />
                   Terapkan
                 </Button>
@@ -261,14 +245,14 @@ export function UnitsView() {
                     type="button"
                     variant="ghost"
                     onClick={resetFilters}
-                    className="flex-1 sm:flex-none"
+                    className="flex-1 md:flex-none"
                   >
                     <RotateCcw aria-hidden="true" />
                     Reset
                   </Button>
                 ) : null}
               </div>
-            </form>
+            </FilterBar>
           </search>
 
           {hasFilters ? (

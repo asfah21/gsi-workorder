@@ -146,7 +146,7 @@ export function DashboardView() {
                 <p className="text-sm text-muted-foreground">
                   {today || "Ringkasan hari ini"}
                 </p>
-                <h1 className="mt-1 text-xl font-medium">
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight">
                   Selamat datang, {user.name || user.nik || "Pengguna"}
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm text-muted-foreground">

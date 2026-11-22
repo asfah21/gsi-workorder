@@ -5,14 +5,16 @@ import {
   CircleAlert,
   CircleCheck,
   Loader2,
-  Search,
   Settings2,
   ShieldCheck,
 } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
+import { SearchInput } from "@/components/list/list-search";
 import { ActiveBadge } from "@/components/status-badges";
 import { TablePagination } from "@/components/table-pagination";
 import { TableSortHeader } from "@/components/table-sort-header";
@@ -205,22 +207,20 @@ export function MasterView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">Master unit</h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Model unit dan engine yang dipakai pada master unit.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <nav aria-label="Breadcrumb" className="hidden items-center gap-2 text-sm sm:flex">
-              <span className="text-muted-foreground">Dashboard</span>
-              <span className="text-muted-foreground" aria-hidden="true">
-                /
-              </span>
-              <span aria-current="page">Master unit</span>
-            </nav>
+      <PageHeader
+        title="Master unit"
+        description="Model unit dan engine yang dipakai pada master unit."
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
+            <Link href="/dashboard" className="hover:text-foreground">
+              Dashboard
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Master unit</span>
+          </nav>
+        }
+        actions={
+          <>
             <Badge variant="secondary" className="h-6 gap-1.5 px-2.5">
               <Boxes className="size-3.5" aria-hidden="true" />
               {unitTotal} unit model
@@ -229,9 +229,9 @@ export function MasterView() {
               <Settings2 className="size-3.5" aria-hidden="true" />
               {engineTotal} engine model
             </Badge>
-          </div>
-        </CardContent>
-      </Card>
+          </>
+        }
+      />
 
       {!canWrite ? (
         <Alert className="border-sky-500/30 bg-sky-500/5">
@@ -269,32 +269,23 @@ export function MasterView() {
                   <label htmlFor="um-search" className="sr-only">
                     Cari unit model
                   </label>
-                  <div className="relative">
-                    <Search
-                      className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    <Input
-                      id="um-search"
-                      name="umQ"
-                      type="search"
-                      value={umQuery}
-                      onChange={(event) => {
-                        setUmQuery(event.target.value);
-                        setUmQueryError("");
-                      }}
-                      aria-invalid={Boolean(umQueryError)}
-                      aria-describedby={umQueryError ? "um-search-error" : undefined}
-                      placeholder="Cari model..."
-                      enterKeyHint="search"
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      className="pl-9 text-sm leading-5"
-                    />
-                    <button type="submit" className="sr-only">
-                      Cari unit model
-                    </button>
-                  </div>
+                  <SearchInput
+                    id="um-search"
+                    name="umQ"
+                    value={umQuery}
+                    onChange={(event) => {
+                      setUmQuery(event.target.value);
+                      setUmQueryError("");
+                    }}
+                    aria-invalid={Boolean(umQueryError)}
+                    aria-describedby={umQueryError ? "um-search-error" : undefined}
+                    placeholder="Cari model..."
+                    autoCapitalize="none"
+                    spellCheck={false}
+                  />
+                  <button type="submit" className="sr-only">
+                    Cari unit model
+                  </button>
                   {umQueryError ? (
                     <FieldError id="um-search-error">{umQueryError}</FieldError>
                   ) : null}
@@ -427,32 +418,23 @@ export function MasterView() {
                   <label htmlFor="em-search" className="sr-only">
                     Cari engine model
                   </label>
-                  <div className="relative">
-                    <Search
-                      className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    <Input
-                      id="em-search"
-                      name="emQ"
-                      type="search"
-                      value={emQuery}
-                      onChange={(event) => {
-                        setEmQuery(event.target.value);
-                        setEmQueryError("");
-                      }}
-                      aria-invalid={Boolean(emQueryError)}
-                      aria-describedby={emQueryError ? "em-search-error" : undefined}
-                      placeholder="Cari model..."
-                      enterKeyHint="search"
-                      autoCapitalize="none"
-                      spellCheck={false}
-                      className="pl-9 text-sm leading-5"
-                    />
-                    <button type="submit" className="sr-only">
-                      Cari engine model
-                    </button>
-                  </div>
+                  <SearchInput
+                    id="em-search"
+                    name="emQ"
+                    value={emQuery}
+                    onChange={(event) => {
+                      setEmQuery(event.target.value);
+                      setEmQueryError("");
+                    }}
+                    aria-invalid={Boolean(emQueryError)}
+                    aria-describedby={emQueryError ? "em-search-error" : undefined}
+                    placeholder="Cari model..."
+                    autoCapitalize="none"
+                    spellCheck={false}
+                  />
+                  <button type="submit" className="sr-only">
+                    Cari engine model
+                  </button>
                   {emQueryError ? (
                     <FieldError id="em-search-error">{emQueryError}</FieldError>
                   ) : null}

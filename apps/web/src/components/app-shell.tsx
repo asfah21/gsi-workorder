@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   ListChecks,
   PackageSearch,
-  Search,
   Settings2,
   Truck,
   Warehouse,
@@ -26,13 +25,13 @@ import {
   useState,
 } from "react";
 
+import { SearchInput } from "@/components/list/list-search";
 import { NotificationMenu } from "@/components/notification-menu";
 import { ProfileMenu } from "@/components/profile-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
@@ -357,20 +356,13 @@ function AppShellFrame({
                 <label htmlFor="global-unit-search" className="sr-only">
                   Cari unit
                 </label>
-                <div className="relative w-80 max-w-full">
-                  <Search
-                    className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <Input
+                <div className="w-80 max-w-full">
+                  <SearchInput
                     id="global-unit-search"
                     name="q"
-                    type="search"
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder="Cari unit..."
-                    enterKeyHint="search"
-                    className="pl-9 text-sm leading-5"
                   />
                 </div>
               </form>

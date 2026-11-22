@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
 import { UnitStatusBadge } from "@/components/status-badges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -134,23 +135,22 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <Link
-              href="/units"
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              <ArrowLeft className="size-4" aria-hidden="true" />
-              Unit
-            </Link>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold">{unit.code}</h1>
-              <UnitStatusBadge active={unit.is_active} breakdown={unit.is_breakdown} />
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-          </div>
-          {canWrite ? (
+      <PageHeader
+        title={
+          <span className="flex flex-wrap items-center gap-2">
+            {unit.code}
+            <UnitStatusBadge active={unit.is_active} breakdown={unit.is_breakdown} />
+          </span>
+        }
+        description={subtitle}
+        breadcrumb={
+          <Link href="/units" className="inline-flex items-center gap-1.5 hover:text-foreground">
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Unit
+          </Link>
+        }
+        actions={
+          canWrite ? (
             <Link
               href={`/units/${unit.id}/edit`}
               className={buttonVariants({ variant: "outline" })}
@@ -158,9 +158,9 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
               <Pencil className="size-4" aria-hidden="true" />
               Edit unit
             </Link>
-          ) : null}
-        </CardContent>
-      </Card>
+          ) : null
+        }
+      />
 
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">

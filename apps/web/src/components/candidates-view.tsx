@@ -7,7 +7,6 @@ import {
   Filter,
   Loader2,
   RotateCcw,
-  Search,
   ShieldCheck,
   XCircle,
 } from "lucide-react";
@@ -16,6 +15,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
+import { FilterBar } from "@/components/list/list-filter-bar";
+import { SearchInput } from "@/components/list/list-search";
 import { CandidateStatusBadge, PriorityBadge } from "@/components/p2h-badges";
 import { TablePagination } from "@/components/table-pagination";
 import { TableSortHeader } from "@/components/table-sort-header";
@@ -38,7 +40,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Sheet,
@@ -378,61 +379,44 @@ export function CandidatesView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardContent className="flex flex-row flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold">Usulan WO</h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Temuan P2H yang menunggu keputusan planner. Approve akan membuat work order.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <nav aria-label="Breadcrumb" className="hidden items-center gap-2 text-sm sm:flex">
-              <Link href="/dashboard" className="text-muted-foreground hover:text-foreground">
-                Dashboard
-              </Link>
-              <span className="text-muted-foreground" aria-hidden="true">/</span>
-              <span aria-current="page">Usulan WO</span>
-            </nav>
-            <Badge variant="secondary" className="h-6 px-2.5">
-              {formatNumber(total)} {status === "pending" ? "pending" : "usulan"}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+      <PageHeader
+        title="Usulan WO"
+        description="Temuan P2H yang menunggu keputusan planner. Approve akan membuat work order."
+        breadcrumb={
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
+            <Link href="/dashboard" className="hover:text-foreground">
+              Dashboard
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span aria-current="page">Usulan WO</span>
+          </nav>
+        }
+        actions={
+          <Badge variant="secondary" className="h-6 px-2.5">
+            {formatNumber(total)} {status === "pending" ? "pending" : "usulan"}
+          </Badge>
+        }
+      />
 
       <Card>
         <CardContent>
-          <form
-            onSubmit={submitSearch}
-            aria-label="Cari dan filter usulan WO"
-            className="flex flex-col gap-3 lg:flex-row lg:items-end"
-          >
+          <FilterBar onSubmit={submitSearch} aria-label="Cari dan filter usulan WO">
             <Field className="min-w-0 flex-1" data-invalid={Boolean(queryError)}>
               <FieldLabel htmlFor="candidate-search">Cari usulan</FieldLabel>
-              <div className="relative">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden="true"
-                />
-                <Input
-                  id="candidate-search"
-                  name="q"
-                  type="search"
-                  enterKeyHint="search"
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setQueryError("");
-                  }}
-                  placeholder="Nama P2H, unit, foreman, atau lokasi"
-                  className="pl-9 text-sm leading-5"
-                  aria-invalid={Boolean(queryError)}
-                />
-              </div>
+              <SearchInput
+                id="candidate-search"
+                name="q"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setQueryError("");
+                }}
+                placeholder="Nama P2H, unit, foreman, atau lokasi"
+                aria-invalid={Boolean(queryError)}
+              />
               {queryError ? <FieldError>{queryError}</FieldError> : null}
             </Field>
-            <Field className="lg:w-44">
+            <Field className="md:w-44">
               <FieldLabel htmlFor="candidate-status">Status</FieldLabel>
               <NativeSelect
                 id="candidate-status"
@@ -442,7 +426,7 @@ export function CandidatesView() {
                     status: event.target.value === "pending" ? null : event.target.value,
                   })
                 }
-                className="w-full lg:w-44"
+                className="w-full"
               >
                 {Object.entries(statusLabels).map(([value, label]) => (
                   <NativeSelectOption key={value} value={value}>
@@ -451,7 +435,7 @@ export function CandidatesView() {
                 ))}
               </NativeSelect>
             </Field>
-            <Field className="lg:w-44">
+            <Field className="md:w-44">
               <FieldLabel htmlFor="candidate-unit-type">Tipe unit</FieldLabel>
               <NativeSelect
                 id="candidate-unit-type"
@@ -459,14 +443,14 @@ export function CandidatesView() {
                 onChange={(event) =>
                   list.setFilter("unit_type", event.target.value || null)
                 }
-                className="w-full lg:w-44"
+                className="w-full"
               >
                 <NativeSelectOption value="">Semua tipe</NativeSelectOption>
                 <NativeSelectOption value="light_vehicle">Light vehicle</NativeSelectOption>
                 <NativeSelectOption value="heavy_vehicle">Heavy vehicle</NativeSelectOption>
               </NativeSelect>
             </Field>
-            <div className="flex gap-2">
+            <div className="flex gap-2 md:ml-auto">
               <Button type="submit" variant="outline">
                 <Filter aria-hidden="true" />
                 Terapkan
@@ -478,7 +462,7 @@ export function CandidatesView() {
                 </Button>
               ) : null}
             </div>
-          </form>
+          </FilterBar>
         </CardContent>
       </Card>
 
