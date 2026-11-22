@@ -346,7 +346,7 @@ function AppShellFrame({
 
               <Separator
                 orientation="vertical"
-                className="mx-0.5 h-6 shrink-0 self-center"
+                className="mx-1 h-5 shrink-0 self-center data-vertical:h-5 data-vertical:self-center"
               />
 
               <form
@@ -377,8 +377,8 @@ function AppShellFrame({
             </div>
 
             <div className="ml-auto flex items-center gap-1.5">
-              <NotificationMenu />
               <ThemeToggle />
+              <NotificationMenu />
               <ProfileMenu
                 user={user}
                 roleLabel={roleLabel}
