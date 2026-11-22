@@ -108,12 +108,6 @@ export function UnitEditView({ unitId }: { unitId: number }) {
       <PageHeader
         title="Edit unit"
         description="Perbarui identitas, model, atau status unit."
-        breadcrumb={
-          <Link href={`/units/${unit.id}`} className="inline-flex items-center gap-1.5 hover:text-foreground">
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            {unit.code}
-          </Link>
-        }
       />
       <Card>
         <CardContent>

@@ -8,7 +8,6 @@ import {
   Settings2,
   ShieldCheck,
 } from "lucide-react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -210,15 +209,6 @@ export function MasterView() {
       <PageHeader
         title="Master unit"
         description="Model unit dan engine yang dipakai pada master unit."
-        breadcrumb={
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
-            <Link href="/dashboard" className="hover:text-foreground">
-              Dashboard
-            </Link>
-            <span aria-hidden="true">/</span>
-            <span aria-current="page">Master unit</span>
-          </nav>
-        }
         actions={
           <>
             <Badge variant="secondary" className="h-6 gap-1.5 px-2.5">

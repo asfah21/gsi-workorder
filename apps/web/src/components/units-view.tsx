@@ -168,15 +168,6 @@ export function UnitsView() {
       <PageHeader
         title="Unit"
         description="Master unit, model, dan posisi HM/KM terakhir."
-        breadcrumb={
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
-            <Link href="/dashboard" className="hover:text-foreground">
-              Dashboard
-            </Link>
-            <span aria-hidden="true">/</span>
-            <span aria-current="page">Unit</span>
-          </nav>
-        }
         actions={
           <>
             <Badge variant="secondary" className="h-6 px-2.5">

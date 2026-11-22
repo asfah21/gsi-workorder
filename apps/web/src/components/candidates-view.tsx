@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -382,15 +381,6 @@ export function CandidatesView() {
       <PageHeader
         title="Usulan WO"
         description="Temuan P2H yang menunggu keputusan planner. Approve akan membuat work order."
-        breadcrumb={
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
-            <Link href="/dashboard" className="hover:text-foreground">
-              Dashboard
-            </Link>
-            <span aria-hidden="true">/</span>
-            <span aria-current="page">Usulan WO</span>
-          </nav>
-        }
         actions={
           <Badge variant="secondary" className="h-6 px-2.5">
             {formatNumber(total)} {status === "pending" ? "pending" : "usulan"}

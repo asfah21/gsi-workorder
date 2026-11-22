@@ -177,15 +177,6 @@ export function P2HReportsView() {
       <PageHeader
         title="Laporan P2H"
         description="Snapshot laporan dan temuan P2H yang tersinkron dari Odoo."
-        breadcrumb={
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2">
-            <Link href="/dashboard" className="hover:text-foreground">
-              Dashboard
-            </Link>
-            <span aria-hidden="true">/</span>
-            <span aria-current="page">P2H</span>
-          </nav>
-        }
         actions={
           <Badge variant="secondary" className="h-6 px-2.5">
             {formatNumber(total)} laporan

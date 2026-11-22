@@ -143,12 +143,6 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
           </span>
         }
         description={subtitle}
-        breadcrumb={
-          <Link href="/units" className="inline-flex items-center gap-1.5 hover:text-foreground">
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Unit
-          </Link>
-        }
         actions={
           canWrite ? (
             <Link
