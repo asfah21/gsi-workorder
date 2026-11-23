@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { WorkOrdersView } from "@/components/workorders-view";
 
 export const metadata: Metadata = {
-  title: "Work Order | GSI Work Order",
+  title: "Work Order | PAMS",
   description: "Work order manual dan siklus hidup pekerjaan maintenance",
 };
 

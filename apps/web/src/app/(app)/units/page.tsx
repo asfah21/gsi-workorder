@@ -5,7 +5,7 @@ import { UnitsView } from "@/components/units-view";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = {
-  title: "Unit | GSI Work Order",
+  title: "Unit | PAMS",
   description: "Master unit dan HM/KM",
 };
 

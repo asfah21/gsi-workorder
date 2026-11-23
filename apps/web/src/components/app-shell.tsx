@@ -72,6 +72,7 @@ type NavigationItem = {
   label: string;
   icon: typeof LayoutDashboard;
   roles?: User["role"][];
+  beta?: boolean;
 };
 
 const navigationGroups: { label: string; items: NavigationItem[] }[] = [
@@ -79,7 +80,7 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     label: "Ringkasan",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/reports", label: "Laporan", icon: FileText },
+      { href: "/reports", label: "Laporan", icon: FileText, beta: true },
     ],
   },
   {
@@ -88,33 +89,36 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
       { href: "/units", label: "Unit", icon: Truck },
       { href: "/p2h", label: "P2H", icon: ClipboardList },
       {
-        href: "/wo-candidates",
-        label: "Usulan WO",
-        icon: ListChecks,
-        roles: ["admin", "planner"],
-      },
-      {
         href: "/workorders",
         label: "Work Order",
         icon: ClipboardCheck,
       },
       {
+        href: "/wo-candidates",
+        label: "Usulan WO",
+        icon: ListChecks,
+        roles: ["admin", "planner"],
+        beta: true,
+      },
+      {
         href: "/pm",
         label: "Maintenance",
         icon: CalendarClock,
+        beta: true,
       },
       {
         href: "/inventory",
         label: "Inventory",
         icon: Warehouse,
+        beta: true,
       },
     ],
   },
   {
     label: "Master data",
     items: [
-      { href: "/master", label: "Master Unit", icon: Boxes },
-      { href: "/spareparts", label: "Sparepart", icon: PackageSearch },
+      { href: "/master", label: "Master Unit", icon: Boxes, beta: true },
+      { href: "/spareparts", label: "Sparepart", icon: PackageSearch, beta: true },
     ],
   },
   {
@@ -247,7 +251,7 @@ function AppShellFrame({
           <Link
             href="/dashboard"
             onClick={closeMobileNav}
-            aria-label="GSI Work Order"
+            aria-label="PAMS"
             className="flex min-w-0 items-center gap-2 overflow-hidden"
           >
             <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
@@ -255,10 +259,10 @@ function AppShellFrame({
             </span>
             <span className="hide-menu min-w-0">
               <span className="block truncate text-sm font-semibold">
-                GSI Work Order
+                PAMS
               </span>
               <span className="block truncate text-xs text-muted-foreground">
-                Maintenance &amp; Unit
+                Plant &amp; Maintenance
               </span>
             </span>
           </Link>
@@ -292,20 +296,28 @@ function AppShellFrame({
                           render={
                             <Link
                               href={item.href}
-                              aria-label={item.label}
+                              aria-label={item.beta ? `${item.label} (Beta)` : item.label}
                               aria-current={active ? "page" : undefined}
                               onClick={closeMobileNav}
                               className="cursor-pointer"
                             />
                           }
                           isActive={active}
-                          tooltip={item.label}
+                          tooltip={item.beta ? `${item.label} (Beta)` : item.label}
                           className="h-9 select-none gap-3 rounded-md px-3 text-sm font-medium data-active:bg-primary data-active:text-background data-active:hover:bg-primary data-active:hover:text-background"
                         >
                           <item.icon className="size-4" aria-hidden="true" />
                           <span className="hide-menu min-w-0 flex-1 truncate">
                             {item.label}
                           </span>
+                          {item.beta ? (
+                            <Badge
+                              variant="secondary"
+                              className="hide-menu h-5 shrink-0 px-2"
+                            >
+                              Beta
+                            </Badge>
+                          ) : null}
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     );
@@ -334,10 +346,10 @@ function AppShellFrame({
                 </span>
                 <span className="hidden min-w-0 sm:block">
                   <span className="block truncate text-sm font-semibold">
-                    GSI Work Order
+                    PAMS
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    Maintenance &amp; Unit
+                    Plant &amp; Maintenance
                   </span>
                 </span>
               </Link>

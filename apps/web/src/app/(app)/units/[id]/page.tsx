@@ -8,7 +8,7 @@ type PageProps = {
 };
 
 export const metadata: Metadata = {
-  title: "Detail Unit | GSI Work Order",
+  title: "Detail Unit | PAMS",
 };
 
 export default async function UnitDetailPage({ params }: PageProps) {

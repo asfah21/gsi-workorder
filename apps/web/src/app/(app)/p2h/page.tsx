@@ -5,7 +5,7 @@ import { P2HReportsView } from "@/components/p2h-reports-view";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = {
-  title: "P2H | GSI Work Order",
+  title: "P2H | PAMS",
   description: "Snapshot laporan P2H dan temuan",
 };
 

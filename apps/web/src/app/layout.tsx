@@ -4,6 +4,7 @@ import Script from "next/script";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+// @ts-expect-error CSS is processed by the Next.js bundler, not TypeScript.
 import "./globals.css";
 
 const Geist = localFont({
@@ -30,8 +31,9 @@ const GeistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "GSI Work Order",
-  description: "Sistem work order dan maintenance PT GSI",
+  title: "PAMS | Plant and Maintenance System",
+  description:
+    "Sistem operasional Plant and Maintenance GSI untuk work order, PM, armada, inventory, dan laporan.",
   other: {
     "color-scheme": "light dark",
   },

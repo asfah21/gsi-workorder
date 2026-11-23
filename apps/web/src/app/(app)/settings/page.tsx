@@ -5,7 +5,7 @@ import { SettingsView } from "@/components/settings-view";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = {
-  title: "Pengaturan | GSI Work Order",
+  title: "Pengaturan | PAMS",
   description: "Pengaturan global P2H, kandidat work order, dan PM otomatis",
 };
 

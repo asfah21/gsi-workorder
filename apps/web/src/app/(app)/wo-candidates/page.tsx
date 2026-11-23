@@ -5,7 +5,7 @@ import { CandidatesView } from "@/components/candidates-view";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = {
-  title: "Usulan WO | GSI Work Order",
+  title: "Usulan WO | PAMS",
   description: "Usulan work order dari temuan P2H",
 };
 

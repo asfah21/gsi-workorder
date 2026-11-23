@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { LoginForm } from "@/components/login-form";
 
 export const metadata: Metadata = {
-  title: "Masuk | GSI Work Order",
-  description: "Login aplikasi GSI Work Order",
+  title: "Masuk | PAMS",
+  description: "Login aplikasi PAMS",
 };
 
 export default function LoginPage() {

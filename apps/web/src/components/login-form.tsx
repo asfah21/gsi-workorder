@@ -115,7 +115,7 @@ export function LoginForm() {
         <div className="dark hidden lg:flex lg:w-[32rem]">
           <div className="relative flex w-full flex-col items-center justify-center bg-background p-16 text-center text-foreground">
             <div className="z-10 flex max-w-sm flex-col items-center gap-6">
-              <Link href="/" aria-label="GSI Work Order" className="grid size-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-white backdrop-blur-sm">
+              <Link href="/" aria-label="PAMS" className="grid size-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-white backdrop-blur-sm">
                 <Wrench className="size-5" aria-hidden="true" />
               </Link>
               <p className="text-3xl font-medium">Selamat Datang Kembali</p>
@@ -136,16 +136,16 @@ export function LoginForm() {
 
         <div className="flex min-w-0 flex-1 flex-col items-center justify-center p-8 md:p-12">
           <div className="flex w-full min-w-0 max-w-md flex-col items-center gap-6">
-            <Link href="/" aria-label="GSI Work Order" className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
+            <Link href="/" aria-label="PAMS" className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
               <Wrench className="size-5" aria-hidden="true" />
             </Link>
 
             <div className="flex flex-col gap-1 text-center">
               <h1 id="login-heading" className="text-2xl font-medium text-foreground">
-                Masuk ke GSI Work Order
+                Masuk ke PAMS
               </h1>
               <p id="login-help" className="text-sm font-normal text-muted-foreground">
-                Gunakan akun Odoo yang sudah terdaftar
+                Plant and Maintenance System · Gunakan akun Odoo yang sudah terdaftar
               </p>
             </div>
 
