@@ -425,7 +425,7 @@ tidak ikut diparsing.
 
 ## Status milestone
 
-Status lokal per 2026-11-22. Lihat `docs/Agent Brief.md` untuk rincian acceptance.
+Status lokal per 2026-11-23. Lihat `docs/Agent Brief.md` untuk rincian acceptance.
 
 | Milestone | Status |
 |---|---|
@@ -436,7 +436,9 @@ Status lokal per 2026-11-22. Lihat `docs/Agent Brief.md` untuk rincian acceptanc
 | M4 — notifikasi, reminder, toggle, PM core | Accepted di server (`000007_m4_pm_core`) |
 | M5 — sparepart, compatibility, inventory | Selesai lokal (`000008_m5_spareparts_inventory`); menunggu acceptance server |
 | M6 — material requirement & readiness | Selesai lokal (`000009_m6_material_requirements`); menunggu acceptance server |
-| M7A — unit history, timeline, downtime | Selesai lokal (`000010_m7_history_reporting`); menunggu acceptance server |
-| M7B — dashboard, report CSV, audit hardening | Selesai lokal (`000011_m7b_reporting`); menunggu acceptance server |
+| M7A — unit history, timeline, downtime | Accepted tahap 1 / `v0.1.7` (`000010_m7_history_reporting`); acceptance server UAT terpisah |
+| M7B — dashboard, report CSV, audit hardening | Accepted tahap 1 / `v0.1.7` (`000011_m7b_reporting`); acceptance server UAT terpisah |
+
+Baseline rilis tahap 1: **`v0.1.7` (M7)**. UI/operasional tahap 1 sudah accepted; acceptance server UAT M5/M6/M7A/M7B tetap dicatat terpisah. Angka `7` merujuk ke milestone M7; `M7B` adalah sub-milestone reporting.
 
 Jangan melanjutkan ke milestone berikutnya tanpa instruksi eksplisit.

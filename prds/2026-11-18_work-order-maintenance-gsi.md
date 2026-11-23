@@ -1,8 +1,9 @@
 # GSI Work Order & Maintenance: PRD
 
-**Status:** Draft — rev. 3 (ekspansi scope: PM, material readiness, sparepart, inventory, unit history, reporting)
+**Status:** Baseline rilis/UI tahap 1 accepted — rev. 4 (v0.1.7 / M7); acceptance server UAT tetap gate terpisah.
 **Author:** Azvan IT (PT GSI)
 **Date:** 2026-11-18
+**Last updated:** 2026-11-23
 **Repo rencana:** `gsi-workorder` (mono-repo, §7)
 **Baseline locked:** Milestone 0 (scaffold, schema, seed, Docker; lihat §5.2) — **locked**, tidak boleh diubah tanpa approval eksplisit.
 
@@ -11,6 +12,7 @@
 | 1 | 2026-11-18 | PRD awal: P2H → usulan WO → WO |
 | 2 | 2026-11-18 | Alur konfirmasi WO, toggle otomatis, audit setting |
 | 3 | 2026-11-18 | Ekspansi scope: PM (HM/KM/calendar), material planning & readiness, sparepart & compatibility, internal inventory, unit history, dashboard/reporting, timezone WITA. Roadmap M1–M7 disusun ulang; M0 tetap locked. |
+| 4 | 2026-11-23 | Baseline tahap 1 / `v0.1.7` (M7): rebranding UI PAMS, dashboard shadcn dengan data nyata, hero tanpa tanggal/summary, Beta badge amber, urutan menu Usulan WO, dan versi sidebar `v.0.1.7`. PRD dan Agent Brief tetap dipertahankan sebagai source of truth; masukan user dicatat di decision log, bukan dihapus. |
 
 Dokumen pendukung:
 
@@ -860,9 +862,11 @@ Detail dan test case ada di `docs/Timezone.md`.
 | **M4** | PM core: plan, checklist, schedule, due/upcoming/overdue, generate WO, PM completion/history/compliance | M3 | Plan per unit/model; combined first reached; auto-WO default 0; next due benar |
 | **M5** | Sparepart & compatibility, PM material plan (`pm_plan_materials`), warehouse/location, receipt/issue/return/transfer/adjustment/opname, ledger, balances, min stock | M1, M4 | Ledger immutable; negative ditolak; balance reconcile; compatibility status |
 | **M6** | Material planning/readiness, reservation/release, issue/return, waiting_part integration, shortage aging, PM material requirement integration | M4, M5 | Planning/reservation tidak mengurangi stok; issue mengurangi; return menambah; readiness benar |
-| **M7** | Unit history/profile, timeline, component history/intervals, downtime, dashboard lengkap, report/export, performance & audit hardening | M6 | Semua history dari transaksi aktual; report WITA; p95 target |
+| **M7** ✅ tahap 1 | Unit history/profile, timeline, component history/intervals, downtime, dashboard lengkap, report/export, performance & audit hardening | M6 | Semua history dari transaksi aktual; report WITA; p95 target |
 
 **Catatan dependensi:** M4 PM core tidak menjanjikan readiness stok; `pm_plan_materials` baru ada di M5 (butuh master sparepart), dan material requirement/readiness penuh di M6. Jika PM harus launch dengan material plan/readiness, urutan M4/M5/M6 perlu approval.
+
+**Baseline rilis tahap 1:** `v0.1.7` (M7). Angka `7` pada versi merujuk ke milestone M7; `M7B` adalah sub-milestone reporting. Acceptance server UAT untuk M5/M6/M7A/M7B tetap menjadi gate terpisah dan tidak membatalkan baseline UI tahap 1.
 
 ---
 
@@ -888,6 +892,12 @@ Detail dan test case ada di `docs/Timezone.md`.
 | D-14 | 2026-11-18 | Role ditambah `storekeeper`; supervisor memakai planner/admin sampai approval matrix final | Final |
 | D-15 | 2026-11-18 | Inventory quantity-only; tanpa costing/valuation | Final |
 | D-16 | 2026-11-18 | Roadmap M0–M7 dengan PM core M4, inventory M5, material M6, history/reporting M7 | Final |
+| D-17 | 2026-11-23 | Brand UI memakai `PAMS — Plant and Maintenance System`; rebranding hanya frontend/metadata, tidak mengganti Go module, Docker service, atau path repo | Final |
+| D-18 | 2026-11-23 | Dashboard mengikuti visual demo shadcn dan memakai data API nyata; hero tanpa tanggal/summary badge, ilustrasi diperkecil, serta tidak ada data demo/ecommerce | Final |
+| D-19 | 2026-11-23 | Beta badge amber kecil pada Laporan, Maintenance, Inventory, Sparepart, Master Unit, dan Usulan WO; badge disembunyikan saat sidebar collapsed; Usulan WO berada di bawah Work Order | Final |
+| D-20 | 2026-11-23 | Baseline rilis tahap 1 adalah `v0.1.7`; angka `7` merujuk ke milestone M7 dan `M7B` adalah sub-milestone reporting; footer memakai `AZV-M7B` | Final |
+| D-21 | 2026-11-23 | Halaman list memakai pola PageHeader → filter card → tabel full-width → pagination di footer card; state loading/empty/error wajib ditangani | Final |
+| D-22 | 2026-11-23 | PRD dan Agent Brief tetap dipertahankan sebagai source of truth; masukan user yang sudah disetujui dicatat di decision log, dan keputusan lama ditandai superseded bila berubah | Final |
 
 ### 13.2 Open questions
 

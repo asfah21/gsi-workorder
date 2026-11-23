@@ -26,11 +26,11 @@ Fakta M0:
 | Auto-WO P2H | default `false`; hanya jika setting `true` |
 | Timezone saat ini | `APP_TIMEZONE` default `Asia/Makassar` dan divalidasi saat startup; `.env.example` dan `docker-compose.yml` masih memakai `TZ=Asia/Jakarta`. Target proses `TZ=UTC` + `APP_TIMEZONE=Asia/Makassar`; perubahan config butuh approval terpisah |
 
-**Fase saat ini (status per 2026-11-22):** M1, M2, M3, dan M4 sudah **accepted**. Verifikasi lokal M1/M2/M3/M4 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL) lulus. Sync Odoo nyata diverifikasi pada 2026-11-21: 4.454 report, 8.519 finding, 2.501 kandidat unik (587 pending, 1.914 archived), `work_orders` hasil sync = 0, dan `raw` tanpa foto. Sync kedua idempoten. Kontrak skip divalidasi sebagai 400 dan bulk tetap 422. M4 PM core accepted di server pada migration `000007_m4_pm_core`, termasuk job evaluasi PM 07:00 WITA. M5 Sparepart & Inventory sudah diimplementasikan lokal di migration `000008_m5_spareparts_inventory`: master sparepart/nomor/alternatif/compatibility, PM material template, warehouse/location, transaksi inventory immutable, saldo, stock policy, opname, rekonsiliasi, dan alert stok harian 07:30 WITA. M6 Material sudah diimplementasikan lokal di migration `000009_m6_material_requirements`: material requirement per WO, readiness/shortage, reservasi/release, issue/return + usage, PM snapshot, waiting-part guard, shortage aging, dan rekonsiliasi reserved. M7A (history & downtime unit) selesai lokal dan ter-commit di `fde629d` (migration `000010_m7_history_reporting`). M7B (dashboard operasional, laporan JSON/CSV, agregasi benchmark, audit hardening) selesai lokal di migration `000011_m7b_reporting` dengan endpoint `/dashboard/pm|material|inventory|maintenance` dan `/reports/:name`; seluruh verifikasi lokal lulus (Go test/vet/build dengan PostgreSQL, ESLint, Next build). M5, M6, M7A, dan M7B **menunggu acceptance server** karena akses VPS belum pulih.
+**Fase saat ini (status per 2026-11-23):** M1, M2, M3, dan M4 sudah **accepted**. Verifikasi lokal M1/M2/M3/M4 (Go test/vet/build, ESLint, Next build, dan integration test PostgreSQL) lulus. Sync Odoo nyata diverifikasi pada 2026-11-21: 4.454 report, 8.519 finding, 2.501 kandidat unik (587 pending, 1.914 archived), `work_orders` hasil sync = 0, dan `raw` tanpa foto. Sync kedua idempoten. Kontrak skip divalidasi sebagai 400 dan bulk tetap 422. M4 PM core accepted di server pada migration `000007_m4_pm_core`, termasuk job evaluasi PM 07:00 WITA. M5 Sparepart & Inventory sudah diimplementasikan lokal di migration `000008_m5_spareparts_inventory`: master sparepart/nomor/alternatif/compatibility, PM material template, warehouse/location, transaksi inventory immutable, saldo, stock policy, opname, rekonsiliasi, dan alert stok harian 07:30 WITA. M6 Material sudah diimplementasikan lokal di migration `000009_m6_material_requirements`: material requirement per WO, readiness/shortage, reservasi/release, issue/return + usage, PM snapshot, waiting-part guard, shortage aging, dan rekonsiliasi reserved. M7A (history & downtime unit) selesai lokal dan ter-commit di `fde629d` (migration `000010_m7_history_reporting`). M7B (dashboard operasional, laporan JSON/CSV, agregasi benchmark, audit hardening) selesai lokal di migration `000011_m7b_reporting` dengan endpoint `/dashboard/pm|material|inventory|maintenance` dan `/reports/:name`; seluruh verifikasi lokal lulus (Go test/vet/build dengan PostgreSQL, ESLint, Next build). M5, M6, M7A, dan M7B selesai lokal; acceptance server UAT tetap menunggu akses VPS. Baseline rilis tahap 1 ditetapkan pada 2026-11-23 sebagai **v0.1.7 (M7)**: UI/operasional tahap 1 sudah accepted, sementara acceptance server UAT M5/M6/M7A/M7B tetap menjadi gate terpisah. Angka `7` pada versi merujuk ke milestone M7; `M7B` adalah sub-milestone reporting.
 
 > **Verification note:** runtime Docker/Linux M0 dan sync Odoo nyata sudah terverifikasi di server UAT. Route auth, unit, P2H, candidate, notification, dan settings sudah terdaftar dan diuji di router API. Jangan mengubah migrasi atau kode M0.
 >
-> **README:** Tabel status milestone di README sudah diselaraskan dengan Brief ini pada 2026-11-22. Untuk rincian acceptance dan verifikasi tetap gunakan Brief ini; perubahan status README berikutnya memerlukan approval.
+> **README:** Tabel status milestone di README sudah diselaraskan dengan Brief ini pada 2026-11-23. Untuk rincian acceptance dan verifikasi tetap gunakan Brief ini; perubahan status README berikutnya memerlukan approval.
 
 ---
 
@@ -74,6 +74,11 @@ Fakta M0:
 - **Workflow:** gunakan skill `nextjs-15`. Port/parity dari template `next-shadcn-dashboard`; target visual `https://demos.shadcndashboard.dev/?mode=dark`.
 - **Dependency:** dependency baru hanya boleh shadcn/base-vega, Recharts, `next-themes` bila diperlukan, dan Geist. Baseline yang sudah ada (`@base-ui/react`, `lucide-react`, `class-variance-authority`, `cn`) dipertahankan; jangan menambah library UI/state/chart lain tanpa approval. Saat ini `next-themes` belum dipakai; tema memakai script lokal dan `theme-toggle`.
 - **Data:** jangan commit mock/demo data. Gunakan data API nyata; state loading/empty/error harus ditangani.
+- **Brand (accepted 2026-11-23):** UI memakai `PAMS — Plant and Maintenance System`. Rebranding hanya pada frontend/metadata; jangan mengganti nama Go module, Docker service, atau path repo.
+- **Versi (accepted 2026-11-23):** badge sidebar `v.0.1.7`, dengan `7` merujuk ke milestone M7; footer memakai `AZV-M7B` untuk menandai sub-milestone reporting.
+- **Navigasi:** Beta badge amber kecil pada Laporan, Maintenance, Inventory, Sparepart, Master Unit, dan Usulan WO; badge disembunyikan saat sidebar collapsed; Usulan WO berada tepat di bawah Work Order.
+- **Dashboard:** ikuti visual demo shadcn, gunakan data API nyata, dan jangan kembali ke data demo/ecommerce. Hero tidak menampilkan tanggal atau summary badge; ilustrasi dibuat lebih kecil.
+- **Pola halaman list:** PageHeader → filter card → tabel full-width → pagination di footer card. State loading, empty, dan error wajib rapi di desktop maupun mobile.
 - **Selesai bila:** `npm run lint` dan `npm run build` lulus; screenshot desktop + mobile, dark + light, dibandingkan dengan demo target; tidak ada regresi shell/tabel/form M1/M2.
 
 ---
@@ -89,9 +94,11 @@ Fakta M0:
 | **M4** ✅ | PM plan/checklist/schedule/due, generate WO, completion/history/compliance | Material plan/requirement, stock check/reservation | Plan unit/model; combined; auto-WO 0 default; next due benar |
 | **M5** 🟡 | Sparepart/compatibility, PM material plan (`pm_plan_materials`), warehouse/location, receipt/issue/return/transfer/adjustment/opname, ledger, balance, min stock | Material readiness/reservation | Ledger immutable; negative ditolak; balance reconcile |
 | **M6** 🟡 | Material requirement/readiness, reserve/release, issue/return, waiting_part, shortage aging, PM material | Procurement | Planning ≠ stock; issue/return benar; readiness benar |
-| **M7** | Unit profile/history, component interval, downtime, dashboard/report, export, performance/audit | Fitur baru di luar PRD | History dari transaksi; report WITA; p95 |
+| **M7** ✅ tahap 1 | Unit profile/history, component interval, downtime, dashboard/report, export, performance/audit | Fitur baru di luar PRD | History dari transaksi; report WITA; p95 |
 
 **Dependensi:** M4 PM core tidak menjanjikan readiness stok; `pm_plan_materials` baru ada di M5, dan material requirement/readiness penuh di M6. Jika PM harus launch dengan material plan/readiness, urutan M4/M5/M6 perlu approval.
+
+**Baseline tahap 1:** `v0.1.7` (M7); `M7B` adalah sub-milestone reporting. Acceptance server UAT tetap menjadi gate terpisah dan tidak membatalkan baseline UI tahap 1.
 
 ---
 
@@ -310,7 +317,7 @@ Jika jawaban berbeda dari default, update PRD/decision log terlebih dahulu—jan
 
 | Path | Isi | Boleh diubah? |
 |---|---|---|
-| `prds/2026-11-18_work-order-maintenance-gsi.md` | PRD rev. 3 | Ya, dengan approval |
+| `prds/2026-11-18_work-order-maintenance-gsi.md` | PRD rev. 4 (baseline `v0.1.7` / M7) | Ya, dengan approval |
 | `docs/Agent Brief.md` | Brief ini | Ya, dengan approval |
 | `docs/Data Model.md` | ERD/DDL proposal | Ya, dengan approval |
 | `docs/Domain Rules.md` | Status/business rules | Ya, dengan approval |
