@@ -4,7 +4,6 @@ import Script from "next/script";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-// @ts-expect-error CSS is processed by the Next.js bundler, not TypeScript.
 import "./globals.css";
 
 const Geist = localFont({
