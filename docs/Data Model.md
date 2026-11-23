@@ -77,7 +77,7 @@ Nilai DB memakai `snake_case`; label UI memakai Title Case.
 
 | Domain | Tabel |
 |---|---|
-| Identity & unit | `users`, `employees`, `unit_models`, `engine_models`, `units`, `components`, `unit_meter_readings` |
+| Identity & unit | `users`, `employees`, `unit_models`, `engine_models`, `units`, `components`, `unit_component_installations`, `unit_meter_readings` |
 | P2H | `p2h_reports`, `p2h_findings`, `wo_candidates` (M0) |
 | WO | `work_orders`, `wo_findings`, `wo_updates`, `wo_attachments`, `work_order_checklist_items` |
 | PM | `pm_plans`, `pm_plan_checklist_items`, `pm_plan_materials`, `pm_schedules` |
@@ -243,25 +243,31 @@ CREATE TABLE engine_models (
 );
 
 CREATE TABLE components (
-    id          bigserial PRIMARY KEY,
-    code        text NOT NULL UNIQUE,
-    name        text NOT NULL,
-    category    text,
-    is_active   boolean NOT NULL DEFAULT true,
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    id                    bigserial PRIMARY KEY,
+    code                  text NOT NULL UNIQUE,
+    name                  text NOT NULL,
+    category              text,
+    component_class       text CHECK (component_class IN ('major','minor')),
+    default_lifetime_hm   numeric(12,1),
+    default_lifetime_days integer,
+    default_lifetime_km   numeric(12,1),
+    is_active             boolean NOT NULL DEFAULT true,
+    created_at            timestamptz NOT NULL DEFAULT now(),
+    updated_at            timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE unit_meter_readings (
-    id           bigserial PRIMARY KEY,
-    unit_id      bigint NOT NULL REFERENCES units(id),
-    reading_type text NOT NULL CHECK (reading_type IN ('hm','km')),
-    value        numeric(12,1) NOT NULL CHECK (value >= 0),
-    recorded_at  timestamptz NOT NULL,
-    source_type  text NOT NULL CHECK (source_type IN ('p2h','wo','manual','sync')),
-    source_id    bigint,
-    notes        text,
-    created_at   timestamptz NOT NULL DEFAULT now()
+    id             bigserial PRIMARY KEY,
+    unit_id        bigint NOT NULL REFERENCES units(id),
+    reading_type   text NOT NULL CHECK (reading_type IN ('hm','km')),
+    value          numeric(12,1) NOT NULL CHECK (value >= 0),
+    recorded_at    timestamptz NOT NULL,
+    source_type    text NOT NULL CHECK (source_type IN ('p2h','wo','manual','sync')),
+    source_id      bigint,
+    notes          text,
+    is_anomaly     boolean NOT NULL DEFAULT false,
+    anomaly_reason text,
+    created_at     timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX uq_unit_meter_readings_source
@@ -270,6 +276,41 @@ CREATE UNIQUE INDEX uq_unit_meter_readings_source
 
 CREATE INDEX idx_unit_meter_readings_unit_time
     ON unit_meter_readings (unit_id, reading_type, recorded_at DESC);
+
+CREATE INDEX idx_unit_meter_readings_valid
+    ON unit_meter_readings (unit_id, reading_type, recorded_at DESC)
+    WHERE is_anomaly = false;
+
+CREATE TABLE unit_component_installations (
+    id             bigserial PRIMARY KEY,
+    unit_id        bigint NOT NULL REFERENCES units(id),
+    component_id   bigint NOT NULL REFERENCES components(id),
+    serial_number  text NOT NULL,
+    installed_at   timestamptz NOT NULL,
+    installed_hm   numeric(12,1) NOT NULL DEFAULT 0,
+    installed_km   numeric(12,1) NOT NULL DEFAULT 0,
+    removed_at     timestamptz,
+    removed_hm     numeric(12,1),
+    removed_km     numeric(12,1),
+    lifetime_hm    numeric(12,1),
+    lifetime_days  integer,
+    lifetime_km    numeric(12,1),
+    status         text NOT NULL DEFAULT 'active'
+        CHECK (status IN ('active','removed','transferred','scrapped')),
+    source_wo_id   bigint REFERENCES work_orders(id) ON DELETE SET NULL,
+    notes          text,
+    created_by     bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX uq_unit_component_installations_active
+    ON unit_component_installations (unit_id, component_id)
+    WHERE status = 'active';
+
+CREATE UNIQUE INDEX uq_unit_component_installations_active_serial
+    ON unit_component_installations (lower(btrim(serial_number)))
+    WHERE status = 'active';
 ```
 
 ### 5.2 Sparepart
@@ -903,6 +944,10 @@ Union/join:
 
 Status dihitung sama dengan `v_stock_balance`. `v_low_stock` dibentuk dari `inventory_stock_policies` LEFT JOIN `inventory_balances`; lokasi yang punya policy tetapi belum punya baris saldo dianggap `on_hand=0`, `reserved=0`, sehingga low/critical tetap muncul.
 
+### 6.13 `v_unit_component_lifetime`
+
+`unit_component_installations` + `units` + `components`. `used_hm`/`used_km` = current unit reading (atau removal reading) − installation reading, minimal 0. `used_days` = selisih tanggal instalasi/pelepasan. `remaining_*` = lifetime instalasi/master − used; nilai negatif dibiarkan. State (`safe`/`upcoming`/`due`/`overdue`/`inactive`/`unset`) dihitung di service Go dengan ambang default 10%/7 hari dan 20%/30 hari.
+
 ---
 
 ## 7. Index & performa
@@ -911,6 +956,8 @@ Status dihitung sama dengan `v_stock_balance`. `v_low_stock` dibentuk dari `inve
 |---|---|---|
 | `units` | `(unit_model_id)`, `(engine_model_id)`, `(is_active)` | filter unit/model |
 | `unit_meter_readings` | `(unit_id, reading_type, recorded_at DESC)` | history HM/KM |
+| `unit_meter_readings` | partial `(unit_id, reading_type, recorded_at DESC) WHERE is_anomaly=false` | current valid reading |
+| `unit_component_installations` | partial unique `(unit_id, component_id) WHERE status='active'`; partial unique `lower(serial_number) WHERE status='active'`; `(unit_id,status,component_id)` | instalasi aktif/serial/history |
 | `sparepart_numbers` | `lower(part_number)`, `(sparepart_id)` | pencarian nomor |
 | `sparepart_compatibility` | `(unit_model_id,status)`, `(engine_model_id,status)` | compatibility lookup |
 | `pm_schedules` | `(status,due_date)`, `(unit_id,status)` | dashboard PM |
@@ -953,6 +1000,8 @@ Catatan:
 | M6-04 | `work_order_sparepart_usage` | usage |
 | M6-05 | `v_material_readiness`, `v_shortage_aging` | view material untuk M6 |
 | M7-01 | `v_unit_maintenance_history`, `v_unit_component_history`, `v_unit_downtime`, `v_sparepart_consumption`, `v_inventory_movement`, `v_component_replacement_frequency` + index performa | reporting |
+| M8-01 | `ALTER components` (`component_class`, default lifetime), `unit_component_installations`, `v_unit_component_lifetime` | master/instalasi/lifetime komponen |
+| M8-02 | `ALTER unit_meter_readings` (`is_anomaly`, `anomaly_reason`) + partial index valid | anomali reading P2H |
 
 **Aturan:** setiap migration harus punya `down` yang aman atau explicitly irreversible dengan alasan. Jangan mengubah migration yang sudah dijalankan. `pm_plan_materials` sengaja berada di M5 karena FK ke `spareparts`; M4 tidak boleh membuat tabel yang bergantung pada master M5.
 

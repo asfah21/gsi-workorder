@@ -58,6 +58,12 @@ func main() {
 				os.Exit(1)
 			}
 			return
+		case "backfill-p2h-readings":
+			if err := runP2HReadingsBackfill(logger); err != nil {
+				logger.Error("P2H reading backfill failed", "error", err)
+				os.Exit(1)
+			}
+			return
 		case "remind-candidates":
 			if err := runCandidateReminders(logger); err != nil {
 				logger.Error("candidate reminder failed", "error", err)
@@ -294,6 +300,31 @@ func runMaterialRecompute(logger *slog.Logger) error {
 		return err
 	}
 	logger.Info("material recompute finished", "updated", result.Updated)
+	return nil
+}
+
+func runP2HReadingsBackfill(logger *slog.Logger) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	pool, err := db.NewPool(ctx, cfg.DatabaseURL, logger)
+	if err != nil {
+		return fmt.Errorf("connect database: %w", err)
+	}
+	defer pool.Close()
+	result, err := p2h.NewRepository(pool, cfg.AppLocation).BackfillReadings(ctx)
+	if err != nil {
+		return err
+	}
+	logger.Info("P2H reading backfill finished",
+		"reports", result.Reports,
+		"readings_written", result.Readings,
+		"units_refreshed", result.Units,
+		"anomalies", result.Anomalies,
+	)
 	return nil
 }
 

@@ -319,6 +319,17 @@ menggunakan `SYNC_INTERVAL` (default `15m`) dan `SYNC_CONCURRENCY` (default `4`)
 Odoo hanya diakses oleh worker; semua endpoint baca aplikasi hanya query
 PostgreSQL.
 
+Sejak M8C, setiap sync P2H juga meng-upsert reading HM/KM (`hm_awal`/`km_akhir`)
+ke `unit_meter_readings` dan merefresh `units.current_hm`/`current_km`. Untuk
+backfill data P2H yang sudah ada tanpa memanggil Odoo:
+
+```bash
+docker compose run --rm worker /app/worker backfill-p2h-readings
+```
+
+Reading P2H yang lebih rendah dari reading valid sebelumnya ditandai anomali,
+tidak dipakai untuk current unit, dan dikirim sebagai notifikasi admin.
+
 ## Logs & troubleshooting
 
 Melihat log:
@@ -440,8 +451,9 @@ Status lokal per 2026-11-23. Lihat `docs/Agent Brief.md` untuk rincian acceptanc
 | M7A — unit history, timeline, downtime | Accepted tahap 1 / `v0.1.7` (`000010_m7_history_reporting`); acceptance server UAT terpisah |
 | M7B — dashboard, report CSV, audit hardening | Accepted tahap 1 / `v0.1.7` (`000011_m7b_reporting`); acceptance server UAT terpisah |
 | M8A — discovery master unit & komponen | Selesai discovery (`docs/M8 Discovery.md`) |
-| M8B — master komponen, instalasi per unit, lifetime API | Selesai lokal (`000012_m8_components`); M8C/M8D belum |
+| M8B — master komponen, instalasi per unit, lifetime API | Selesai lokal (`000012_m8_components`); M8D belum |
+| M8C — P2H HM/KM ingestion, anomali, backfill | Selesai lokal (`000013_m8c_meter_anomaly`); backfill via worker |
 
-Baseline rilis tahap 1: **`v0.1.7` (M7)**. UI/operasional tahap 1 sudah accepted; acceptance server UAT M5/M6/M7A/M7B tetap dicatat terpisah. Angka `7` merujuk ke milestone M7; `M7B` adalah sub-milestone reporting. M8B adalah pekerjaan pasca-baseline dan belum menjadi bagian rilis tahap 1.
+Baseline rilis tahap 1: **`v0.1.7` (M7)**. UI/operasional tahap 1 sudah accepted; acceptance server UAT M5/M6/M7A/M7B tetap dicatat terpisah. Angka `7` merujuk ke milestone M7; `M7B` adalah sub-milestone reporting. M8B/M8C adalah pekerjaan pasca-baseline dan belum menjadi bagian rilis tahap 1.
 
 Jangan melanjutkan ke milestone berikutnya tanpa instruksi eksplisit.

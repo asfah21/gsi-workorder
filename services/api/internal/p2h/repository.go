@@ -87,6 +87,10 @@ func (r *Repository) UpsertMetadata(ctx context.Context, report Report) (metadat
 		return metadataResult{}, fmt.Errorf("upsert report %d: %w", report.OdooReportID, err)
 	}
 
+	if err := r.ingestReportReadings(ctx, tx, result.ReportID, result.UnitID, report.ReportDate, report.HMAwal, report.KMAkhir); err != nil {
+		return metadataResult{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return metadataResult{}, fmt.Errorf("commit report metadata: %w", err)
 	}

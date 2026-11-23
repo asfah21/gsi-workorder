@@ -605,12 +605,15 @@ Tidak ada tabel total statis. Semua agregasi query/view.
 
 * Value >= 0.
 * Reading baru normalnya >= reading terakhir.
-* Reading lebih rendah:
-  * Dari P2H: tandai anomali, jangan update `units.current_*`; notifikasi admin.
-  * Manual/WO: butuh alasan; admin dapat menerima sebagai koreksi; tetap simpan reading baru, jangan hapus lama.
-* `units.current_*` = reading valid terbaru berdasarkan `recorded_at`.
-* P2H sync insert reading source `p2h`; WO completion source `wo`; manual source `manual`.
-* Unique per source mencegah duplikat.
+* `units.current_*` = reading valid terbaru berdasarkan `recorded_at`; tie-break `id` descending.
+* P2H sync memakai `hm_awal` sebagai HM dan `km_akhir` sebagai KM, dengan `recorded_at` = awal tanggal laporan di `Asia/Makassar`. Shift belum dipetakan ke jam; beberapa laporan pada tanggal yang sama diurutkan lewat `id`.
+* Reading P2H yang lebih rendah dari reading valid sebelumnya disimpan dengan `is_anomaly=true` dan `anomaly_reason`; reading itu **tidak** dipakai untuk `units.current_*`.
+* Setiap anomali P2H mengirim notifikasi in-app ke admin dengan dedupe per laporan+tipe reading. Backfill mengirim ringkasan harian.
+* Reading manual/WO yang lebih rendah tetap membutuhkan alasan; admin dapat menerima sebagai koreksi. Reading baru tetap disimpan, reading lama tidak dihapus.
+* P2H sync insert reading source `p2h` dengan `source_id = p2h_reports.id`; WO completion source `wo`; manual source `manual`.
+* Unique per source mencegah duplikat; re-sync memperbarui nilai yang berubah dan menghapus reading P2H yang nilainya dikosongkan.
+* Backfill data existing: `docker compose run --rm worker /app/worker backfill-p2h-readings`. Command ini idempoten, menghitung ulang anomali, dan merefresh cache unit.
+* Jika tidak ada reading valid setelah koreksi/penghapusan, `units.current_*` kembali ke 0 dan timestamp reading menjadi null.
 
 ### 7.3 Downtime
 

@@ -1,7 +1,7 @@
 # M8a — Discovery & Decision Gate: Master Unit & Komponen
 
 - **Tanggal:** 2026-11-23
-- **Status:** M8a selesai; default M8b diadopsi untuk implementasi lokal, M8c/M8d pending
+- **Status:** M8a–M8c selesai; M8d pending
 - **Baseline:** `v0.1.7` / M7
 - **Scope:** M8 (Master Unit & Komponen) dan dependensi data untuk M9–M11
 
@@ -229,11 +229,11 @@ M8b boleh dimulai jika:
 ## 8. Open questions
 
 1. Apakah komponen wajib serialized, atau cukup per tipe untuk komponen minor?
-2. Apakah satu unit boleh punya lebih dari satu komponen aktif dengan tipe yang sama?
-3. Apakah lifetime komponen dihitung kumulatif saat pindah unit?
+2. Apakah satu unit boleh punya lebih dari satu komponen aktif dengan tipe yang sama? (M8b default: satu aktif; multi-instance pending)
+3. Apakah lifetime komponen dihitung kumulatif saat pindah unit? (M8b default: kumulatif per serial; konfirmasi PAM pending)
 4. Apakah komponen yang sudah dilepas boleh dipasang kembali?
-5. Apakah HM/KM awal komponen diambil dari reading unit saat instalasi?
-6. Apakah P2H `hm_awal` boleh menjadi sumber reading unit?
+5. Apakah HM/KM awal komponen diambil dari reading unit saat instalasi? (M8b default: current unit, bisa override)
+6. Apakah P2H `hm_awal` boleh menjadi sumber reading unit? (dipakai untuk M8c; konfirmasi PAM pending)
 7. Siapa yang boleh mengubah lifetime default komponen?
 8. Apakah Plant Component Request adalah bagian PM atau MR?
 9. Apakah 250 unit adalah jumlah unit aktif atau seluruh unit termasuk nonaktif?
@@ -257,14 +257,15 @@ Karena itu, M8 tidak boleh langsung membuat UI lifetime di atas data kosong. Uru
 
 ---
 
-## 10. Status implementasi M8b
+## 10. Status implementasi M8b–M8c
 
-M8b diimplementasikan pada 2026-11-23 dengan default berikut:
+M8b–M8c diimplementasikan pada 2026-11-23 dengan default berikut:
 
 - komponen aktif diserialisasi per unit;
 - satu unit hanya boleh punya satu instalasi aktif per tipe komponen;
 - lifetime dihitung kumulatif per serial selama instalasi aktif;
 - lifetime HM per instalasi dipakai sebagai target HM; belum ada field Target Hour terpisah;
+- P2H `hm_awal`/`km_akhir` dipakai sebagai reading HM/KM; reading P2H yang lebih rendah dari reading valid sebelumnya ditandai anomali dan tidak menimpa current unit;
 - master komponen dan instalasi awal belum diimpor karena sumber data PAM belum diberikan.
 
 Yang sudah ada:
@@ -274,13 +275,16 @@ Yang sudah ada:
 - `unit_component_installations` untuk instalasi, pelepasan, replace, dan transfer;
 - `v_unit_component_lifetime` untuk used/remaining HM, KM, dan hari;
 - API master komponen, instalasi komponen, replace, transfer, dan lifetime;
+- migration additive `000013_m8c_meter_anomaly`: `unit_meter_readings.is_anomaly` dan `anomaly_reason`;
+- ingestion P2H idempoten lewat `source_type='p2h'` + `source_id=p2h_reports.id`, refresh `units.current_*`, notifikasi admin untuk anomali;
+- command worker `/app/worker backfill-p2h-readings` untuk backfill DB-only;
 - unit test service/HTTP dan integration test PostgreSQL (skip jika `TEST_DATABASE_URL` tidak di-set).
 
-Migration sudah divalidasi pada cluster PostgreSQL sementara: seluruh migration up berhasil, view menghasilkan used/remaining yang benar, partial unique index menolak instalasi aktif ganda, dan down migration berhasil lalu up kembali.
+Migration dan integration test sudah divalidasi pada cluster PostgreSQL sementara: seluruh migration up berhasil, view lifetime menghasilkan used/remaining yang benar, partial unique index menolak instalasi aktif ganda, ingestion P2H idempoten, anomali tidak menimpa current, notifikasi admin dibuat, down migration berhasil lalu up kembali.
 
 Yang belum:
 
-- M8c ingestion HM/KM dari P2H dan backfill;
 - M8d UI komponen/lifetime/transfer/alert;
 - import master komponen dan instalasi awal dari PAM;
-- konfirmasi ambang lifetime dan keputusan komponen multi-instance.
+- konfirmasi ambang lifetime dan keputusan komponen multi-instance;
+- pemetaan shift P2H ke timestamp intra-hari (saat ini semua reading memakai awal tanggal laporan WITA).
