@@ -137,6 +137,34 @@ func TestReplaceComponentClosesOldAndUsesComponentDefaults(t *testing.T) {
 	}
 }
 
+func TestReplaceComponentAllowsInactiveMaster(t *testing.T) {
+	installedAt := time.Now().UTC().Add(-10 * time.Hour)
+	repo := &fakeRepository{
+		unitsByID: map[int64]Unit{
+			1: {ID: 1, CurrentHM: 60, CurrentKM: 200, IsActive: true},
+		},
+		component: Component{ID: 2, IsActive: false},
+		installation: ComponentInstallation{
+			ID:           5,
+			UnitID:       1,
+			ComponentID:  2,
+			SerialNumber: "OLD",
+			InstalledAt:  installedAt,
+			InstalledHM:  50,
+			InstalledKM:  180,
+			Status:       installationStatusActive,
+		},
+		createdInstallation: ComponentInstallation{ID: 6, UnitID: 1, ComponentID: 2},
+	}
+	service := NewService(repo, nil)
+
+	if _, err := service.ReplaceComponent(context.Background(), 1, 5, ComponentReplacementInput{
+		SerialNumber: "NEW",
+	}, 7); err != nil {
+		t.Fatalf("ReplaceComponent() with inactive master error = %v", err)
+	}
+}
+
 func TestTransferComponentCarriesSerialAndLifetime(t *testing.T) {
 	installedAt := time.Now().UTC().Add(-50 * time.Hour)
 	repo := &fakeRepository{

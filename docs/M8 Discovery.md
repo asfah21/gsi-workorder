@@ -1,7 +1,7 @@
 # M8a — Discovery & Decision Gate: Master Unit & Komponen
 
 - **Tanggal:** 2026-11-23
-- **Status:** M8a–M8c selesai; M8d pending
+- **Status:** M8a–M8d selesai; acceptance/import data pending
 - **Baseline:** `v0.1.7` / M7
 - **Scope:** M8 (Master Unit & Komponen) dan dependensi data untuk M9–M11
 
@@ -257,9 +257,9 @@ Karena itu, M8 tidak boleh langsung membuat UI lifetime di atas data kosong. Uru
 
 ---
 
-## 10. Status implementasi M8b–M8c
+## 10. Status implementasi M8b–M8d
 
-M8b–M8c diimplementasikan pada 2026-11-23 dengan default berikut:
+M8b–M8d diimplementasikan pada 2026-11-23 dengan default berikut:
 
 - komponen aktif diserialisasi per unit;
 - satu unit hanya boleh punya satu instalasi aktif per tipe komponen;
@@ -278,13 +278,15 @@ Yang sudah ada:
 - migration additive `000013_m8c_meter_anomaly`: `unit_meter_readings.is_anomaly` dan `anomaly_reason`;
 - ingestion P2H idempoten lewat `source_type='p2h'` + `source_id=p2h_reports.id`, refresh `units.current_*`, notifikasi admin untuk anomali;
 - command worker `/app/worker backfill-p2h-readings` untuk backfill DB-only;
+- UI tab **Komponen** di profil unit: lifetime, badge status, alert due/overdue, install/replace/transfer via centered sheet;
+- UI tab **Komponen** di Master Unit: list/create/edit master komponen dan lifetime default;
 - unit test service/HTTP dan integration test PostgreSQL (skip jika `TEST_DATABASE_URL` tidak di-set).
 
-Migration dan integration test sudah divalidasi pada cluster PostgreSQL sementara: seluruh migration up berhasil, view lifetime menghasilkan used/remaining yang benar, partial unique index menolak instalasi aktif ganda, ingestion P2H idempoten, anomali tidak menimpa current, notifikasi admin dibuat, down migration berhasil lalu up kembali.
+Migration, integration test, dan frontend sudah divalidasi: seluruh migration up berhasil, view lifetime menghasilkan used/remaining yang benar, partial unique index menolak instalasi aktif ganda, ingestion P2H idempoten, anomali tidak menimpa current, notifikasi admin dibuat, down migration berhasil lalu up kembali, serta `npm run lint`, `npm run check:typography`, dan `npm run build` lulus.
 
 Yang belum:
 
-- M8d UI komponen/lifetime/transfer/alert;
 - import master komponen dan instalasi awal dari PAM;
 - konfirmasi ambang lifetime dan keputusan komponen multi-instance;
-- pemetaan shift P2H ke timestamp intra-hari (saat ini semua reading memakai awal tanggal laporan WITA).
+- pemetaan shift P2H ke timestamp intra-hari (saat ini semua reading memakai awal tanggal laporan WITA);
+- visual/UAT server untuk alur komponen.

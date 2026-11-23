@@ -94,7 +94,68 @@ export type ComponentOption = {
   code: string;
   name: string;
   category: string;
+  component_class: string;
+  default_lifetime_hm?: number;
+  default_lifetime_days?: number;
+  default_lifetime_km?: number;
   is_active: boolean;
+};
+
+export type ComponentInstallation = {
+  id: number;
+  unit_id: number;
+  unit_code: string;
+  component_id: number;
+  component_code: string;
+  component_name: string;
+  component_class: string;
+  serial_number: string;
+  installed_at: string;
+  installed_hm: number;
+  installed_km: number;
+  removed_at?: string;
+  removed_hm?: number;
+  removed_km?: number;
+  lifetime_hm?: number;
+  lifetime_days?: number;
+  lifetime_km?: number;
+  status: "active" | "removed" | "transferred" | "scrapped";
+  source_wo_id?: number;
+  notes: string;
+  created_by?: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ComponentLifetime = {
+  installation_id: number;
+  unit_id: number;
+  unit_code: string;
+  unit_current_hm: number;
+  unit_current_km: number;
+  component_id: number;
+  component_code: string;
+  component_name: string;
+  category: string;
+  component_class: string;
+  serial_number: string;
+  installed_at: string;
+  installed_hm: number;
+  installed_km: number;
+  removed_at?: string;
+  removed_hm?: number;
+  removed_km?: number;
+  status: "active" | "removed" | "transferred" | "scrapped";
+  lifetime_hm?: number;
+  lifetime_days?: number;
+  lifetime_km?: number;
+  used_hm: number;
+  used_km: number;
+  used_days: number;
+  remaining_hm?: number;
+  remaining_days?: number;
+  remaining_km?: number;
+  lifetime_state: "inactive" | "unset" | "safe" | "upcoming" | "due" | "overdue";
 };
 
 export type UnitMaintenanceHistory = {

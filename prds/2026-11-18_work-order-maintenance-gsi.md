@@ -1,6 +1,6 @@
 # GSI Work Order & Maintenance: PRD
 
-**Status:** Baseline rilis/UI tahap 1 accepted — rev. 5 (v0.1.7 / M7); M8b/M8c diimplementasikan lokal; acceptance server UAT tetap gate terpisah.
+**Status:** Baseline rilis/UI tahap 1 accepted — rev. 5 (v0.1.7 / M7); M8b–M8d diimplementasikan lokal; acceptance server UAT tetap gate terpisah.
 **Author:** Azvan IT (PT GSI)
 **Date:** 2026-11-18
 **Last updated:** 2026-11-23
@@ -13,7 +13,7 @@
 | 2 | 2026-11-18 | Alur konfirmasi WO, toggle otomatis, audit setting |
 | 3 | 2026-11-18 | Ekspansi scope: PM (HM/KM/calendar), material planning & readiness, sparepart & compatibility, internal inventory, unit history, dashboard/reporting, timezone WITA. Roadmap M1–M7 disusun ulang; M0 tetap locked. |
 | 4 | 2026-11-23 | Baseline tahap 1 / `v0.1.7` (M7): rebranding UI PAMS, dashboard shadcn dengan data nyata, hero tanpa tanggal/summary, Beta badge amber, urutan menu Usulan WO, dan versi sidebar `v.0.1.7`. PRD dan Agent Brief tetap dipertahankan sebagai source of truth; masukan user dicatat di decision log, bukan dihapus. |
-| 5 | 2026-11-23 | PAM CR M8: discovery komponen, master komponen/instalasi/lifetime API (`000012`), P2H HM/KM ingestion + anomali + backfill (`000013`); keputusan D-23–D-25 dan open questions Q-11–Q-13 dicatat. UI/import komponen tetap M8D. |
+| 5 | 2026-11-23 | PAM CR M8: discovery komponen, master komponen/instalasi/lifetime API (`000012`), P2H HM/KM ingestion + anomali + backfill (`000013`), UI komponen unit & master komponen (M8D); keputusan D-23–D-26 dan open questions Q-11–Q-13 dicatat. Import data/threshold final pending PAM. |
 
 Dokumen pendukung:
 
@@ -903,6 +903,7 @@ Detail dan test case ada di `docs/Timezone.md`.
 | D-23 | 2026-11-23 | M8: komponen aktif diserialisasi per unit; satu instalasi aktif per unit+tipe; replace/transfer menutup baris lama dan menjaga histori; komponen multi-instance dipecah ke kode berbeda sampai PAM memutuskan model lain | Final untuk implementasi lokal |
 | D-24 | 2026-11-23 | M8: lifetime komponen memakai default HM/hari/KM dari master dan dapat dioverride per instalasi; Target Hour sebagai field terpisah ditunda | Final untuk implementasi lokal |
 | D-25 | 2026-11-23 | M8c: P2H `hm_awal`/`km_akhir` menjadi reading HM/KM source `p2h`; `recorded_at` awal tanggal laporan WITA; reading P2H lebih rendah ditandai anomali, tidak menimpa `units.current_*`, dan dinotifikasikan ke admin; backfill via worker | Final untuk implementasi lokal |
+| D-26 | 2026-11-23 | M8d: UI tab Komponen di profil unit menampilkan lifetime, install/replace/transfer, dan alert due/overdue; Master Unit punya tab komponen untuk create/edit master. Replace/transfer tetap diizinkan untuk master nonaktif; instalasi baru tidak | Final untuk implementasi lokal |
 
 ### 13.2 Open questions
 

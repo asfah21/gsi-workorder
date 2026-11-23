@@ -4,6 +4,7 @@ import {
   Boxes,
   CircleAlert,
   CircleCheck,
+  Cog,
   Loader2,
   Plus,
   RefreshCw,
@@ -20,6 +21,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/layout/page-header";
 import { FilterBar } from "@/components/list/list-filter-bar";
 import { SearchInput } from "@/components/list/list-search";
+import { MasterComponentPanel } from "@/components/master-component-panel";
 import { ActiveBadge } from "@/components/status-badges";
 import { TablePagination } from "@/components/table-pagination";
 import { TableSortHeader } from "@/components/table-sort-header";
@@ -87,7 +89,7 @@ const engineModelSorts = [
   "updated_at",
 ] as const;
 
-type MasterTab = "unit" | "engine";
+type MasterTab = "unit" | "engine" | "component";
 
 export function MasterView() {
   const { user } = useSession();
@@ -289,27 +291,29 @@ export function MasterView() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Master unit"
-        description="Referensi unit model dan engine model yang dipakai pada master unit."
+        description="Referensi unit model, engine model, dan komponen yang dipakai pada master unit."
         actions={
           <>
-            {canWrite ? (
+            {canWrite && tab !== "component" ? (
               <Button type="button" onClick={tab === "unit" ? openUnitForm : openEngineForm}>
                 <Plus aria-hidden="true" />
                 {tab === "unit" ? "Tambah unit model" : "Tambah engine model"}
               </Button>
             ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={refreshAll}
-              disabled={unitLoading || engineLoading || statsLoading}
-            >
-              <RefreshCw
-                className={unitLoading || engineLoading || statsLoading ? "animate-spin" : undefined}
-                aria-hidden="true"
-              />
-              Muat ulang
-            </Button>
+            {tab !== "component" ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={refreshAll}
+                disabled={unitLoading || engineLoading || statsLoading}
+              >
+                <RefreshCw
+                  className={unitLoading || engineLoading || statsLoading ? "animate-spin" : undefined}
+                  aria-hidden="true"
+                />
+                Muat ulang
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -319,7 +323,7 @@ export function MasterView() {
           <ShieldCheck aria-hidden="true" />
           <AlertTitle>Akses baca saja</AlertTitle>
           <AlertDescription>
-            Role Anda dapat melihat master unit, tetapi tidak dapat menambah model.
+            Role Anda dapat melihat master unit, tetapi tidak dapat menambah data master.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -377,6 +381,17 @@ export function MasterView() {
           className="shrink-0"
         >
           <Settings2 aria-hidden="true" /> Engine model
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          role="tab"
+          aria-selected={tab === "component"}
+          variant={tab === "component" ? "default" : "outline"}
+          onClick={() => setTab("component")}
+          className="shrink-0"
+        >
+          <Cog aria-hidden="true" /> Komponen
         </Button>
       </div>
 
@@ -536,7 +551,7 @@ export function MasterView() {
             />
           </CardContent>
         </Card>
-      ) : (
+      ) : tab === "engine" ? (
         <Card role="tabpanel" aria-label="Engine model">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -704,6 +719,8 @@ export function MasterView() {
             />
           </CardContent>
         </Card>
+      ) : (
+        <MasterComponentPanel />
       )}
 
       <UnitModelSheet

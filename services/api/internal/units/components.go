@@ -288,7 +288,7 @@ func (s *Service) ListComponentLifetime(ctx context.Context, unitID int64, activ
 func (s *Service) InstallComponent(ctx context.Context, unitID int64, input ComponentInstallationInput, actorID int64) (ComponentInstallation, error) {
 	create, err := s.prepareComponentInstallation(ctx, unitID, input.ComponentID, input.SerialNumber,
 		input.InstalledAt, input.InstalledHM, input.InstalledKM, input.LifetimeHM,
-		input.LifetimeDays, input.LifetimeKM, input.SourceWOID, input.Notes, actorID)
+		input.LifetimeDays, input.LifetimeKM, input.SourceWOID, input.Notes, actorID, true)
 	if err != nil {
 		return ComponentInstallation{}, err
 	}
@@ -307,7 +307,7 @@ func (s *Service) ReplaceComponent(ctx context.Context, unitID, installationID i
 	}
 	create, err := s.prepareComponentInstallation(ctx, unitID, old.ComponentID, input.SerialNumber,
 		input.InstalledAt, input.InstalledHM, input.InstalledKM, input.LifetimeHM,
-		input.LifetimeDays, input.LifetimeKM, input.SourceWOID, input.Notes, actorID)
+		input.LifetimeDays, input.LifetimeKM, input.SourceWOID, input.Notes, actorID, false)
 	if err != nil {
 		return ComponentInstallation{}, err
 	}
@@ -337,7 +337,7 @@ func (s *Service) TransferComponent(ctx context.Context, unitID, installationID 
 	}
 	create, err := s.prepareComponentInstallation(ctx, input.ToUnitID, old.ComponentID, old.SerialNumber,
 		input.InstalledAt, input.InstalledHM, input.InstalledKM, old.LifetimeHM,
-		old.LifetimeDays, old.LifetimeKM, input.SourceWOID, input.Notes, actorID)
+		old.LifetimeDays, old.LifetimeKM, input.SourceWOID, input.Notes, actorID, false)
 	if err != nil {
 		return ComponentInstallation{}, err
 	}
@@ -379,6 +379,7 @@ func (s *Service) prepareComponentInstallation(
 	sourceWOID *int64,
 	notes string,
 	actorID int64,
+	requireActiveComponent bool,
 ) (ComponentInstallationCreate, error) {
 	unit, err := s.repo.GetUnit(ctx, unitID)
 	if err != nil {
@@ -400,7 +401,7 @@ func (s *Service) prepareComponentInstallation(
 		}
 		return ComponentInstallationCreate{}, err
 	}
-	if !component.IsActive {
+	if requireActiveComponent && !component.IsActive {
 		return ComponentInstallationCreate{}, &ValidationError{Fields: map[string]string{"component_id": "Komponen tidak aktif"}}
 	}
 

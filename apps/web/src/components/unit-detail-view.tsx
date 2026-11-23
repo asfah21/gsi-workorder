@@ -7,6 +7,7 @@ import {
   CircleAlert,
   CircleCheck,
   ClipboardList,
+  Cog,
   Gauge,
   History,
   LayoutDashboard,
@@ -26,6 +27,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { UnitStatusBadge } from "@/components/status-badges";
 import { UnitComponentPanel } from "@/components/unit-component-panel";
 import { UnitDowntimePanel } from "@/components/unit-downtime-panel";
+import { UnitInstallationPanel } from "@/components/unit-installation-panel";
 import { UnitIntervalPanel } from "@/components/unit-interval-panel";
 import { UnitTimelinePanel } from "@/components/unit-timeline-panel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -76,11 +78,12 @@ const sourceLabels: Record<MeterReading["source_type"], string> = {
   sync: "Sync",
 };
 
-type UnitTab = "overview" | "timeline" | "components" | "meters" | "downtime" | "intervals";
+type UnitTab = "overview" | "timeline" | "installations" | "components" | "meters" | "downtime" | "intervals";
 
 const unitTabs: { id: UnitTab; label: string; icon: LucideIcon }[] = [
   { id: "overview", label: "Ringkasan", icon: LayoutDashboard },
   { id: "timeline", label: "Timeline", icon: History },
+  { id: "installations", label: "Komponen", icon: Cog },
   { id: "components", label: "Sparepart", icon: PackageSearch },
   { id: "meters", label: "HM/KM", icon: Gauge },
   { id: "downtime", label: "Downtime", icon: TimerOff },
@@ -278,6 +281,7 @@ export function UnitDetailView({ unitId }: { unitId: number }) {
       ) : null}
 
       {tab === "timeline" ? <UnitTimelinePanel unitId={unit.id} /> : null}
+      {tab === "installations" ? <UnitInstallationPanel unit={unit} /> : null}
       {tab === "components" ? <UnitComponentPanel unitId={unit.id} /> : null}
 
       {tab === "meters" ? (

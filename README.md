@@ -453,7 +453,8 @@ Status lokal per 2026-11-23. Lihat `docs/Agent Brief.md` untuk rincian acceptanc
 | M8A — discovery master unit & komponen | Selesai discovery (`docs/M8 Discovery.md`) |
 | M8B — master komponen, instalasi per unit, lifetime API | Selesai lokal (`000012_m8_components`); M8D belum |
 | M8C — P2H HM/KM ingestion, anomali, backfill | Selesai lokal (`000013_m8c_meter_anomaly`); backfill via worker |
+| M8D — UI komponen unit, lifetime, install/replace/transfer, master komponen | Selesai lokal; import data & threshold final pending PAM |
 
-Baseline rilis tahap 1: **`v0.1.7` (M7)**. UI/operasional tahap 1 sudah accepted; acceptance server UAT M5/M6/M7A/M7B tetap dicatat terpisah. Angka `7` merujuk ke milestone M7; `M7B` adalah sub-milestone reporting. M8B/M8C adalah pekerjaan pasca-baseline dan belum menjadi bagian rilis tahap 1.
+Baseline rilis tahap 1: **`v0.1.7` (M7)**. UI/operasional tahap 1 sudah accepted; acceptance server UAT M5/M6/M7A/M7B tetap dicatat terpisah. Angka `7` merujuk ke milestone M7; `M7B` adalah sub-milestone reporting. M8B–M8D adalah pekerjaan pasca-baseline dan belum menjadi bagian rilis tahap 1.
 
 Jangan melanjutkan ke milestone berikutnya tanpa instruksi eksplisit.
