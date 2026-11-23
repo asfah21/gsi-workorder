@@ -15,7 +15,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/components/app-shell";
 import { DashboardOperations } from "@/components/dashboard-operations";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,7 +38,6 @@ export function DashboardView() {
   const [recentLoading, setRecentLoading] = useState(true);
   const [error, setError] = useState("");
   const [recentError, setRecentError] = useState("");
-  const [today, setToday] = useState("");
   const [greeting, setGreeting] = useState("");
   const [days, setDays] = useState("30");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -56,14 +54,6 @@ export function DashboardView() {
           : hour < 19
             ? "Selamat sore"
             : "Selamat malam",
-    );
-    setToday(
-      formatWita(now, {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }),
     );
   }, []);
 
@@ -130,9 +120,6 @@ export function DashboardView() {
           className="col-span-12 xl:col-span-8"
           user={user}
           greeting={greeting}
-          today={today}
-          summary={summary}
-          loading={loading}
           refreshing={refreshing}
           onRefresh={() => void refresh()}
         />
@@ -176,35 +163,22 @@ function DashboardHero({
   className,
   user,
   greeting,
-  today,
-  summary,
-  loading,
   refreshing,
   onRefresh,
 }: {
   className?: string;
   user: { name?: string; nik?: string };
   greeting: string;
-  today: string;
-  summary: DashboardSummary | null;
-  loading: boolean;
   refreshing: boolean;
   onRefresh: () => void;
 }) {
   const name = user.name || user.nik || "Pengguna";
   const displayGreeting = greeting || "Selamat datang";
   const isNight = displayGreeting === "Selamat malam";
-  const summaryLine = summary
-    ? `${formatNumber(summary.units_active)} unit aktif · ${formatNumber(
-        summary.wo_open ?? 0,
-      )} WO open · ${formatNumber(summary.pm_overdue ?? 0)} PM terlambat`
-    : loading
-      ? "Memuat ringkasan operasional..."
-      : "Ringkasan operasional belum tersedia.";
 
   return (
     <Card className={cn("relative overflow-hidden border-border bg-card", className)}>
-      <CardContent className="relative z-10 flex min-h-[232px] flex-col items-start justify-center gap-5 p-6 md:p-8">
+      <CardContent className="relative z-10 flex min-h-[210px] flex-col items-start justify-center gap-5 p-6 md:p-8">
         <div className="max-w-xl space-y-3 lg:max-w-[52%]">
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
             {displayGreeting}, {name}
@@ -215,18 +189,8 @@ function DashboardHero({
             )}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {today ? `${today}. ` : ""}
             Ringkasan armada, maintenance, dan operasional gudang.
           </p>
-          {summary ? (
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Badge variant="outline" className="h-6 px-2.5">
-                {summaryLine}
-              </Badge>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">{summaryLine}</p>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <Link href="/reports" className={buttonVariants({ variant: "default" })}>
@@ -256,7 +220,7 @@ function DashboardHero({
         width={420}
         height={240}
         priority
-        className="pointer-events-none absolute -bottom-2 right-4 hidden w-[300px] dark:block lg:w-[380px]"
+        className="pointer-events-none absolute -bottom-2 right-4 hidden w-[240px] dark:block lg:w-[300px]"
       />
       <Image
         src="/images/backgrounds/analytic-user.svg"
@@ -264,7 +228,7 @@ function DashboardHero({
         width={420}
         height={240}
         priority
-        className="pointer-events-none absolute -bottom-2 right-4 hidden w-[300px] dark:hidden lg:block lg:w-[380px]"
+        className="pointer-events-none absolute -bottom-2 right-4 hidden w-[240px] dark:hidden lg:block lg:w-[300px]"
       />
     </Card>
   );

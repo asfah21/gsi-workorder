@@ -5,12 +5,13 @@ import {
   CheckCircle2,
   CircleAlert,
   ClipboardList,
+  Filter,
   Loader2,
   PackageSearch,
   Pencil,
   Play,
   Plus,
-  RefreshCw,
+  RotateCcw,
   ShieldCheck,
   SkipForward,
   Trash2,
@@ -30,6 +31,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -542,11 +544,18 @@ export function PMView() {
 
   const totalPages = Math.max(1, Math.ceil(schedulesTotal / pageSize));
 
+  const resetScheduleFilters = () => {
+    setScheduleQuery("");
+    setBucket("");
+    setShowHistory(false);
+    setPage(1);
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Preventive Maintenance"
-        description="Plan per unit/model, interval HM/KM/calendar, schedule, dan generate WO PM."
+        title="Maintenance"
+        description="Kelola plan PM, schedule, dan kepatuhan preventive maintenance."
         actions={
           canManage ? (
             <Button type="button" onClick={openCreate}>
@@ -571,21 +580,18 @@ export function PMView() {
         </Alert>
       ) : null}
 
-      <Card>
+      <Card className="gap-0">
         <CardHeader>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="size-4" aria-hidden="true" /> Plan PM
-              </CardTitle>
-              <CardDescription>{loading ? "Memuat plan..." : `${plansTotal} plan`}</CardDescription>
-            </div>
-            <Badge variant="secondary" className="h-6 w-fit px-2.5">{plansTotal} plan</Badge>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <ClipboardList className="size-4" aria-hidden="true" /> Plan PM
+          </CardTitle>
+          <CardDescription>
+            {loading ? "Memuat plan..." : `${plansTotal} plan`}
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0">
           {loading ? (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 px-6 py-4">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
@@ -602,13 +608,13 @@ export function PMView() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Target</TableHead>
-                    <TableHead>Interval</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Auto WO</TableHead>
-                    <TableHead>Checklist</TableHead>
-                    <TableHead>Aksi</TableHead>
+                    <TableHead scope="col">Plan</TableHead>
+                    <TableHead scope="col">Target</TableHead>
+                    <TableHead scope="col">Interval</TableHead>
+                    <TableHead scope="col">Status</TableHead>
+                    <TableHead scope="col">Auto WO</TableHead>
+                    <TableHead scope="col">Checklist</TableHead>
+                    <TableHead scope="col">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -674,19 +680,9 @@ export function PMView() {
       </Card>
 
       <Card>
-        <CardHeader className="gap-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarClock className="size-4" aria-hidden="true" /> Schedule PM
-              </CardTitle>
-              <CardDescription>
-                {schedulesLoading ? "Memuat schedule..." : `${schedulesTotal} schedule · ${bucketCounts.overdue || 0} overdue`}
-              </CardDescription>
-            </div>
-            <Badge variant="secondary" className="h-6 w-fit px-2.5">{bucketLabels[bucket] || "Semua"}</Badge>
-          </div>
+        <CardContent>
           <FilterBar
+            aria-label="Cari dan filter schedule PM"
             onSubmit={(event) => {
               event.preventDefault();
               setPage(1);
@@ -697,6 +693,9 @@ export function PMView() {
               <FieldLabel htmlFor="pm-search">Cari</FieldLabel>
               <SearchInput
                 id="pm-search"
+                name="q"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={scheduleQuery}
                 onChange={(event) => setScheduleQuery(event.target.value)}
                 placeholder="Plan atau unit"
@@ -711,6 +710,7 @@ export function PMView() {
                   setBucket(event.target.value);
                   setPage(1);
                 }}
+                className="w-full"
               >
                 <NativeSelectOption value="">Semua</NativeSelectOption>
                 <NativeSelectOption value="upcoming">Upcoming</NativeSelectOption>
@@ -723,8 +723,12 @@ export function PMView() {
                 <NativeSelectOption value="cancelled">Cancelled</NativeSelectOption>
               </NativeSelect>
             </Field>
-            <label className="flex h-9 cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <label
+              htmlFor="pm-history"
+              className="flex h-9 cursor-pointer items-center gap-2 text-sm text-muted-foreground"
+            >
               <input
+                id="pm-history"
                 type="checkbox"
                 checked={showHistory}
                 onChange={(event) => {
@@ -735,20 +739,42 @@ export function PMView() {
               />
               Riwayat
             </label>
-            <Button type="button" variant="ghost" onClick={() => void loadSchedules()}>
-              <RefreshCw aria-hidden="true" /> Refresh
-            </Button>
+            <div className="flex gap-2 md:ml-auto">
+              <Button type="submit" variant="outline">
+                <Filter aria-hidden="true" />
+                Terapkan
+              </Button>
+              <Button type="button" variant="ghost" onClick={resetScheduleFilters}>
+                <RotateCcw aria-hidden="true" />
+                Reset
+              </Button>
+            </div>
           </FilterBar>
+        </CardContent>
+      </Card>
+
+      <Card className="gap-0">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarClock className="size-4" aria-hidden="true" /> Schedule PM
+            </CardTitle>
+            <CardDescription>
+              {schedulesLoading
+                ? "Memuat schedule..."
+                : `${schedulesTotal} schedule · ${bucketCounts.overdue || 0} overdue`}
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent className="px-0">
           {schedulesLoading ? (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 px-6 py-4">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
             </div>
           ) : schedules.length === 0 ? (
-            <Empty>
+            <Empty className="border-0 py-8">
               <EmptyHeader>
                 <EmptyMedia variant="icon"><CalendarClock aria-hidden="true" /></EmptyMedia>
                 <EmptyTitle>Tidak ada schedule</EmptyTitle>
@@ -756,74 +782,78 @@ export function PMView() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Plan / Unit</TableHead>
-                      <TableHead>Siklus</TableHead>
-                      <TableHead>Due</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>WO</TableHead>
-                      <TableHead>Aksi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {schedules.map((schedule) => (
-                      <TableRow key={schedule.id}>
-                        <TableCell>
-                          <p className="font-medium">{schedule.unit_code}</p>
-                          <p className="text-xs text-muted-foreground">{schedule.plan_name}</p>
-                        </TableCell>
-                        <TableCell>#{schedule.cycle_no}</TableCell>
-                        <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                          {[
-                            schedule.due_hm != null ? `HM ${schedule.due_hm}` : "",
-                            schedule.due_km != null ? `KM ${schedule.due_km}` : "",
-                            schedule.due_date ? formatWita(schedule.due_date, { dateStyle: "medium" }) : "",
-                          ].filter(Boolean).join(" · ") || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={cn(
-                              "h-5 px-2",
-                              schedule.bucket === "overdue" && "bg-destructive/10 text-destructive",
-                              schedule.bucket === "due" && "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-                              schedule.bucket === "due_soon" && "bg-orange-500/10 text-orange-700 dark:text-orange-300",
-                              schedule.bucket === "wo_created" && "bg-sky-500/10 text-sky-700 dark:text-sky-300",
-                              schedule.bucket === "completed" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-                            )}
-                          >
-                            {bucketLabels[schedule.bucket] || schedule.bucket}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{schedule.work_order_code || "-"}</TableCell>
-                        <TableCell>
-                          {canManage && ["scheduled", "due", "overdue"].includes(schedule.status) ? (
-                            <div className="flex flex-wrap gap-1">
-                              <Button type="button" size="xs" onClick={() => void generateWO(schedule)}>
-                                <Play aria-hidden="true" /> WO
-                              </Button>
-                              <Button type="button" size="xs" variant="outline" onClick={() => openAction(schedule, "override")}>
-                                Override
-                              </Button>
-                              <Button type="button" size="xs" variant="ghost" onClick={() => openAction(schedule, "skip")}>
-                                <SkipForward aria-hidden="true" /> Skip
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              {schedule.work_order_code ? `WO ${schedule.work_order_code}` : "-"}
-                            </span>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col">Plan / Unit</TableHead>
+                    <TableHead scope="col">Siklus</TableHead>
+                    <TableHead scope="col">Due</TableHead>
+                    <TableHead scope="col">Status</TableHead>
+                    <TableHead scope="col">WO</TableHead>
+                    <TableHead scope="col">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {schedules.map((schedule) => (
+                    <TableRow key={schedule.id}>
+                      <TableCell>
+                        <p className="font-medium">{schedule.unit_code}</p>
+                        <p className="text-xs text-muted-foreground">{schedule.plan_name}</p>
+                      </TableCell>
+                      <TableCell>#{schedule.cycle_no}</TableCell>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        {[
+                          schedule.due_hm != null ? `HM ${schedule.due_hm}` : "",
+                          schedule.due_km != null ? `KM ${schedule.due_km}` : "",
+                          schedule.due_date ? formatWita(schedule.due_date, { dateStyle: "medium" }) : "",
+                        ].filter(Boolean).join(" · ") || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            "h-5 px-2",
+                            schedule.bucket === "overdue" && "bg-destructive/10 text-destructive",
+                            schedule.bucket === "due" && "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+                            schedule.bucket === "due_soon" && "bg-orange-500/10 text-orange-700 dark:text-orange-300",
+                            schedule.bucket === "wo_created" && "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+                            schedule.bucket === "completed" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                        >
+                          {bucketLabels[schedule.bucket] || schedule.bucket}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{schedule.work_order_code || "-"}</TableCell>
+                      <TableCell>
+                        {canManage && ["scheduled", "due", "overdue"].includes(schedule.status) ? (
+                          <div className="flex flex-wrap gap-1">
+                            <Button type="button" size="xs" onClick={() => void generateWO(schedule)}>
+                              <Play aria-hidden="true" /> WO
+                            </Button>
+                            <Button type="button" size="xs" variant="outline" onClick={() => openAction(schedule, "override")}>
+                              Override
+                            </Button>
+                            <Button type="button" size="xs" variant="ghost" onClick={() => openAction(schedule, "skip")}>
+                              <SkipForward aria-hidden="true" /> Skip
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            {schedule.work_order_code ? `WO ${schedule.work_order_code}` : "-"}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+        {schedulesTotal > 0 ? (
+          <CardFooter className="border-t">
+            <div className="w-full">
               <TablePagination
                 page={page}
                 pageSize={pageSize}
@@ -837,9 +867,9 @@ export function PMView() {
                   setPage(1);
                 }}
               />
-            </>
-          )}
-        </CardContent>
+            </div>
+          </CardFooter>
+        ) : null}
       </Card>
 
       <Card>
@@ -850,7 +880,7 @@ export function PMView() {
           <CardDescription>Dihitung dari siklus WO PM yang selesai, overdue, skipped, dan cancelled.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Metric label="Total siklus" value={compliance?.total ?? 0} />
             <Metric label="Selesai" value={compliance?.completed ?? 0} />
             <Metric label="Overdue" value={compliance?.overdue ?? 0} />
@@ -861,13 +891,13 @@ export function PMView() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Selesai</TableHead>
-                    <TableHead>On time</TableHead>
-                    <TableHead>Overdue</TableHead>
-                    <TableHead>Missed</TableHead>
-                    <TableHead>Rate</TableHead>
+                    <TableHead scope="col">Plan</TableHead>
+                    <TableHead scope="col">Total</TableHead>
+                    <TableHead scope="col">Selesai</TableHead>
+                    <TableHead scope="col">On time</TableHead>
+                    <TableHead scope="col">Overdue</TableHead>
+                    <TableHead scope="col">Missed</TableHead>
+                    <TableHead scope="col">Rate</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -886,7 +916,17 @@ export function PMView() {
               </Table>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Belum ada data compliance.</p>
+            <Empty className="border-0 py-6">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ShieldCheck aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>Belum ada data compliance</EmptyTitle>
+                <EmptyDescription>
+                  Data muncul setelah siklus WO PM selesai, overdue, skipped, atau cancelled.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </CardContent>
       </Card>
@@ -1325,9 +1365,9 @@ export function PMView() {
 
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-lg border border-border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-semibold">{value}</p>
+    <div className="rounded-lg border border-border p-4">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
     </div>
   );
 }

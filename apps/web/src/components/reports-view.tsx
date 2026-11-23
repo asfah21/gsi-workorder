@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleAlert, Download, FileText, RotateCcw, Search } from "lucide-react";
+import { CircleAlert, Download, FileText, Filter, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { FilterBar } from "@/components/list/list-filter-bar";
@@ -12,6 +12,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -164,9 +165,17 @@ export function ReportsView() {
       ) : null}
 
       <Card>
-        <CardContent className="pt-6">
-          <FilterBar aria-label="Filter laporan" onSubmit={(event) => { event.preventDefault(); setPage(1); void load(); }}>
-            <Field className="md:w-56">
+        <CardContent>
+          <FilterBar
+            className="grid gap-3 md:grid-cols-2 xl:grid-cols-6"
+            aria-label="Filter laporan"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setPage(1);
+              void load();
+            }}
+          >
+            <Field className="min-w-0 xl:col-span-2">
               <FieldLabel htmlFor="report-kind">Jenis laporan</FieldLabel>
               <NativeSelect
                 id="report-kind"
@@ -175,6 +184,7 @@ export function ReportsView() {
                   setReport(event.target.value as ReportName);
                   setPage(1);
                 }}
+                className="w-full"
               >
                 {REPORTS.map((item) => (
                   <NativeSelectOption key={item.value} value={item.value}>
@@ -183,7 +193,7 @@ export function ReportsView() {
                 ))}
               </NativeSelect>
             </Field>
-            <Field className="md:w-44">
+            <Field className="min-w-0">
               <FieldLabel htmlFor="report-from">Dari</FieldLabel>
               <Input
                 id="report-from"
@@ -193,7 +203,7 @@ export function ReportsView() {
                 onChange={(event) => setFrom(event.target.value)}
               />
             </Field>
-            <Field className="md:w-44">
+            <Field className="min-w-0">
               <FieldLabel htmlFor="report-to">Sampai</FieldLabel>
               <Input
                 id="report-to"
@@ -203,34 +213,60 @@ export function ReportsView() {
                 onChange={(event) => setTo(event.target.value)}
               />
             </Field>
-            <Field className="md:w-36">
+            <Field className="min-w-0">
               <FieldLabel htmlFor="report-bucket">Bucket</FieldLabel>
-              <NativeSelect id="report-bucket" value={bucket} onChange={(event) => setBucket(event.target.value)}>
+              <NativeSelect
+                id="report-bucket"
+                value={bucket}
+                onChange={(event) => setBucket(event.target.value)}
+                className="w-full"
+              >
                 <NativeSelectOption value="day">Harian</NativeSelectOption>
                 <NativeSelectOption value="week">Mingguan</NativeSelectOption>
                 <NativeSelectOption value="month">Bulanan</NativeSelectOption>
               </NativeSelect>
             </Field>
             {selected.hasGroup ? (
-              <Field className="md:w-36">
+              <Field className="min-w-0">
                 <FieldLabel htmlFor="report-group">Kelompok</FieldLabel>
-                <NativeSelect id="report-group" value={groupBy} onChange={(event) => setGroupBy(event.target.value)}>
+                <NativeSelect
+                  id="report-group"
+                  value={groupBy}
+                  onChange={(event) => setGroupBy(event.target.value)}
+                  className="w-full"
+                >
                   <NativeSelectOption value="plan">Rencana PM</NativeSelectOption>
                   <NativeSelectOption value="unit">Unit</NativeSelectOption>
                   <NativeSelectOption value="model">Model</NativeSelectOption>
                 </NativeSelect>
               </Field>
-            ) : null}
-            <div className="flex gap-2 md:ml-auto">
-              <Button type="submit" variant="outline">
-                <Search aria-hidden="true" />
+            ) : (
+              <div aria-hidden="true" />
+            )}
+            <div className="flex flex-wrap gap-2 md:col-span-2 xl:col-span-6 xl:justify-end">
+              <Button
+                type="submit"
+                variant="outline"
+                className="flex-1 sm:flex-none"
+              >
+                <Filter aria-hidden="true" />
                 Terapkan
               </Button>
-              <Button type="button" variant="ghost" onClick={reset}>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={reset}
+                className="flex-1 sm:flex-none"
+              >
                 <RotateCcw aria-hidden="true" />
                 Reset
               </Button>
-              <Button type="button" onClick={() => void downloadCSV()} disabled={unauthorized}>
+              <Button
+                type="button"
+                onClick={() => void downloadCSV()}
+                disabled={unauthorized}
+                className="w-full sm:w-auto"
+              >
                 <Download aria-hidden="true" />
                 Ekspor CSV
               </Button>
@@ -247,9 +283,9 @@ export function ReportsView() {
         </Alert>
       ) : null}
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
-          <div>
+      <Card className="gap-0">
+        <CardHeader className="flex flex-col gap-2 border-b sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <CardTitle className="flex items-center gap-2">
               <FileText className="size-4 text-muted-foreground" aria-hidden="true" />
               {selected.label}
@@ -258,11 +294,17 @@ export function ReportsView() {
               Batas hari WITA, dari {from} sampai {to}.
             </CardDescription>
           </div>
-          <Badge variant="outline">{table?.meta.total ?? 0} baris</Badge>
+          <Badge variant="outline" className="h-6 w-fit px-2.5">
+            {table?.meta.total ?? 0} baris
+          </Badge>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent className="px-0">
           {loading ? (
-            <div className="space-y-3" role="status" aria-label="Memuat laporan">
+            <div
+              className="space-y-3 px-6 py-4"
+              role="status"
+              aria-label="Memuat laporan"
+            >
               {Array.from({ length: 8 }).map((_, index) => (
                 <Skeleton key={index} className="h-9 w-full" />
               ))}
@@ -270,27 +312,35 @@ export function ReportsView() {
           ) : !table || table.rows.length === 0 ? (
             <EmptyState />
           ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {table.columns.map((column) => (
+                      <TableHead key={column.key} scope="col">
+                        {column.label}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {table.rows.map((row, index) => (
+                    <TableRow
+                      key={`${String(row[table.columns[0]?.key ?? ""] ?? "")}-${index}`}
+                    >
                       {table.columns.map((column) => (
-                        <TableHead key={column.key}>{column.label}</TableHead>
+                        <TableCell key={column.key}>{cell(row[column.key])}</TableCell>
                       ))}
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {table.rows.map((row, index) => (
-                      <TableRow key={`${String(row[table.columns[0]?.key ?? ""] ?? "")}-${index}`}>
-                        {table.columns.map((column) => (
-                          <TableCell key={column.key}>{cell(row[column.key])}</TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+        {!loading && table && table.rows.length > 0 ? (
+          <CardFooter className="border-t">
+            <div className="w-full">
               <TablePagination
                 page={page}
                 pageSize={pageSize}
@@ -299,11 +349,14 @@ export function ReportsView() {
                 loading={loading}
                 itemLabel="baris"
                 onPageChange={setPage}
-                onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
               />
-            </>
-          )}
-        </CardContent>
+            </div>
+          </CardFooter>
+        ) : null}
       </Card>
     </div>
   );

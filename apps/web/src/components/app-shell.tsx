@@ -268,9 +268,9 @@ function AppShellFrame({
           </Link>
           <Badge
             variant="secondary"
-            className="hide-menu h-5 shrink-0 px-2"
+            className="hide-menu h-4 shrink-0 px-1.5 text-[10px] leading-none font-semibold"
           >
-            M6
+            v.0.1.7
           </Badge>
         </SidebarHeader>
 
@@ -312,8 +312,8 @@ function AppShellFrame({
                           </span>
                           {item.beta ? (
                             <Badge
-                              variant="secondary"
-                              className="hide-menu h-5 shrink-0 px-2"
+                              variant="outline"
+                              className="hide-menu h-4 shrink-0 border-amber-500/30 bg-amber-500/10 px-1.5 text-[10px] leading-none font-semibold text-amber-700 dark:text-amber-300"
                             >
                               Beta
                             </Badge>
@@ -407,7 +407,7 @@ function AppShellFrame({
                 © 2026 - PT Gunung Samudera Internasional.
               </p>
               <p className="sm:hidden">© 2026 - PT GSI</p>
-              <p className="hidden text-muted-foreground/70 sm:block">AZV - V.0.1.1</p>
+              <p className="hidden text-muted-foreground/70 sm:block">AZV-M7B</p>
             </footer>
           </div>
         </div>
