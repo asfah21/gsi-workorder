@@ -19,7 +19,7 @@ import {
   MaintenanceActivityChart,
   type ActivityDatum,
 } from "@/components/dashboard-charts";
-import { FleetStatusChart } from "@/components/fleet-status-chart";
+import { UnitStatusChart } from "@/components/unit-status-chart";
 import { WorkOrderStatusBadge } from "@/components/workorder-badges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -266,10 +266,10 @@ export function DashboardOperations({
       <Card className="col-span-12 xl:col-span-4">
         <CardHeader className="flex flex-row items-center gap-2 border-b">
           <Box className="size-4 text-muted-foreground" aria-hidden="true" />
-          <CardTitle>Status armada</CardTitle>
+          <CardTitle>Status unit</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col justify-between gap-5 pt-5">
-          <FleetStatusChart
+          <UnitStatusChart
             unitsTotal={summary.total}
             unitsActive={summary.active}
             unitsBreakdown={summary.breakdown}

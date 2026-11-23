@@ -32,7 +32,7 @@ const GeistMono = localFont({
 export const metadata: Metadata = {
   title: "PAMS | Plant and Maintenance System",
   description:
-    "Sistem operasional Plant and Maintenance GSI untuk work order, PM, armada, inventory, dan laporan.",
+    "Sistem operasional Plant and Maintenance GSI untuk work order, PM, unit, inventory, dan laporan.",
   other: {
     "color-scheme": "light dark",
   },

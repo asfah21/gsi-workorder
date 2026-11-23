@@ -203,7 +203,7 @@ Aturan:
 ### Dashboard
 
 - Bagian atas memakai sapaan, tanggal WITA, dan empat `KpiCard` dengan nilai `text-2xl font-semibold`.
-- Bagian bawah memetakan data nyata sebagai berikut: downtime/MTTR, status work order, kesiapan stok, armada aktif, kondisi armada, dan penunggu part.
+- Bagian bawah memetakan data nyata sebagai berikut: downtime/MTTR, status work order, kesiapan stok, unit aktif, kondisi unit, dan penunggu part.
 - `Cuplikan unit` memakai tabel lebar penuh; `Akses cepat` menjadi kartu grid di bawahnya.
 - Jangan menambah data tren palsu atau angka dummy untuk menyerupai demo; semua nilai harus berasal dari endpoint dashboard.
 

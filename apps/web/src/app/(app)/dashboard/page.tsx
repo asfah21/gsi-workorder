@@ -4,7 +4,7 @@ import { DashboardView } from "@/components/dashboard-view";
 
 export const metadata: Metadata = {
   title: "Dashboard | PAMS",
-  description: "Ringkasan armada, maintenance, dan operasional gudang",
+  description: "Ringkasan unit, maintenance, dan operasional gudang",
 };
 
 export default function DashboardPage() {

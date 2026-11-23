@@ -189,7 +189,7 @@ function DashboardHero({
             )}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Ringkasan armada, maintenance, dan operasional gudang.
+            Ringkasan unit, maintenance, dan operasional gudang.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -259,7 +259,7 @@ function DashboardInsights({
     <Card className={cn("flex flex-col", className)}>
       <CardHeader className="flex flex-row items-center gap-2 border-b">
         <Lightbulb className="size-4 text-muted-foreground" aria-hidden="true" />
-        <CardTitle>Ringkasan armada</CardTitle>
+        <CardTitle>Ringkasan unit</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-5 pt-4">
         {loading && !summary ? (

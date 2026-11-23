@@ -20,7 +20,7 @@ const chartConfig = {
   inactive: { label: "Nonaktif", color: "var(--muted-foreground)" },
 } as const;
 
-export function FleetStatusChart({
+export function UnitStatusChart({
   unitsTotal,
   unitsActive,
   unitsBreakdown,
