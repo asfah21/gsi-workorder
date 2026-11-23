@@ -213,8 +213,32 @@ Dilarang:
 
 ---
 
-## 11. Riwayat
+## 11. Catatan implementasi node `32:2` — Dashboard Inventory
+
+Keputusan adaptasi berikut berlaku untuk implementasi di `apps/web`:
+
+| Elemen Figma | Keputusan implementasi |
+|---|---|
+| `AppTopBar` + sidebar inventory | Memakai `AppShell` existing; tidak membuat shell baru. |
+| Breadcrumb `Beranda / Inventory / Dashboard` | `PageHeader` di route `/inventory/dashboard`. |
+| 4 `MetricCard` | Total SKU aktif (`/spareparts?active_only=true`), Pergerakan 7 hari (`summary.movements`), Stok menipis (`summary.low` + badge `summary.critical`), Reservasi aktif (`/inventory/reservations?status=active`). |
+| `Nilai Persediaan` | Tidak dipakai: tidak ada endpoint valuasi. Diganti "Pergerakan 7 hari". |
+| `PO Terbuka` dan tombol `Pesan` | Dihilangkan: project tidak memiliki alur procurement/PO. |
+| Badge tren `+4% vs Sep`, `+2,1% vs Sep` | Tidak dipakai: tidak ada data pembanding; diganti konteks data aktual. |
+| `imgPlot` SVG statis | Tidak dipakai; grafik dirender dari data nyata lewat `ChartContainer` (dua seri: Masuk/Keluar). |
+| Kolom `Oleh` pada tabel | Tidak tersedia di payload; diganti `Referensi` (`reference_no`/`transaction_code`). |
+| Ikon Tabler | Tetap `lucide-react`. |
+| Warna seri grafik | Memakai `--chart-1` / `--chart-2` project, bukan hijau/biru Figma. |
+
+File terkait: `components/inventory-dashboard-view.tsx`, `components/inventory-movement-chart.tsx`, dan route `(app)/inventory/dashboard/page.tsx`.
+
+> Catatan implementasi: pemanggilan ulang Figma MCP saat eksekusi terkena batas kuota Starter. Acuan yang dipakai adalah `get_design_context` node `32:2` yang sudah berhasil diambil pada sesi yang sama sebelum batas kuota tercapai.
+
+---
+
+## 12. Riwayat
 
 | Tanggal | Perubahan |
 |---|---|
 | 2026-11-23 | Dibuat di branch `pams` sebagai pengganti `docs/Frontend UI Guidelines.md`. Menetapkan Figma Sanggar ERP sebagai template wajib dan resolusi konflik dengan guidelines project. |
+| 2026-11-23 | Menambahkan keputusan adaptasi node `32:2` (Dashboard Inventory) ke kontrak. |

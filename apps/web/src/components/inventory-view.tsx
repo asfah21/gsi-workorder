@@ -20,6 +20,7 @@ import {
   Trash2,
   Warehouse,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
@@ -30,7 +31,7 @@ import { ActiveBadge } from "@/components/status-badges";
 import { TablePagination } from "@/components/table-pagination";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -1007,6 +1008,12 @@ export function InventoryView() {
         description="Stok sparepart, transaksi immutable, stock opname, dan minimum stock per lokasi."
         actions={
           <>
+            <Link
+              href="/inventory/dashboard"
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              <Boxes aria-hidden="true" /> Dashboard
+            </Link>
             {tab === "transactions" && canMove ? (
               <>
                 <Button type="button" size="sm" onClick={() => openTxForm("receipt")}>
