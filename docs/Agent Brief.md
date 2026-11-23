@@ -48,6 +48,7 @@ Fakta M0:
 10. **4 service, stack tetap.** Tanpa Redis, message broker, search engine, atau ORM (Prisma/GORM).
 11. **No duplicate tables.** Lihat §6. Jangan membuat `unit_maintenance_history`, `material_usage`, `inventory_adjustments`, `pm_notifications`, `waiting_material`, `pm_executions`, atau `unit_downtime_events`.
 12. **Satu milestone per sesi.** Jangan mengerjakan fitur di luar milestone aktif.
+13. **Istilah “unit”.** Semua UI, dokumen, dan teks user-facing wajib memakai “unit” untuk kendaraan/alat; jangan memakai sinonim lama.
 
 ---
 

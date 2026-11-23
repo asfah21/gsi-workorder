@@ -25,6 +25,7 @@ Jangan menambah library UI, state, chart, atau icon baru tanpa approval.
 9. Semua halaman harus menangani loading, empty, error, dan unauthorized state.
 10. Jangan memakai `<a>` untuk navigasi internal; gunakan `next/link`.
 11. Semua kontrol form dan labelnya memakai `text-sm`; jangan mencampur `text-base` atau `text-lg` dalam satu field, filter bar, atau kartu metrik.
+12. Gunakan istilah **“unit”** di seluruh UI untuk kendaraan/alat; jangan memakai sinonim lama.
 
 ## Page shell
 
