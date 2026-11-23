@@ -119,6 +119,7 @@ type DashboardSummary struct {
 type UnitFilter struct {
 	Query        string
 	IsActive     *bool
+	IsBreakdown  *bool
 	UnitModelID  *int64
 	SiteLocation string
 	Page         int

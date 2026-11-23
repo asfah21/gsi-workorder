@@ -64,6 +64,7 @@ import { formatDateTimeWita, formatNumber } from "@/lib/time";
 const filterLabels: Record<string, string> = {
   active: "Aktif",
   inactive: "Nonaktif",
+  breakdown: "Breakdown",
   all: "Semua",
 };
 
@@ -82,8 +83,15 @@ export function UnitsView() {
   const searchParams = useSearchParams();
   const q = searchParams.get("q") ?? "";
   const rawActive = searchParams.get("is_active");
+  const rawBreakdown = searchParams.get("is_breakdown");
   const activeFilter =
-    rawActive === "false" ? "inactive" : rawActive === "all" ? "all" : "active";
+    rawBreakdown === "true"
+      ? "breakdown"
+      : rawActive === "false"
+        ? "inactive"
+        : rawActive === "all"
+          ? "all"
+          : "active";
   const list = useListParams({
     defaultSort: "code",
     allowedSorts: sortableColumns,
@@ -134,7 +142,10 @@ export function UnitsView() {
     if (q.trim()) {
       params.set("q", q.trim());
     }
-    if (activeFilter === "active") {
+    if (activeFilter === "breakdown") {
+      params.set("is_active", "true");
+      params.set("is_breakdown", "true");
+    } else if (activeFilter === "active") {
       params.set("is_active", "true");
     } else if (activeFilter === "inactive") {
       params.set("is_active", "false");
@@ -261,7 +272,7 @@ export function UnitsView() {
   const resetFilters = () => {
     setQuery("");
     setQueryError("");
-    list.setFilters({ q: null, is_active: null });
+    list.setFilters({ q: null, is_active: null, is_breakdown: null });
   };
 
   return (
@@ -334,15 +345,22 @@ export function UnitsView() {
                   name="is_active"
                   value={activeFilter}
                   onChange={(event) => {
+                    const value = event.target.value;
                     list.setFilters({
                       is_active:
-                        event.target.value === "active" ? null : event.target.value,
+                        value === "breakdown"
+                          ? "true"
+                          : value === "active"
+                            ? null
+                            : value,
+                      is_breakdown: value === "breakdown" ? "true" : null,
                     });
                   }}
                   className="w-full"
                 >
                   <NativeSelectOption value="active">Aktif</NativeSelectOption>
                   <NativeSelectOption value="inactive">Nonaktif</NativeSelectOption>
+                  <NativeSelectOption value="breakdown">Breakdown</NativeSelectOption>
                   <NativeSelectOption value="all">Semua</NativeSelectOption>
                 </NativeSelect>
               </Field>

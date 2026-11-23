@@ -2,73 +2,63 @@
 
 import {
   ArrowRight,
-  Boxes,
-  CalendarClock,
   CircleAlert,
-  FileText,
-  PackageSearch,
-  Plus,
+  Lightbulb,
+  Moon,
   RefreshCcw,
-  TriangleAlert,
-  Truck,
+  Sun,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { useSession } from "@/components/app-shell";
 import { DashboardOperations } from "@/components/dashboard-operations";
-import { KpiCard } from "@/components/kpi-card";
-import { PageHeader } from "@/components/layout/page-header";
-import { UnitStatusBadge } from "@/components/status-badges";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ApiError, proxyGet } from "@/lib/api-client";
-import type { DashboardSummary, DataResponse, ListResponse, Unit } from "@/lib/types";
+import type {
+  DashboardSummary,
+  DataResponse,
+  ListResponse,
+  WorkOrderRecord,
+} from "@/lib/types";
 import { formatNumber, formatWita } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
-const PREVIEW_SIZE = 5;
+const RECENT_SIZE = 5;
 
 export function DashboardView() {
   const { user } = useSession();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [unitsPreview, setUnitsPreview] = useState<Unit[]>([]);
+  const [recent, setRecent] = useState<WorkOrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [previewLoading, setPreviewLoading] = useState(true);
+  const [recentLoading, setRecentLoading] = useState(true);
   const [error, setError] = useState("");
-  const [previewError, setPreviewError] = useState("");
+  const [recentError, setRecentError] = useState("");
   const [today, setToday] = useState("");
+  const [greeting, setGreeting] = useState("");
   const [days, setDays] = useState("30");
   const [refreshKey, setRefreshKey] = useState(0);
-
-  const canWrite = user.role === "admin" || user.role === "planner";
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    const now = new Date();
+    const hour = Number(formatWita(now, { hour: "numeric", hour12: false }));
+    setGreeting(
+      hour < 11
+        ? "Selamat pagi"
+        : hour < 15
+          ? "Selamat siang"
+          : hour < 19
+            ? "Selamat sore"
+            : "Selamat malam",
+    );
     setToday(
-      formatWita(new Date(), {
+      formatWita(now, {
         weekday: "long",
         day: "numeric",
         month: "long",
@@ -94,96 +84,39 @@ export function DashboardView() {
     }
   }, []);
 
-  const loadPreview = useCallback(async () => {
-    setPreviewLoading(true);
+  const loadRecent = useCallback(async () => {
+    setRecentLoading(true);
     try {
-      const result = await proxyGet<ListResponse<Unit>>(
-        `/units?page=1&limit=${PREVIEW_SIZE}&sort=code&order=asc`,
+      const result = await proxyGet<ListResponse<WorkOrderRecord>>(
+        `/workorders?page=1&limit=${RECENT_SIZE}&sort=created_at&order=desc`,
       );
-      setUnitsPreview(result.data);
-      setPreviewError("");
+      setRecent(result.data);
+      setRecentError("");
     } catch (loadError) {
-      setPreviewError(
+      setRecentError(
         loadError instanceof ApiError
           ? loadError.message
-          : "Cuplikan unit tidak dapat dimuat.",
+          : "Work order terbaru tidak dapat dimuat.",
       );
     } finally {
-      setPreviewLoading(false);
+      setRecentLoading(false);
     }
   }, []);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
     setRefreshKey((current) => current + 1);
-    void loadSummary();
-    void loadPreview();
-  }, [loadPreview, loadSummary]);
+    await Promise.all([loadSummary(), loadRecent()]);
+    setRefreshing(false);
+  }, [loadRecent, loadSummary]);
 
   useEffect(() => {
     void loadSummary();
-    void loadPreview();
-  }, [loadPreview, loadSummary]);
-
-  const unitsTotal = summary?.units_total ?? 0;
-  const unitsActive = summary?.units_active ?? 0;
-  const breakdown = Math.max(0, summary?.units_breakdown ?? 0);
-
-  const unitHint = summary
-    ? `${formatNumber(summary.units_total)} unit · ${formatNumber(breakdown)} breakdown`
-    : error
-      ? "Data tidak tersedia"
-      : "Memuat data unit";
-  const pmHint = summary
-    ? `${formatNumber(summary.pm_due ?? 0)} due · ${formatNumber(summary.pm_due_soon ?? 0)} due soon`
-    : error
-      ? "Data tidak tersedia"
-      : "Memuat jadwal PM";
-  const materialHint = summary
-    ? `${formatNumber(summary.waiting_part_units ?? 0)} unit menunggu part`
-    : error
-      ? "Data tidak tersedia"
-      : "Memuat kesiapan material";
-  const stockHint = summary
-    ? `${formatNumber(summary.stock_low ?? 0)} menipis · ${formatNumber(summary.stock_critical ?? 0)} kritis`
-    : error
-      ? "Data tidak tersedia"
-      : "Memuat status stok";
+    void loadRecent();
+  }, [loadRecent, loadSummary]);
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader
-        title="Dashboard"
-        description={
-          <>
-            {user.name || user.nik ? `Selamat datang, ${user.name || user.nik}. ` : ""}
-            {today ? `${today}. ` : ""}
-            Ringkasan armada, maintenance, dan operasional gudang.
-          </>
-        }
-        actions={
-          <>
-            <Link href="/reports" className={buttonVariants({ variant: "outline" })}>
-              <FileText aria-hidden="true" />
-              Laporan
-            </Link>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={refresh}
-              disabled={loading || previewLoading}
-              aria-label="Muat ulang dashboard"
-              title="Muat ulang dashboard"
-            >
-              <RefreshCcw
-                className={loading || previewLoading ? "animate-spin" : undefined}
-                aria-hidden="true"
-              />
-            </Button>
-          </>
-        }
-      />
-
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
           <CircleAlert aria-hidden="true" />
@@ -192,179 +125,44 @@ export function DashboardView() {
         </Alert>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">Ringkasan armada</h2>
-        <p className="text-sm text-muted-foreground">
-          {today ? `Data per ${today}` : "Ringkasan terkini"}
-        </p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="Unit aktif"
-          value={summary?.units_active}
-          loading={loading && !summary}
-          icon={Truck}
-          href="/units"
-          hint={unitHint}
+      <div className="grid grid-cols-12 gap-4">
+        <DashboardHero
+          className="col-span-12 xl:col-span-8"
+          user={user}
+          greeting={greeting}
+          today={today}
+          summary={summary}
+          loading={loading}
+          refreshing={refreshing}
+          onRefresh={() => void refresh()}
         />
-        <KpiCard
-          label="PM terlambat"
-          value={summary?.pm_overdue}
-          loading={loading && !summary}
-          icon={CalendarClock}
-          href="/pm"
-          hint={pmHint}
+        <DashboardInsights
+          className="col-span-12 xl:col-span-4"
+          summary={summary}
+          loading={loading}
         />
-        <KpiCard
-          label="Material shortage"
-          value={summary?.material_shortage}
-          loading={loading && !summary}
-          icon={PackageSearch}
-          href="/workorders"
-          hint={materialHint}
-        />
-        <KpiCard
-          label="Stok kritis"
-          value={summary?.stock_critical}
-          loading={loading && !summary}
-          icon={TriangleAlert}
-          href="/inventory"
-          hint={stockHint}
+        <DashboardOperations
+          days={days}
+          onDaysChange={setDays}
+          refreshKey={refreshKey}
+          summary={{
+            total: summary?.units_total ?? 0,
+            active: summary?.units_active ?? 0,
+            breakdown: Math.max(0, summary?.units_breakdown ?? 0),
+            loading: loading && !summary,
+            failed: Boolean(error) && !summary,
+            stockLow: summary?.stock_low ?? 0,
+            stockCritical: summary?.stock_critical ?? 0,
+            waitingPart: summary?.waiting_part_units ?? 0,
+            pmOverdue: summary?.pm_overdue ?? 0,
+            pmDue: summary?.pm_due ?? 0,
+            pmDueSoon: summary?.pm_due_soon ?? 0,
+          }}
+          recent={recent}
+          recentLoading={recentLoading}
+          recentError={recentError}
         />
       </div>
-
-      <DashboardOperations
-        days={days}
-        onDaysChange={setDays}
-        refreshKey={refreshKey}
-        summary={{
-          total: unitsTotal,
-          active: unitsActive,
-          breakdown,
-          loading: loading && !summary,
-          failed: Boolean(error) && !summary,
-          stockLow: summary?.stock_low ?? 0,
-          stockCritical: summary?.stock_critical ?? 0,
-          waitingPart: summary?.waiting_part_units ?? 0,
-          downtime30d: summary?.downtime_minutes_30d ?? 0,
-          mttr30d: summary?.mttr_minutes_30d ?? 0,
-          pmOverdue: summary?.pm_overdue ?? 0,
-          pmDue: summary?.pm_due ?? 0,
-          pmDueSoon: summary?.pm_due_soon ?? 0,
-          woOpen: summary?.wo_open ?? 0,
-          woInProgress: summary?.wo_in_progress ?? 0,
-        }}
-      />
-
-      <Card className="gap-0">
-        <CardHeader className="flex flex-col gap-3 border-b sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle>Cuplikan unit</CardTitle>
-            <CardDescription>Unit pertama dari master unit.</CardDescription>
-          </div>
-          <Link href="/units" className={buttonVariants({ variant: "outline", size: "sm" })}>
-            Lihat semua
-            <ArrowRight aria-hidden="true" />
-          </Link>
-        </CardHeader>
-        <CardContent className="px-0">
-          {previewLoading ? (
-            <div className="space-y-3 px-6 py-4" role="status" aria-label="Memuat unit">
-              {Array.from({ length: PREVIEW_SIZE }).map((_, index) => (
-                <Skeleton key={index} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : previewError ? (
-            <div className="px-6 py-4 text-sm text-muted-foreground">
-              {previewError}
-            </div>
-          ) : unitsPreview.length === 0 ? (
-            <Empty className="border-0 py-10">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Truck aria-hidden="true" />
-                </EmptyMedia>
-                <EmptyTitle>Belum ada unit</EmptyTitle>
-                <EmptyDescription>
-                  Tambahkan unit pertama untuk mulai mencatat HM/KM.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Unit</TableHead>
-                    <TableHead>Model</TableHead>
-                    <TableHead>Lokasi</TableHead>
-                    <TableHead className="text-right">HM</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {unitsPreview.map((unit) => (
-                    <TableRow key={unit.id}>
-                      <TableCell>
-                        <Link
-                          href={`/units/${unit.id}`}
-                          className="font-medium underline-offset-4 hover:underline"
-                        >
-                          {unit.code}
-                        </Link>
-                        <span className="block text-xs text-muted-foreground">
-                          {unit.unit_type || "Tanpa tipe"}
-                        </span>
-                      </TableCell>
-                      <TableCell>{modelLabel(unit)}</TableCell>
-                      <TableCell>{unit.site_location || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        {unit.hm_updated_at ? formatNumber(unit.current_hm) : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <UnitStatusBadge
-                          active={unit.is_active}
-                          breakdown={unit.is_breakdown}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Akses cepat</CardTitle>
-          <CardDescription>Mulai dari master unit atau unit baru.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-2 md:grid-cols-3">
-          <QuickLink
-            href="/units"
-            icon={Truck}
-            title="Daftar unit"
-            description="HM/KM terakhir dan status unit."
-          />
-          <QuickLink
-            href="/master"
-            icon={Boxes}
-            title="Master model"
-            description="Unit model dan engine model."
-          />
-          {canWrite ? (
-            <QuickLink
-              href="/units?create=1"
-              icon={Plus}
-              title="Tambah unit"
-              description="Daftarkan unit baru ke master."
-            />
-          ) : null}
-        </CardContent>
-      </Card>
 
       <p className="text-xs text-muted-foreground">
         Data operasional dihitung dari transaksi aktual; seluruh tanggal dan bucket
@@ -374,42 +172,218 @@ export function DashboardView() {
   );
 }
 
-function QuickLink({
-  href,
-  icon: Icon,
-  title,
-  description,
+function DashboardHero({
+  className,
+  user,
+  greeting,
+  today,
+  summary,
+  loading,
+  refreshing,
+  onRefresh,
 }: {
-  href: string;
-  icon: LucideIcon;
-  title: string;
-  description: string;
+  className?: string;
+  user: { name?: string; nik?: string };
+  greeting: string;
+  today: string;
+  summary: DashboardSummary | null;
+  loading: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
 }) {
+  const name = user.name || user.nik || "Pengguna";
+  const displayGreeting = greeting || "Selamat datang";
+  const isNight = displayGreeting === "Selamat malam";
+  const summaryLine = summary
+    ? `${formatNumber(summary.units_active)} unit aktif · ${formatNumber(
+        summary.wo_open ?? 0,
+      )} WO open · ${formatNumber(summary.pm_overdue ?? 0)} PM terlambat`
+    : loading
+      ? "Memuat ringkasan operasional..."
+      : "Ringkasan operasional belum tersedia.";
+
   return (
-    <Link
-      href={href}
-      className="group flex items-center gap-3 rounded-md border border-border/70 p-3 transition-colors hover:border-border hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-    >
-      <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground transition-colors group-hover:text-foreground">
-        <Icon className="size-4" aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{title}</span>
-        <span className="block truncate text-xs text-muted-foreground">
-          {description}
-        </span>
-      </span>
-      <ArrowRight
-        className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-        aria-hidden="true"
+    <Card className={cn("relative overflow-hidden border-border bg-card", className)}>
+      <CardContent className="relative z-10 flex min-h-[232px] flex-col items-start justify-center gap-5 p-6 md:p-8">
+        <div className="max-w-xl space-y-3 lg:max-w-[52%]">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            {displayGreeting}, {name}
+            {isNight ? (
+              <Moon className="size-6 text-sky-300" aria-hidden="true" />
+            ) : (
+              <Sun className="size-6 text-amber-500" aria-hidden="true" />
+            )}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {today ? `${today}. ` : ""}
+            Ringkasan armada, maintenance, dan operasional gudang.
+          </p>
+          {summary ? (
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Badge variant="outline" className="h-6 px-2.5">
+                {summaryLine}
+              </Badge>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{summaryLine}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/reports" className={buttonVariants({ variant: "default" })}>
+            Lihat laporan
+            <ArrowRight aria-hidden="true" />
+          </Link>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onRefresh}
+            disabled={refreshing}
+            aria-label="Muat ulang dashboard"
+            title="Muat ulang dashboard"
+          >
+            <RefreshCcw
+              className={refreshing ? "animate-spin" : undefined}
+              aria-hidden="true"
+            />
+          </Button>
+        </div>
+      </CardContent>
+
+      <Image
+        src="/images/backgrounds/analytic-user-dark.svg"
+        alt=""
+        width={420}
+        height={240}
+        priority
+        className="pointer-events-none absolute -bottom-2 right-4 hidden w-[300px] dark:block lg:w-[380px]"
       />
-    </Link>
+      <Image
+        src="/images/backgrounds/analytic-user.svg"
+        alt=""
+        width={420}
+        height={240}
+        priority
+        className="pointer-events-none absolute -bottom-2 right-4 hidden w-[300px] dark:hidden lg:block lg:w-[380px]"
+      />
+    </Card>
   );
 }
 
-function modelLabel(unit: Unit): string {
-  if (unit.unit_model) {
-    return `${unit.unit_model.manufacturer} ${unit.unit_model.model}`;
-  }
-  return unit.merk || "-";
+function DashboardInsights({
+  className,
+  summary,
+  loading,
+}: {
+  className?: string;
+  summary: DashboardSummary | null;
+  loading: boolean;
+}) {
+  const total = summary?.units_total ?? 0;
+  const active = summary?.units_active ?? 0;
+  const breakdown = Math.max(0, summary?.units_breakdown ?? 0);
+  const inactive = Math.max(0, total - active);
+  const readyPct = total > 0 ? Math.round((active / total) * 100) : 0;
+  const segments = 40;
+  const activeSegments = total > 0 ? Math.round((active / total) * segments) : 0;
+  const breakdownSegments =
+    total > 0
+      ? Math.min(segments - activeSegments, Math.round((breakdown / total) * segments))
+      : 0;
+
+  return (
+    <Card className={cn("flex flex-col", className)}>
+      <CardHeader className="flex flex-row items-center gap-2 border-b">
+        <Lightbulb className="size-4 text-muted-foreground" aria-hidden="true" />
+        <CardTitle>Ringkasan armada</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col gap-5 pt-4">
+        {loading && !summary ? (
+          <>
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </>
+        ) : !summary ? (
+          <p className="text-sm text-muted-foreground">
+            Ringkasan unit tidak tersedia. Coba muat ulang dashboard.
+          </p>
+        ) : (
+          <>
+            <div className="space-y-1">
+              <p className="text-2xl font-semibold tracking-tight">
+                {formatNumber(active)}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                  {readyPct}% siap
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  dari {formatNumber(total)} unit
+                </p>
+              </div>
+            </div>
+
+            <div
+              className="flex h-5 w-full items-stretch gap-[3px]"
+              aria-hidden="true"
+            >
+              {Array.from({ length: segments }).map((_, index) => {
+                const segmentClass =
+                  index < activeSegments
+                    ? "bg-foreground"
+                    : index < activeSegments + breakdownSegments
+                      ? "bg-chart-1"
+                      : "bg-muted-foreground/30";
+                return (
+                  <span
+                    key={index}
+                    className={cn("h-full flex-1 rounded-[1px]", segmentClass)}
+                  />
+                );
+              })}
+            </div>
+
+            <div className="mt-auto grid gap-2.5">
+              <InsightRow label="Aktif" value={active} color="var(--foreground)" />
+              <InsightRow
+                label="Breakdown"
+                value={breakdown}
+                color="var(--chart-1)"
+              />
+              <InsightRow
+                label="Nonaktif"
+                value={inactive}
+                color="var(--muted-foreground)"
+              />
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function InsightRow({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span className="flex items-center gap-2 text-muted-foreground">
+        <span
+          className="size-2.5 rounded-full"
+          style={{ backgroundColor: color }}
+          aria-hidden="true"
+        />
+        {label}
+      </span>
+      <span className="font-medium">{formatNumber(value)}</span>
+    </div>
+  );
 }

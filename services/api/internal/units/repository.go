@@ -283,6 +283,10 @@ func (r *PostgresRepository) ListUnits(ctx context.Context, filter UnitFilter) (
 		args = append(args, *filter.IsActive)
 		where = append(where, fmt.Sprintf("u.is_active = $%d", len(args)))
 	}
+	if filter.IsBreakdown != nil {
+		args = append(args, *filter.IsBreakdown)
+		where = append(where, fmt.Sprintf("u.is_breakdown = $%d", len(args)))
+	}
 	if filter.UnitModelID != nil {
 		args = append(args, *filter.UnitModelID)
 		where = append(where, fmt.Sprintf("u.unit_model_id = $%d", len(args)))

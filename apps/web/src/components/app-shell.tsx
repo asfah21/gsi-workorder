@@ -100,7 +100,7 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
       },
       {
         href: "/pm",
-        label: "Preventive Maintenance",
+        label: "Maintenance",
         icon: CalendarClock,
       },
       {

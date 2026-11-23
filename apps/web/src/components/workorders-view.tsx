@@ -2,6 +2,7 @@
 
 import {
   CheckCircle2,
+  ChevronRight,
   CircleAlert,
   Filter,
   Loader2,
@@ -10,7 +11,7 @@ import {
   Pause,
   Play,
   Plus,
-  RefreshCw,
+  RotateCcw,
   Wrench,
   XCircle,
 } from "lucide-react";
@@ -38,11 +39,13 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -88,9 +91,15 @@ import type {
   WorkOrderRecord,
   WorkOrderUpdate,
 } from "@/lib/types";
-import { formatDateTimeWita, formatWita } from "@/lib/time";
+import { formatDateTimeWita, formatNumber, formatWita } from "@/lib/time";
 
 const sortableColumns = ["created_at", "updated_at", "code", "title", "priority", "status"] as const;
+
+const sourceLabels: Record<string, string> = {
+  p2h: "P2H",
+  manual: "Manual",
+  pm: "PM",
+};
 
 export function WorkOrdersView() {
   const { user } = useSession();
@@ -147,6 +156,25 @@ export function WorkOrdersView() {
 
   const canCreate = user.role === "admin" || user.role === "planner";
   const canCancel = user.role === "admin" || user.role === "planner";
+  const hasFilters = q.trim() !== "" || status !== "" || source !== "";
+
+  useEffect(() => {
+    setQueryInput(q);
+  }, [q]);
+
+  const submitFilters = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    list.setFilters({
+      q: queryInput.trim() || null,
+      status: status || null,
+      source: source || null,
+    });
+  };
+
+  const resetFilters = () => {
+    setQueryInput("");
+    list.setFilters({ q: null, status: null, source: null });
+  };
 
   const loadUsers = useCallback(async () => {
     if (users.length > 0 || usersLoading) return;
@@ -413,14 +441,111 @@ export function WorkOrdersView() {
         title="Work Order"
         description="Work order manual, assignment, status, temuan P2H, dan lampiran."
         actions={
-          canCreate ? (
-            <Button type="button" onClick={() => void openCreate()}>
-              <Plus aria-hidden="true" />
-              Buat WO manual
-            </Button>
-          ) : null
+          <>
+            <Badge variant="secondary" className="h-6 px-2.5">
+              {formatNumber(total)} WO
+            </Badge>
+            {canCreate ? (
+              <Button type="button" onClick={() => void openCreate()}>
+                <Plus aria-hidden="true" />
+                Buat WO manual
+              </Button>
+            ) : null}
+          </>
         }
       />
+
+      <Card>
+        <CardContent>
+          <search>
+            <FilterBar onSubmit={submitFilters} aria-label="Cari dan filter work order">
+              <Field className="min-w-0 flex-1">
+                <FieldLabel htmlFor="wo-search">Cari work order</FieldLabel>
+                <SearchInput
+                  id="wo-search"
+                  name="q"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={queryInput}
+                  onChange={(event) => setQueryInput(event.target.value)}
+                  placeholder="Kode, judul, atau unit"
+                />
+              </Field>
+              <Field className="md:w-44 md:shrink-0">
+                <FieldLabel htmlFor="wo-status">Status</FieldLabel>
+                <NativeSelect
+                  id="wo-status"
+                  name="status"
+                  value={status}
+                  onChange={(event) => list.setFilter("status", event.target.value || null)}
+                  className="w-full"
+                >
+                  <NativeSelectOption value="">Semua status</NativeSelectOption>
+                  {Object.entries(statusLabels).map(([value, label]) => (
+                    <NativeSelectOption key={value} value={value}>
+                      {label}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field className="md:w-40 md:shrink-0">
+                <FieldLabel htmlFor="wo-source">Sumber</FieldLabel>
+                <NativeSelect
+                  id="wo-source"
+                  name="source"
+                  value={source}
+                  onChange={(event) => list.setFilter("source", event.target.value || null)}
+                  className="w-full"
+                >
+                  <NativeSelectOption value="">Semua sumber</NativeSelectOption>
+                  {Object.entries(sourceLabels).map(([value, label]) => (
+                    <NativeSelectOption key={value} value={value}>
+                      {label}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <div className="flex gap-2 md:ml-auto">
+                <Button type="submit" variant="outline" className="flex-1 md:flex-none">
+                  <Filter aria-hidden="true" />
+                  Terapkan
+                </Button>
+                {hasFilters ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={resetFilters}
+                    className="flex-1 md:flex-none"
+                  >
+                    <RotateCcw aria-hidden="true" />
+                    Reset
+                  </Button>
+                ) : null}
+              </div>
+            </FilterBar>
+          </search>
+          {hasFilters ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <span>Filter aktif:</span>
+              {q.trim() ? (
+                <Badge variant="outline" className="h-6 px-2.5">
+                  Cari: {q.trim()}
+                </Badge>
+              ) : null}
+              {status ? (
+                <Badge variant="outline" className="h-6 px-2.5">
+                  Status: {statusLabels[status] || status}
+                </Badge>
+              ) : null}
+              {source ? (
+                <Badge variant="outline" className="h-6 px-2.5">
+                  Sumber: {sourceLabels[source] || source}
+                </Badge>
+              ) : null}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {error ? (
         <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
@@ -437,150 +562,112 @@ export function WorkOrdersView() {
         </Alert>
       ) : null}
 
-      <Card>
-        <CardHeader className="gap-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>Daftar work order</CardTitle>
-              <CardDescription>
-                {loading ? "Memuat data..." : `${total} work order`}
-              </CardDescription>
-            </div>
-            <Badge variant="secondary" className="h-6 w-fit px-2.5">
-              {total} WO
-            </Badge>
+      <Card className="gap-0">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
+          <div>
+            <CardTitle>Daftar work order</CardTitle>
+            <CardDescription>
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                  Memuat work order...
+                </span>
+              ) : (
+                `${formatNumber(total)} work order ditemukan`
+              )}
+            </CardDescription>
           </div>
-          <FilterBar
-            onSubmit={(event) => {
-              event.preventDefault();
-              list.setFilters({ q: queryInput.trim() || null, status: status || null, source: source || null });
-            }}
-          >
-            <Field className="min-w-0 flex-1">
-              <FieldLabel htmlFor="wo-search">Cari</FieldLabel>
-              <SearchInput
-                id="wo-search"
-                value={queryInput}
-                onChange={(event) => setQueryInput(event.target.value)}
-                placeholder="Kode, judul, atau unit"
-              />
-            </Field>
-            <Field className="md:w-44">
-              <FieldLabel htmlFor="wo-status">Status</FieldLabel>
-              <NativeSelect
-                id="wo-status"
-                value={status}
-                onChange={(event) => list.setFilter("status", event.target.value || null)}
-              >
-                <NativeSelectOption value="">Semua status</NativeSelectOption>
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <NativeSelectOption key={value} value={value}>{label}</NativeSelectOption>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field className="md:w-40">
-              <FieldLabel htmlFor="wo-source">Sumber</FieldLabel>
-              <NativeSelect
-                id="wo-source"
-                value={source}
-                onChange={(event) => list.setFilter("source", event.target.value || null)}
-              >
-                <NativeSelectOption value="">Semua sumber</NativeSelectOption>
-                <NativeSelectOption value="p2h">P2H</NativeSelectOption>
-                <NativeSelectOption value="manual">Manual</NativeSelectOption>
-                <NativeSelectOption value="pm">PM</NativeSelectOption>
-              </NativeSelect>
-            </Field>
-            <div className="flex gap-2 md:ml-auto">
-              <Button type="submit" variant="outline">
-                <Filter aria-hidden="true" />
-                Terapkan
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setQueryInput("");
-                  list.setFilters({ q: null, status: null, source: null });
-                }}
-              >
-                <RefreshCw aria-hidden="true" />
-                Reset
-              </Button>
-            </div>
-          </FilterBar>
+          {hasFilters ? (
+            <Badge variant="outline" className="h-6">
+              Terfilter
+            </Badge>
+          ) : null}
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {loading ? (
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
+        <CardContent className="px-0">
+          {loading && items.length === 0 ? (
+            <div className="space-y-3 px-6 py-4" role="status" aria-label="Memuat work order">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton key={index} className="h-12 w-full" />
+              ))}
             </div>
           ) : items.length === 0 ? (
-            <Empty>
+            <Empty className="border-0 py-10">
               <EmptyHeader>
-                <EmptyMedia variant="icon"><Wrench aria-hidden="true" /></EmptyMedia>
-                <EmptyTitle>Belum ada work order</EmptyTitle>
-                <EmptyDescription>Buat work order manual atau setujui usulan P2H.</EmptyDescription>
+                <EmptyMedia variant="icon">
+                  <Wrench aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>Belum ada work order.</EmptyTitle>
+                <EmptyDescription>
+                  {hasFilters
+                    ? "Tidak ada work order yang cocok dengan filter. Coba ubah kata kunci atau status."
+                    : "Buat work order manual atau setujui usulan P2H."}
+                </EmptyDescription>
               </EmptyHeader>
+              <EmptyContent>
+                {hasFilters ? (
+                  <Button type="button" variant="outline" onClick={resetFilters}>
+                    <RotateCcw aria-hidden="true" />
+                    Reset filter
+                  </Button>
+                ) : null}
+                {canCreate ? (
+                  <Button type="button" onClick={() => void openCreate()}>
+                    <Plus aria-hidden="true" />
+                    Buat WO manual
+                  </Button>
+                ) : null}
+              </EmptyContent>
             </Empty>
           ) : (
             <>
-              <div className="hidden overflow-x-auto md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableSortHeader label="Kode" sortKey="code" currentSort={list.sort} currentOrder={list.order} onSort={list.toggleSort} />
-                      <TableHead>Unit</TableHead>
-                      <TableSortHeader label="Judul" sortKey="title" currentSort={list.sort} currentOrder={list.order} onSort={list.toggleSort} />
-                      <TableSortHeader label="Prioritas" sortKey="priority" currentSort={list.sort} currentOrder={list.order} onSort={list.toggleSort} />
-                      <TableSortHeader label="Status" sortKey="status" currentSort={list.sort} currentOrder={list.order} onSort={list.toggleSort} />
-                      <TableHead>Assignee</TableHead>
-                      <TableSortHeader label="Dibuat" sortKey="created_at" currentSort={list.sort} currentOrder={list.order} onSort={list.toggleSort} />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((item) => (
-                      <TableRow key={item.id} className="cursor-pointer" onClick={() => openDetail(item.id)}>
-                        <TableCell className="font-medium">{item.code}</TableCell>
-                        <TableCell>{item.unit_code || "-"}</TableCell>
-                        <TableCell className="max-w-[28rem] truncate">{item.title}</TableCell>
-                        <TableCell><WorkOrderPriorityBadge priority={item.priority} /></TableCell>
-                        <TableCell><WorkOrderStatusBadge status={item.status} /></TableCell>
-                        <TableCell>{item.assignee_name || "-"}</TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">{formatDateTimeWita(item.created_at)}</TableCell>
+              <div aria-busy={loading}>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableSortHeader label="Kode" sortKey="code" currentSort={list.sort} currentOrder={list.order} onSort={list.toggleSort} />
+                        <TableSortHeader label="Judul" sortKey="title" currentSort={list.sort} currentOrder={list.order} onSort={list.toggleSort} />
+                        <TableSortHeader label="Prioritas" sortKey="priority" currentSort={list.sort} currentOrder={list.order} onSort={list.toggleSort} />
+                        <TableSortHeader label="Status" sortKey="status" currentSort={list.sort} currentOrder={list.order} onSort={list.toggleSort} />
+                        <TableHead scope="col">Assignee</TableHead>
+                        <TableSortHeader label="Dibuat" sortKey="created_at" currentSort={list.sort} currentOrder={list.order} onSort={list.toggleSort} />
+                        <TableHead scope="col" className="text-right">
+                          Aksi
+                        </TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableHead scope="row" className="whitespace-normal">
+                            {item.code}
+                            <span className="block text-xs font-normal text-muted-foreground">
+                              {item.unit_code || "Tanpa unit"}
+                            </span>
+                          </TableHead>
+                          <TableCell className="max-w-[28rem] truncate">{item.title}</TableCell>
+                          <TableCell><WorkOrderPriorityBadge priority={item.priority} /></TableCell>
+                          <TableCell><WorkOrderStatusBadge status={item.status} /></TableCell>
+                          <TableCell>{item.assignee_name || "-"}</TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">{formatDateTimeWita(item.created_at)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button type="button" variant="ghost" size="sm" onClick={() => openDetail(item.id)}>
+                              Detail
+                              <ChevronRight aria-hidden="true" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-
-              <div className="grid gap-2 md:hidden">
-                {items.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => openDetail(item.id)}
-                    className="rounded-lg border border-border p-3 text-left transition-colors hover:bg-muted/40"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium">{item.code}</p>
-                        <p className="truncate text-sm text-muted-foreground">{item.title}</p>
-                      </div>
-                      <WorkOrderStatusBadge status={item.status} />
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{item.unit_code || "-"}</span>
-                      <span>•</span>
-                      <span>{item.assignee_name || "Belum di-assign"}</span>
-                      <WorkOrderPriorityBadge priority={item.priority} />
-                    </div>
-                  </button>
-                ))}
-              </div>
-
+            </>
+          )}
+        </CardContent>
+        {total > 0 ? (
+          <CardFooter className="border-t">
+            <div className="w-full">
               <TablePagination
                 page={list.page}
                 pageSize={list.pageSize}
@@ -591,9 +678,9 @@ export function WorkOrdersView() {
                 onPageChange={list.setPage}
                 onPageSizeChange={list.setPageSize}
               />
-            </>
-          )}
-        </CardContent>
+            </div>
+          </CardFooter>
+        ) : null}
       </Card>
 
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>

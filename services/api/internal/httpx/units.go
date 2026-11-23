@@ -290,6 +290,11 @@ func (h *UnitHandler) parseUnitFilter(c *gin.Context) (units.UnitFilter, bool) {
 		writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter is_active tidak valid", nil)
 		return units.UnitFilter{}, false
 	}
+	breakdown, err := parseOptionalBool(c.Query("is_breakdown"))
+	if err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_filter", "Filter is_breakdown tidak valid", nil)
+		return units.UnitFilter{}, false
+	}
 	var unitModelID *int64
 	if raw := strings.TrimSpace(c.Query("unit_model_id")); raw != "" {
 		value, parseErr := strconv.ParseInt(raw, 10, 64)
@@ -302,6 +307,7 @@ func (h *UnitHandler) parseUnitFilter(c *gin.Context) (units.UnitFilter, bool) {
 	return units.UnitFilter{
 		Query:        c.Query("q"),
 		IsActive:     active,
+		IsBreakdown:  breakdown,
 		UnitModelID:  unitModelID,
 		SiteLocation: c.Query("site_location"),
 		Sort:         c.Query("sort"),

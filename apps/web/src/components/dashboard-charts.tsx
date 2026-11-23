@@ -2,8 +2,6 @@
 
 import { Activity, CircleAlert } from "lucide-react";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -41,8 +39,11 @@ export type BucketDatum = {
 };
 
 const activityConfig = {
-  created: { label: "WO dibuat", color: "var(--chart-1)" },
-  completed: { label: "WO selesai", color: "var(--chart-2)" },
+  created: { label: "Dibuat", color: "var(--foreground)" },
+  completed: {
+    label: "Selesai",
+    color: "color-mix(in srgb, var(--foreground) 55%, transparent)",
+  },
 } satisfies ChartConfig;
 
 export function MaintenanceActivityChart({
@@ -80,53 +81,52 @@ export function MaintenanceActivityChart({
 
   return (
     <ChartContainer config={activityConfig} className="h-[260px] w-full">
-      <AreaChart data={data} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
-        <defs>
-          <linearGradient id="activity-created" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="var(--color-created)" stopOpacity={0.35} />
-            <stop offset="95%" stopColor="var(--color-created)" stopOpacity={0.02} />
-          </linearGradient>
-          <linearGradient id="activity-completed" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="var(--color-completed)" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="var(--color-completed)" stopOpacity={0.02} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid vertical={false} />
+      <BarChart data={data} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
+        <CartesianGrid
+          vertical={false}
+          stroke="var(--border)"
+          strokeDasharray="4 4"
+        />
         <XAxis
           dataKey="label"
           tickLine={false}
           axisLine={false}
-          tickMargin={8}
-          tick={{ fontSize: 12 }}
+          tickMargin={10}
+          tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
         />
         <YAxis
           width={32}
           allowDecimals={false}
           tickLine={false}
           axisLine={false}
-          tick={{ fontSize: 12 }}
+          tickMargin={4}
+          tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
         />
         <ChartTooltip
           content={<ChartTooltipContent indicator="line" />}
-          cursor={{ stroke: "var(--border)" }}
+          cursor={{ fill: "var(--muted)" }}
         />
-        <Area
-          type="monotone"
+        <Bar
           dataKey="created"
-          stroke="var(--color-created)"
-          strokeWidth={2}
-          fill="url(#activity-created)"
-          isAnimationActive={false}
+          stackId="activity"
+          fill="var(--color-created)"
+          maxBarSize={48}
+          isAnimationActive
+          animationDuration={700}
+          animationEasing="ease-out"
         />
-        <Area
-          type="monotone"
+        <Bar
           dataKey="completed"
-          stroke="var(--color-completed)"
-          strokeWidth={2}
-          fill="url(#activity-completed)"
-          isAnimationActive={false}
+          stackId="activity"
+          fill="var(--color-completed)"
+          radius={[2, 2, 0, 0]}
+          maxBarSize={48}
+          isAnimationActive
+          animationBegin={100}
+          animationDuration={700}
+          animationEasing="ease-out"
         />
-      </AreaChart>
+      </BarChart>
     </ChartContainer>
   );
 }

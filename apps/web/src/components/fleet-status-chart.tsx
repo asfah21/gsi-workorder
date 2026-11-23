@@ -1,7 +1,6 @@
 "use client";
 
 import { CircleAlert, Truck } from "lucide-react";
-import { Cell, Pie, PieChart } from "recharts";
 
 import {
   Empty,
@@ -10,19 +9,16 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatNumber } from "@/lib/time";
+
+const TICKS = 64;
 
 const chartConfig = {
-  healthy: { label: "Aktif sehat", color: "var(--chart-1)" },
-  breakdown: { label: "Breakdown", color: "var(--chart-3)" },
-  inactive: { label: "Nonaktif", color: "var(--chart-4)" },
-} satisfies ChartConfig;
+  healthy: { label: "Aktif sehat", color: "var(--foreground)" },
+  breakdown: { label: "Breakdown", color: "var(--chart-1)" },
+  inactive: { label: "Nonaktif", color: "var(--muted-foreground)" },
+} as const;
 
 export function FleetStatusChart({
   unitsTotal,
@@ -39,8 +35,8 @@ export function FleetStatusChart({
 }) {
   if (loading) {
     return (
-      <div className="space-y-4" role="status" aria-label="Memuat status Unit">
-        <Skeleton className="mx-auto size-44 rounded-full" />
+      <div className="space-y-4" role="status" aria-label="Memuat status unit">
+        <Skeleton className="mx-auto size-52 rounded-full" />
         <div className="grid gap-2">
           <Skeleton className="h-5 w-full" />
           <Skeleton className="h-5 w-full" />
@@ -57,9 +53,9 @@ export function FleetStatusChart({
           <EmptyMedia variant="icon">
             <CircleAlert aria-hidden="true" />
           </EmptyMedia>
-          <EmptyTitle>Status Unit tidak tersedia</EmptyTitle>
+          <EmptyTitle>Status unit tidak tersedia</EmptyTitle>
           <EmptyDescription>
-            Ringkasan Unit gagal dimuat. Coba muat ulang ringkasan.
+            Ringkasan unit gagal dimuat. Coba muat ulang dashboard.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -75,84 +71,120 @@ export function FleetStatusChart({
           </EmptyMedia>
           <EmptyTitle>Belum ada unit</EmptyTitle>
           <EmptyDescription>
-            Chart status Unit muncul setelah unit ditambahkan ke master.
+            Chart status unit muncul setelah unit ditambahkan ke master.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
   }
 
-  const breakdown = Math.max(0, unitsBreakdown);
-  const healthy = Math.max(0, unitsActive - breakdown);
-  const inactive = Math.max(0, unitsTotal - unitsActive);
+  const breakdown = Math.max(0, Math.min(unitsBreakdown, unitsTotal));
+  const active = Math.max(0, Math.min(unitsActive, unitsTotal));
+  const healthy = Math.max(0, active - breakdown);
+  const inactive = Math.max(0, unitsTotal - active);
+
   const data = [
-    { status: "healthy" as const, label: "Aktif sehat", value: healthy },
-    { status: "breakdown" as const, label: "Breakdown", value: breakdown },
-    { status: "inactive" as const, label: "Nonaktif", value: inactive },
+    {
+      key: "healthy" as const,
+      label: "Aktif sehat",
+      value: healthy,
+      color: chartConfig.healthy.color,
+    },
+    {
+      key: "breakdown" as const,
+      label: "Breakdown",
+      value: breakdown,
+      color: chartConfig.breakdown.color,
+    },
+    {
+      key: "inactive" as const,
+      label: "Nonaktif",
+      value: inactive,
+      color: chartConfig.inactive.color,
+    },
   ];
-  const summary = `Status Unit dari ${unitsTotal} unit: ${healthy} aktif sehat, ${breakdown} breakdown, ${inactive} nonaktif.`;
+
+  const healthyTicks = Math.min(
+    TICKS,
+    Math.round((healthy / unitsTotal) * TICKS),
+  );
+  const breakdownTicks = Math.min(
+    TICKS - healthyTicks,
+    Math.round((breakdown / unitsTotal) * TICKS),
+  );
+  const summary = `Status unit dari ${unitsTotal} unit: ${healthy} aktif sehat, ${breakdown} breakdown, ${inactive} nonaktif.`;
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-1 flex-col justify-between gap-6">
       <p className="sr-only">{summary}</p>
-      <div className="relative">
-        <ChartContainer
-          config={chartConfig}
+      <div className="relative mx-auto aspect-square w-full max-w-56">
+        <svg
+          viewBox="0 0 200 200"
+          className="absolute inset-0 size-full"
           aria-hidden="true"
-          className="mx-auto aspect-square h-56"
         >
-          <PieChart>
-            <ChartTooltip
-              content={<ChartTooltipContent nameKey="status" hideLabel />}
-            />
-            <Pie
-              data={data}
-              dataKey="value"
-              nameKey="status"
-              innerRadius="62%"
-              outerRadius="88%"
-              paddingAngle={2}
-              cornerRadius={4}
-              stroke="var(--background)"
-              strokeWidth={2}
-              isAnimationActive={false}
-            >
-              {data.map((item) => (
-                <Cell
-                  key={item.status}
-                  fill={`var(--color-${item.status})`}
-                />
-              ))}
-            </Pie>
-          </PieChart>
-        </ChartContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-semibold">
-            {unitsTotal}
-          </span>
-          <span className="type-overline-xs text-muted-foreground">
-            Total unit
+          {Array.from({ length: TICKS }).map((_, index) => {
+            const color =
+              index < healthyTicks
+                ? chartConfig.healthy.color
+                : index < healthyTicks + breakdownTicks
+                  ? chartConfig.breakdown.color
+                  : chartConfig.inactive.color;
+            const opacity =
+              index < healthyTicks + breakdownTicks ? 1 : 0.35;
+            return (
+              <line
+                key={index}
+                x1="100"
+                y1="8"
+                x2="100"
+                y2="18"
+                stroke={color}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                opacity={opacity}
+                transform={`rotate(${index * (360 / TICKS)} 100 100)`}
+              />
+            );
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+          <div className="mb-1 grid size-9 place-items-center rounded-md border border-border">
+            <Truck className="size-4" aria-hidden="true" />
+          </div>
+          <span className="type-overline-xs text-muted-foreground">Total unit</span>
+          <span className="text-2xl font-semibold tracking-tight">
+            {formatNumber(unitsTotal)}
           </span>
         </div>
       </div>
 
-      <ul className="grid gap-2">
-        {data.map((item) => (
-          <li
-            key={item.status}
-            className="flex items-center justify-between gap-3 text-sm"
-          >
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <span
-                className="size-2.5 rounded-full"
-                style={{ backgroundColor: chartConfig[item.status].color }}
-                aria-hidden="true"
-              />
-              {item.label}
-            </span>
-            <span className="font-medium">{item.value}</span>
-          </li>
-        ))}
+      <ul className="grid gap-3">
+        {data.map((item) => {
+          const percentage =
+            unitsTotal > 0 ? Math.round((item.value / unitsTotal) * 100) : 0;
+          return (
+            <li
+              key={item.key}
+              className="flex items-center justify-between gap-3 text-sm"
+            >
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: item.color }}
+                  aria-hidden="true"
+                />
+                {item.label}
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="font-medium">{formatNumber(item.value)}</span>
+                <span className="text-xs text-muted-foreground">
+                  ({percentage}%)
+                </span>
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
