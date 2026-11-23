@@ -486,6 +486,7 @@ func truncateM6(t *testing.T, ctx context.Context, pool *pgxpool.Pool) {
 			pm_plan_materials,
 			sparepart_compatibility, sparepart_alternatives,
 			sparepart_numbers, spareparts,
+			unit_component_installations,
 			components,
 			notifications, wo_updates, wo_attachments, wo_findings,
 			wo_candidates, work_orders, pm_schedules, pm_plan_checklist_items,

@@ -44,6 +44,15 @@ type UnitService interface {
 	ListComponentIntervals(ctx context.Context, unitID int64) ([]units.ComponentInterval, error)
 	UnitDowntime(ctx context.Context, unitID int64, filter units.DowntimeFilter) (units.UnitDowntime, error)
 	ListComponents(ctx context.Context, activeOnly bool) ([]units.Component, error)
+	GetComponent(ctx context.Context, id int64) (units.Component, error)
+	CreateComponent(ctx context.Context, input units.ComponentInput) (units.Component, error)
+	UpdateComponent(ctx context.Context, id int64, patch units.ComponentPatch) (units.Component, error)
+	ListComponentInstallations(ctx context.Context, unitID int64, activeOnly bool) ([]units.ComponentInstallation, error)
+	GetComponentInstallation(ctx context.Context, unitID, installationID int64) (units.ComponentInstallation, error)
+	ListComponentLifetime(ctx context.Context, unitID int64, activeOnly bool) ([]units.ComponentLifetime, error)
+	InstallComponent(ctx context.Context, unitID int64, input units.ComponentInstallationInput, actorID int64) (units.ComponentInstallation, error)
+	ReplaceComponent(ctx context.Context, unitID, installationID int64, input units.ComponentReplacementInput, actorID int64) (units.ComponentInstallation, error)
+	TransferComponent(ctx context.Context, unitID, installationID int64, input units.ComponentTransferInput, actorID int64) (units.ComponentInstallation, error)
 }
 
 type UnitHandler struct {
@@ -142,6 +151,68 @@ type meterReadingRequest struct {
 	Value       float64   `json:"value"`
 	RecordedAt  time.Time `json:"recorded_at"`
 	Notes       string    `json:"notes"`
+}
+
+type componentRequest struct {
+	Code                string   `json:"code"`
+	Name                string   `json:"name"`
+	Category            string   `json:"category"`
+	ComponentClass      string   `json:"component_class"`
+	DefaultLifetimeHM   *float64 `json:"default_lifetime_hm"`
+	DefaultLifetimeDays *int     `json:"default_lifetime_days"`
+	DefaultLifetimeKM   *float64 `json:"default_lifetime_km"`
+	IsActive            *bool    `json:"is_active"`
+}
+
+type componentPatchRequest struct {
+	Code                *string  `json:"code"`
+	Name                *string  `json:"name"`
+	Category            *string  `json:"category"`
+	ComponentClass      *string  `json:"component_class"`
+	DefaultLifetimeHM   *float64 `json:"default_lifetime_hm"`
+	DefaultLifetimeDays *int     `json:"default_lifetime_days"`
+	DefaultLifetimeKM   *float64 `json:"default_lifetime_km"`
+	IsActive            *bool    `json:"is_active"`
+}
+
+type componentInstallationRequest struct {
+	ComponentID  int64      `json:"component_id"`
+	SerialNumber string     `json:"serial_number"`
+	InstalledAt  *time.Time `json:"installed_at"`
+	InstalledHM  *float64   `json:"installed_hm"`
+	InstalledKM  *float64   `json:"installed_km"`
+	LifetimeHM   *float64   `json:"lifetime_hm"`
+	LifetimeDays *int       `json:"lifetime_days"`
+	LifetimeKM   *float64   `json:"lifetime_km"`
+	SourceWOID   *int64     `json:"source_wo_id"`
+	Notes        string     `json:"notes"`
+}
+
+type componentReplacementRequest struct {
+	SerialNumber string     `json:"serial_number"`
+	InstalledAt  *time.Time `json:"installed_at"`
+	InstalledHM  *float64   `json:"installed_hm"`
+	InstalledKM  *float64   `json:"installed_km"`
+	LifetimeHM   *float64   `json:"lifetime_hm"`
+	LifetimeDays *int       `json:"lifetime_days"`
+	LifetimeKM   *float64   `json:"lifetime_km"`
+	SourceWOID   *int64     `json:"source_wo_id"`
+	Notes        string     `json:"notes"`
+	RemovedAt    *time.Time `json:"removed_at"`
+	RemovedHM    *float64   `json:"removed_hm"`
+	RemovedKM    *float64   `json:"removed_km"`
+}
+
+type componentTransferRequest struct {
+	ToUnitID    int64      `json:"to_unit_id"`
+	InstalledAt *time.Time `json:"installed_at"`
+	InstalledHM *float64   `json:"installed_hm"`
+	InstalledKM *float64   `json:"installed_km"`
+	SourceWOID  *int64     `json:"source_wo_id"`
+	Notes       string     `json:"notes"`
+	RemovedAt   *time.Time `json:"removed_at"`
+	RemovedHM   *float64   `json:"removed_hm"`
+	RemovedKM   *float64   `json:"removed_km"`
 }
 
 func (h *UnitHandler) ListUnitModels(c *gin.Context) {
@@ -631,6 +702,215 @@ func (h *UnitHandler) ListComponents(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": items})
 }
 
+func (h *UnitHandler) GetComponent(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	item, err := h.service.GetComponent(c.Request.Context(), id)
+	if err != nil {
+		h.writeError(c, err, "get component")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": item})
+}
+
+func (h *UnitHandler) CreateComponent(c *gin.Context) {
+	var request componentRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_request", "Body komponen tidak valid", nil)
+		return
+	}
+	item, err := h.service.CreateComponent(c.Request.Context(), units.ComponentInput{
+		Code:                request.Code,
+		Name:                request.Name,
+		Category:            request.Category,
+		ComponentClass:      request.ComponentClass,
+		DefaultLifetimeHM:   request.DefaultLifetimeHM,
+		DefaultLifetimeDays: request.DefaultLifetimeDays,
+		DefaultLifetimeKM:   request.DefaultLifetimeKM,
+		IsActive:            request.IsActive,
+	})
+	if err != nil {
+		h.writeError(c, err, "create component")
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": item})
+}
+
+func (h *UnitHandler) UpdateComponent(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	var request componentPatchRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_request", "Body komponen tidak valid", nil)
+		return
+	}
+	item, err := h.service.UpdateComponent(c.Request.Context(), id, units.ComponentPatch{
+		Code:                request.Code,
+		Name:                request.Name,
+		Category:            request.Category,
+		ComponentClass:      request.ComponentClass,
+		DefaultLifetimeHM:   request.DefaultLifetimeHM,
+		DefaultLifetimeDays: request.DefaultLifetimeDays,
+		DefaultLifetimeKM:   request.DefaultLifetimeKM,
+		IsActive:            request.IsActive,
+	})
+	if err != nil {
+		h.writeError(c, err, "update component")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": item})
+}
+
+func (h *UnitHandler) ListComponentInstallations(c *gin.Context) {
+	unitID, ok := parseID(c)
+	if !ok {
+		return
+	}
+	items, err := h.service.ListComponentInstallations(c.Request.Context(), unitID, parseBool(c.Query("active_only")))
+	if err != nil {
+		h.writeError(c, err, "list component installations")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+func (h *UnitHandler) GetComponentInstallation(c *gin.Context) {
+	unitID, ok := parseID(c)
+	if !ok {
+		return
+	}
+	installationID, ok := parseParamID(c, "installation_id")
+	if !ok {
+		return
+	}
+	item, err := h.service.GetComponentInstallation(c.Request.Context(), unitID, installationID)
+	if err != nil {
+		h.writeError(c, err, "get component installation")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": item})
+}
+
+func (h *UnitHandler) ListComponentLifetime(c *gin.Context) {
+	unitID, ok := parseID(c)
+	if !ok {
+		return
+	}
+	items, err := h.service.ListComponentLifetime(c.Request.Context(), unitID, parseBool(c.Query("active_only")))
+	if err != nil {
+		h.writeError(c, err, "list component lifetime")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+func (h *UnitHandler) InstallComponent(c *gin.Context) {
+	unitID, ok := parseID(c)
+	if !ok {
+		return
+	}
+	var request componentInstallationRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_request", "Body instalasi komponen tidak valid", nil)
+		return
+	}
+	item, err := h.service.InstallComponent(c.Request.Context(), unitID, units.ComponentInstallationInput{
+		ComponentID:  request.ComponentID,
+		SerialNumber: request.SerialNumber,
+		InstalledAt:  request.InstalledAt,
+		InstalledHM:  request.InstalledHM,
+		InstalledKM:  request.InstalledKM,
+		LifetimeHM:   request.LifetimeHM,
+		LifetimeDays: request.LifetimeDays,
+		LifetimeKM:   request.LifetimeKM,
+		SourceWOID:   request.SourceWOID,
+		Notes:        request.Notes,
+	}, currentActorID(c))
+	if err != nil {
+		h.writeError(c, err, "install component")
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": item})
+}
+
+func (h *UnitHandler) ReplaceComponent(c *gin.Context) {
+	unitID, ok := parseID(c)
+	if !ok {
+		return
+	}
+	installationID, ok := parseParamID(c, "installation_id")
+	if !ok {
+		return
+	}
+	var request componentReplacementRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_request", "Body penggantian komponen tidak valid", nil)
+		return
+	}
+	item, err := h.service.ReplaceComponent(c.Request.Context(), unitID, installationID, units.ComponentReplacementInput{
+		SerialNumber: request.SerialNumber,
+		InstalledAt:  request.InstalledAt,
+		InstalledHM:  request.InstalledHM,
+		InstalledKM:  request.InstalledKM,
+		LifetimeHM:   request.LifetimeHM,
+		LifetimeDays: request.LifetimeDays,
+		LifetimeKM:   request.LifetimeKM,
+		SourceWOID:   request.SourceWOID,
+		Notes:        request.Notes,
+		RemovedAt:    request.RemovedAt,
+		RemovedHM:    request.RemovedHM,
+		RemovedKM:    request.RemovedKM,
+	}, currentActorID(c))
+	if err != nil {
+		h.writeError(c, err, "replace component")
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": item})
+}
+
+func (h *UnitHandler) TransferComponent(c *gin.Context) {
+	unitID, ok := parseID(c)
+	if !ok {
+		return
+	}
+	installationID, ok := parseParamID(c, "installation_id")
+	if !ok {
+		return
+	}
+	var request componentTransferRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		writeUnitError(c, http.StatusBadRequest, "invalid_request", "Body transfer komponen tidak valid", nil)
+		return
+	}
+	item, err := h.service.TransferComponent(c.Request.Context(), unitID, installationID, units.ComponentTransferInput{
+		ToUnitID:    request.ToUnitID,
+		InstalledAt: request.InstalledAt,
+		InstalledHM: request.InstalledHM,
+		InstalledKM: request.InstalledKM,
+		SourceWOID:  request.SourceWOID,
+		Notes:       request.Notes,
+		RemovedAt:   request.RemovedAt,
+		RemovedHM:   request.RemovedHM,
+		RemovedKM:   request.RemovedKM,
+	}, currentActorID(c))
+	if err != nil {
+		h.writeError(c, err, "transfer component")
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"data": item})
+}
+
+func currentActorID(c *gin.Context) int64 {
+	if user, ok := currentUser(c); ok {
+		return user.ID
+	}
+	return 0
+}
+
 func (h *UnitHandler) writeError(c *gin.Context, err error, operation string) {
 	var validation *units.ValidationError
 	switch {
@@ -702,12 +982,7 @@ func parseBool(raw string) bool {
 }
 
 func parseID(c *gin.Context) (int64, bool) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil || id <= 0 {
-		writeUnitError(c, http.StatusBadRequest, "invalid_id", "ID tidak valid", nil)
-		return 0, false
-	}
-	return id, true
+	return parseParamID(c, "id")
 }
 
 // parseUnitPeriod treats from/to as inclusive WITA calendar dates. The upper

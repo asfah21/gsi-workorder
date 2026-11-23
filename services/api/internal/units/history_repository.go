@@ -192,36 +192,6 @@ func (r *PostgresRepository) ListUnitDowntime(ctx context.Context, unitID int64,
 	return events, nil
 }
 
-func (r *PostgresRepository) ListComponents(ctx context.Context, activeOnly bool) ([]Component, error) {
-	where := ""
-	if activeOnly {
-		where = " WHERE is_active = true"
-	}
-	rows, err := r.pool.Query(ctx, `
-		SELECT id, code, name, COALESCE(category, ''), is_active
-		FROM components`+where+`
-		ORDER BY code ASC
-		LIMIT 500
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("list components: %w", err)
-	}
-	defer rows.Close()
-
-	items := make([]Component, 0)
-	for rows.Next() {
-		var item Component
-		if err := rows.Scan(&item.ID, &item.Code, &item.Name, &item.Category, &item.IsActive); err != nil {
-			return nil, fmt.Errorf("scan component: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate components: %w", err)
-	}
-	return items, nil
-}
-
 func historyWhere(unitID int64, status, maintenanceType string, from, to *time.Time) (string, []any) {
 	where := []string{"unit_id = $1"}
 	args := []any{unitID}

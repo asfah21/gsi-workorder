@@ -1,7 +1,7 @@
 # M8a — Discovery & Decision Gate: Master Unit & Komponen
 
 - **Tanggal:** 2026-11-23
-- **Status:** Selesai untuk discovery; menunggu keputusan sebelum coding
+- **Status:** M8a selesai; default M8b diadopsi untuk implementasi lokal, M8c/M8d pending
 - **Baseline:** `v0.1.7` / M7
 - **Scope:** M8 (Master Unit & Komponen) dan dependensi data untuk M9–M11
 
@@ -118,19 +118,19 @@ Contoh P2H memiliki `hm_awal` 225,6 dan 1.193,3, tetapi `units.current_hm` tetap
 | D-05 | Definisi kategori WO | Definisikan Service/Scheduled/Unscheduled/Incident/UBOP bersama PAM | Perlu konfirmasi |
 | D-06 | Breakdown timestamp | Simpan `breakdown_started_at`/`breakdown_ended_at`; backfill dari WO lama | Rekomendasi |
 | D-07 | Backlog | Non-breakdown yang belum mulai/ditunda; bukan semua open | Perlu konfirmasi |
-| D-08 | Identitas komponen | Serialized per unit, dengan riwayat instalasi | Rekomendasi |
-| D-09 | Lifetime pindah unit | Kumulatif per serial bila lifetime milik komponen | Perlu konfirmasi |
-| D-10 | Target Hour | Target HM komponen/plan; bukan target jam kerja user | Perlu konfirmasi |
+| D-08 | Identitas komponen | Serialized per unit, dengan riwayat instalasi | Dipakai untuk M8b (default) |
+| D-09 | Lifetime pindah unit | Kumulatif per serial bila lifetime milik komponen | Dipakai untuk M8b (default); konfirmasi PAM pending |
+| D-10 | Target Hour | Target HM komponen/plan; bukan target jam kerja user | Dipakai sebagai lifetime HM per instalasi; field Target Hour terpisah pending |
 | D-11 | PCR vs Plant Component Request | PCR = planned replacement; Plant Component Request = request komponen | Perlu konfirmasi |
 | D-12 | MR GSI | Deep link dulu; integrasi penuh setelah API/auth jelas | Rekomendasi |
-| D-13 | Data awal komponen | Import Excel/manual dari PAM; jangan mengarang data | Rekomendasi |
+| D-13 | Data awal komponen | Import Excel/manual dari PAM; jangan mengarang data | Sumber data belum diberikan; import pending |
 | D-14 | Performa 250 unit | Benchmark `EvaluateDue`, index, batch, timeout worker | Rekomendasi |
 
 ---
 
 ## 5. Draft model M8b
 
-> Ini draft desain, bukan migration. Jangan implementasi sebelum D-08, D-09, D-10, dan D-13 disetujui.
+> Draft ini menjadi dasar M8b. D-08, D-09, dan D-10 dipakai sebagai default implementasi lokal; konfirmasi PAM dan sumber data D-13 tetap pending.
 
 ### 5.1 `components` (extend)
 
@@ -254,3 +254,33 @@ Karena itu, M8 tidak boleh langsung membuat UI lifetime di atas data kosong. Uru
 2. bangun schema komponen (M8b);
 3. benahi ingestion/backfill HM/KM (M8c);
 4. baru bangun UI lifetime dan alert (M8d).
+
+---
+
+## 10. Status implementasi M8b
+
+M8b diimplementasikan pada 2026-11-23 dengan default berikut:
+
+- komponen aktif diserialisasi per unit;
+- satu unit hanya boleh punya satu instalasi aktif per tipe komponen;
+- lifetime dihitung kumulatif per serial selama instalasi aktif;
+- lifetime HM per instalasi dipakai sebagai target HM; belum ada field Target Hour terpisah;
+- master komponen dan instalasi awal belum diimpor karena sumber data PAM belum diberikan.
+
+Yang sudah ada:
+
+- migration additive `000012_m8_components` dan down migration;
+- `components.component_class`, `default_lifetime_hm`, `default_lifetime_days`, `default_lifetime_km`;
+- `unit_component_installations` untuk instalasi, pelepasan, replace, dan transfer;
+- `v_unit_component_lifetime` untuk used/remaining HM, KM, dan hari;
+- API master komponen, instalasi komponen, replace, transfer, dan lifetime;
+- unit test service/HTTP dan integration test PostgreSQL (skip jika `TEST_DATABASE_URL` tidak di-set).
+
+Migration sudah divalidasi pada cluster PostgreSQL sementara: seluruh migration up berhasil, view menghasilkan used/remaining yang benar, partial unique index menolak instalasi aktif ganda, dan down migration berhasil lalu up kembali.
+
+Yang belum:
+
+- M8c ingestion HM/KM dari P2H dan backfill;
+- M8d UI komponen/lifetime/transfer/alert;
+- import master komponen dan instalasi awal dari PAM;
+- konfirmasi ambang lifetime dan keputusan komponen multi-instance.

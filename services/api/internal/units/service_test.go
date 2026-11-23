@@ -8,22 +8,31 @@ import (
 )
 
 type fakeRepository struct {
-	unitModel         UnitModel
-	unitModelErr      error
-	unitModelFilter   ModelFilter
-	engineModel       EngineModel
-	engineModelErr    error
-	engineModelFilter ModelFilter
-	unitFilter        UnitFilter
-	createdUnit       Unit
-	createdUnitErr    error
-	createdUnits      []Unit
-	createUnitsErr    error
-	existingCodes     map[string]struct{}
-	reading           MeterReading
-	readingErr        error
-	historyFilter     HistoryFilter
-	downtimeEvents    []DowntimeEvent
+	unitModel                UnitModel
+	unitModelErr             error
+	unitModelFilter          ModelFilter
+	engineModel              EngineModel
+	engineModelErr           error
+	engineModelFilter        ModelFilter
+	unitFilter               UnitFilter
+	createdUnit              Unit
+	createdUnitErr           error
+	createdUnits             []Unit
+	createUnitsErr           error
+	existingCodes            map[string]struct{}
+	reading                  MeterReading
+	readingErr               error
+	historyFilter            HistoryFilter
+	downtimeEvents           []DowntimeEvent
+	component                Component
+	componentErr             error
+	installation             ComponentInstallation
+	installationErr          error
+	createdInstallation      ComponentInstallation
+	createdInstallationInput ComponentInstallationCreate
+	closedInstallationID     int64
+	closedInstallation       ComponentInstallationClose
+	unitsByID                map[int64]Unit
 }
 
 func (f *fakeRepository) ListUnitModels(_ context.Context, filter ModelFilter) ([]UnitModel, int, error) {
@@ -56,7 +65,14 @@ func (f *fakeRepository) ListUnits(_ context.Context, filter UnitFilter) ([]Unit
 	f.unitFilter = filter
 	return nil, 0, nil
 }
-func (f *fakeRepository) GetUnit(context.Context, int64) (Unit, error) {
+func (f *fakeRepository) GetUnit(_ context.Context, id int64) (Unit, error) {
+	if f.unitsByID != nil {
+		unit, ok := f.unitsByID[id]
+		if !ok {
+			return Unit{}, ErrNotFound
+		}
+		return unit, nil
+	}
 	return Unit{ID: 1, Code: "LV-01", IsActive: true}, nil
 }
 func (f *fakeRepository) CreateUnit(_ context.Context, unit Unit) (Unit, error) {
@@ -109,6 +125,40 @@ func (f *fakeRepository) ListUnitDowntime(context.Context, int64, DowntimeFilter
 	return f.downtimeEvents, nil
 }
 func (f *fakeRepository) ListComponents(context.Context, bool) ([]Component, error) {
+	return nil, nil
+}
+func (f *fakeRepository) GetComponent(context.Context, int64) (Component, error) {
+	return f.component, f.componentErr
+}
+func (f *fakeRepository) CreateComponent(_ context.Context, component Component) (Component, error) {
+	if f.componentErr != nil {
+		return Component{}, f.componentErr
+	}
+	if component.ID == 0 {
+		component.ID = 1
+	}
+	return component, nil
+}
+func (f *fakeRepository) UpdateComponent(_ context.Context, component Component) (Component, error) {
+	return component, f.componentErr
+}
+func (f *fakeRepository) ListComponentInstallations(context.Context, int64, bool) ([]ComponentInstallation, error) {
+	return nil, nil
+}
+func (f *fakeRepository) GetComponentInstallation(context.Context, int64) (ComponentInstallation, error) {
+	return f.installation, f.installationErr
+}
+func (f *fakeRepository) CreateComponentInstallation(_ context.Context, input ComponentInstallationCreate) (ComponentInstallation, error) {
+	f.createdInstallationInput = input
+	return f.createdInstallation, f.installationErr
+}
+func (f *fakeRepository) CloseAndInstallComponent(_ context.Context, oldID int64, close ComponentInstallationClose, create ComponentInstallationCreate) (ComponentInstallation, error) {
+	f.closedInstallationID = oldID
+	f.closedInstallation = close
+	f.createdInstallationInput = create
+	return f.createdInstallation, f.installationErr
+}
+func (f *fakeRepository) ListComponentLifetime(context.Context, int64, bool) ([]ComponentLifetime, error) {
 	return nil, nil
 }
 

@@ -632,7 +632,21 @@ Tidak ada tabel total statis. Semua agregasi query/view.
 * Frequency = jumlah event per periode.
 * Bukan plan interval; plan interval adalah rencana, ini actual.
 
-### 7.5 Visibilitas
+### 7.5 Component installation & lifetime (M8b)
+
+* Master `components` menyimpan kelas (`major`/`minor`) dan lifetime default HM/hari/KM.
+* `unit_component_installations` menyimpan satu baris per instalasi fisik; replace/transfer menutup baris lama dan membuat baris baru, bukan menimpa histori.
+* Satu unit hanya boleh punya satu instalasi aktif per tipe komponen. Komponen multi-instance harus dipecah menjadi kode komponen berbeda sampai model lain disetujui PAM.
+* Serial number wajib dan unik di antara instalasi aktif.
+* `installed_hm`/`installed_km` default ke `units.current_hm`/`current_km` saat instalasi; `installed_at` default sekarang.
+* Lifetime instalasi memakai override input; jika kosong, memakai default master komponen.
+* Replace: status lama `removed`; transfer: status lama `transferred`; keduanya atomik dengan pembuatan instalasi baru.
+* Transfer mempertahankan serial dan lifetime instalasi; pembacaan awal di unit tujuan memakai HM/KM unit tujuan.
+* Used = reading saat ini (atau reading pelepasan) − reading pemasangan, tidak negatif. Remaining = lifetime − used; nilai negatif dibiarkan agar overdue terlihat.
+* State lifetime: `inactive`, `unset`, `safe`, `upcoming`, `due`, `overdue`. Ambang default `due` = 10% tersisa atau 7 hari; `upcoming` = 20% atau 30 hari.
+* UI, import data awal, dan ingestion HM/KM dari P2H belum termasuk M8b (M8c/M8d).
+
+### 7.6 Visibilitas
 
 * Semua role authenticated dapat membaca unit history; mechanic dapat melihat WO sendiri dan unit terkait.
 * Data biaya tidak ada.
@@ -674,6 +688,7 @@ Aturan:
 | Settings & sync | ✅ | — | — | — | — |
 | User/role management | ✅ | — | — | — | — |
 | Unit master | ✅ | ✅ | — | — | read |
+| Component master & installation | ✅ | ✅ | — | — | read |
 | PM plan create/update/activate | ✅ | ✅ | — | — | read |
 | PM schedule generate/override/skip | ✅ | ✅ | — | — | read |
 | PM checklist execution | ✅ | ✅ | ✅ own | — | read |

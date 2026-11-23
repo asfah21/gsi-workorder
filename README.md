@@ -164,21 +164,22 @@ where table_schema = 'public'
 "
 ```
 
-Ekspektasi: **15** tabel aplikasi.
+Ekspektasi baseline M0: **15** tabel aplikasi. Setelah migration M8B `000012_m8_components`, ada **16** tabel aplikasi karena tambahan `unit_component_installations`.
 
 Daftar tabel:
 
 | Kelompok | Tabel |
 |---|---|
 | Identitas/master | `users`, `employees`, `units` |
+| Komponen | `unit_component_installations` |
 | P2H | `p2h_reports`, `p2h_findings` |
 | Usulan & WO | `wo_candidates`, `work_orders`, `wo_findings`, `wo_updates`, `wo_attachments` |
 | Notifikasi & setting | `notifications`, `app_settings`, `app_settings_history` |
 | Sinkronisasi | `sync_runs`, `sync_state` |
 
 `golang-migrate` juga membuat tabel teknis `schema_migrations`, sehingga `\dt`
-akan menampilkan 16 tabel. Angka “14 tabel” pada brief M0 adalah typo; Appendix
-A2 memuat 15 tabel aplikasi.
+akan menampilkan 17 tabel setelah M8B (16 tabel saat baseline M0). Angka “14 tabel” pada brief M0 adalah typo; Appendix
+A2 memuat 15 tabel aplikasi baseline.
 
 ### 5. Seed setting
 
@@ -438,7 +439,9 @@ Status lokal per 2026-11-23. Lihat `docs/Agent Brief.md` untuk rincian acceptanc
 | M6 — material requirement & readiness | Selesai lokal (`000009_m6_material_requirements`); menunggu acceptance server |
 | M7A — unit history, timeline, downtime | Accepted tahap 1 / `v0.1.7` (`000010_m7_history_reporting`); acceptance server UAT terpisah |
 | M7B — dashboard, report CSV, audit hardening | Accepted tahap 1 / `v0.1.7` (`000011_m7b_reporting`); acceptance server UAT terpisah |
+| M8A — discovery master unit & komponen | Selesai discovery (`docs/M8 Discovery.md`) |
+| M8B — master komponen, instalasi per unit, lifetime API | Selesai lokal (`000012_m8_components`); M8C/M8D belum |
 
-Baseline rilis tahap 1: **`v0.1.7` (M7)**. UI/operasional tahap 1 sudah accepted; acceptance server UAT M5/M6/M7A/M7B tetap dicatat terpisah. Angka `7` merujuk ke milestone M7; `M7B` adalah sub-milestone reporting.
+Baseline rilis tahap 1: **`v0.1.7` (M7)**. UI/operasional tahap 1 sudah accepted; acceptance server UAT M5/M6/M7A/M7B tetap dicatat terpisah. Angka `7` merujuk ke milestone M7; `M7B` adalah sub-milestone reporting. M8B adalah pekerjaan pasca-baseline dan belum menjadi bagian rilis tahap 1.
 
 Jangan melanjutkan ke milestone berikutnya tanpa instruksi eksplisit.

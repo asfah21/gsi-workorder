@@ -234,7 +234,17 @@ type Repository interface {
 	ListComponentHistory(ctx context.Context, unitID int64, filter ComponentHistoryFilter) ([]ComponentHistory, int, error)
 	ListComponentIntervals(ctx context.Context, unitID int64) ([]ComponentInterval, error)
 	ListUnitDowntime(ctx context.Context, unitID int64, filter DowntimeFilter) ([]DowntimeEvent, error)
+
 	ListComponents(ctx context.Context, activeOnly bool) ([]Component, error)
+	GetComponent(ctx context.Context, id int64) (Component, error)
+	CreateComponent(ctx context.Context, component Component) (Component, error)
+	UpdateComponent(ctx context.Context, component Component) (Component, error)
+
+	ListComponentInstallations(ctx context.Context, unitID int64, activeOnly bool) ([]ComponentInstallation, error)
+	GetComponentInstallation(ctx context.Context, id int64) (ComponentInstallation, error)
+	CreateComponentInstallation(ctx context.Context, input ComponentInstallationCreate) (ComponentInstallation, error)
+	CloseAndInstallComponent(ctx context.Context, oldID int64, close ComponentInstallationClose, create ComponentInstallationCreate) (ComponentInstallation, error)
+	ListComponentLifetime(ctx context.Context, unitID int64, activeOnly bool) ([]ComponentLifetime, error)
 }
 
 type Service struct {

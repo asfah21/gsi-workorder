@@ -148,14 +148,6 @@ type UnitDowntime struct {
 	Events  []DowntimeEvent `json:"events"`
 }
 
-type Component struct {
-	ID       int64  `json:"id"`
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	Category string `json:"category"`
-	IsActive bool   `json:"is_active"`
-}
-
 func (s *Service) ListMaintenanceHistory(ctx context.Context, unitID int64, filter HistoryFilter) ([]MaintenanceHistory, int, error) {
 	if err := s.validateHistoryFilter(unitID, &filter); err != nil {
 		return nil, 0, err

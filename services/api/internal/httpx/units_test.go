@@ -107,6 +107,33 @@ func (f *fakeUnitService) UnitDowntime(_ context.Context, _ int64, filter units.
 func (f *fakeUnitService) ListComponents(context.Context, bool) ([]units.Component, error) {
 	return []units.Component{}, nil
 }
+func (f *fakeUnitService) GetComponent(context.Context, int64) (units.Component, error) {
+	return units.Component{ID: 1, Code: "CMP-1", Name: "Komponen"}, nil
+}
+func (f *fakeUnitService) CreateComponent(context.Context, units.ComponentInput) (units.Component, error) {
+	return units.Component{ID: 1, Code: "CMP-1", Name: "Komponen"}, nil
+}
+func (f *fakeUnitService) UpdateComponent(context.Context, int64, units.ComponentPatch) (units.Component, error) {
+	return units.Component{ID: 1, Code: "CMP-1", Name: "Komponen"}, nil
+}
+func (f *fakeUnitService) ListComponentInstallations(context.Context, int64, bool) ([]units.ComponentInstallation, error) {
+	return []units.ComponentInstallation{}, nil
+}
+func (f *fakeUnitService) GetComponentInstallation(context.Context, int64, int64) (units.ComponentInstallation, error) {
+	return units.ComponentInstallation{ID: 1, UnitID: 1}, nil
+}
+func (f *fakeUnitService) ListComponentLifetime(context.Context, int64, bool) ([]units.ComponentLifetime, error) {
+	return []units.ComponentLifetime{}, nil
+}
+func (f *fakeUnitService) InstallComponent(context.Context, int64, units.ComponentInstallationInput, int64) (units.ComponentInstallation, error) {
+	return units.ComponentInstallation{ID: 1, UnitID: 1}, nil
+}
+func (f *fakeUnitService) ReplaceComponent(context.Context, int64, int64, units.ComponentReplacementInput, int64) (units.ComponentInstallation, error) {
+	return units.ComponentInstallation{ID: 2, UnitID: 1}, nil
+}
+func (f *fakeUnitService) TransferComponent(context.Context, int64, int64, units.ComponentTransferInput, int64) (units.ComponentInstallation, error) {
+	return units.ComponentInstallation{ID: 2, UnitID: 2}, nil
+}
 
 func unitTestRouter(authUser auth.User, unitService UnitService) *gin.Engine {
 	service := &fakeAuthService{authUser: authUser}
@@ -326,6 +353,66 @@ func TestUnitsImportRejectsMechanic(t *testing.T) {
 
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestInstallComponentRequiresPlanner(t *testing.T) {
+	router := unitTestRouter(auth.User{ID: 9, Role: auth.RoleViewer, IsActive: true}, &fakeUnitService{})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/units/1/component-installations", strings.NewReader(`{"component_id":1,"serial_number":"SN-1"}`))
+	request.Header.Set("Authorization", "Bearer good")
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestInstallComponentCreatesInstallation(t *testing.T) {
+	unitService := &fakeUnitService{}
+	router := unitTestRouter(auth.User{ID: 1, Role: auth.RoleAdmin, IsActive: true}, unitService)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/units/1/component-installations", strings.NewReader(`{"component_id":1,"serial_number":"SN-1"}`))
+	request.Header.Set("Authorization", "Bearer good")
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Data units.ComponentInstallation `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if response.Data.ID != 1 || response.Data.UnitID != 1 {
+		t.Fatalf("body = %#v", response.Data)
+	}
+}
+
+func TestComponentLifetimeIsAvailableToViewer(t *testing.T) {
+	router := unitTestRouter(auth.User{ID: 9, Role: auth.RoleViewer, IsActive: true}, &fakeUnitService{})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/units/1/component-lifetime?active_only=true", nil)
+	request.Header.Set("Authorization", "Bearer good")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Data []units.ComponentLifetime `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if response.Data == nil {
+		t.Fatal("data is nil")
 	}
 }
 

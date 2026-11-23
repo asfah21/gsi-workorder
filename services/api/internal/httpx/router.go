@@ -95,8 +95,12 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 		authorized.GET("/units/:id/history", unitHandler.ListMaintenanceHistory)
 		authorized.GET("/units/:id/components", unitHandler.ListUnitComponents)
 		authorized.GET("/units/:id/component-intervals", unitHandler.ListComponentIntervals)
+		authorized.GET("/units/:id/component-installations", unitHandler.ListComponentInstallations)
+		authorized.GET("/units/:id/component-installations/:installation_id", unitHandler.GetComponentInstallation)
+		authorized.GET("/units/:id/component-lifetime", unitHandler.ListComponentLifetime)
 		authorized.GET("/units/:id/downtime", unitHandler.UnitDowntime)
 		authorized.GET("/components", unitHandler.ListComponents)
+		authorized.GET("/components/:id", unitHandler.GetComponent)
 		if m2 == nil {
 			authorized.GET("/dashboard/summary", unitHandler.DashboardSummary)
 		}
@@ -110,6 +114,11 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 		unitWriters.POST("/units", unitHandler.CreateUnit)
 		unitWriters.POST("/units/import", unitHandler.ImportUnits)
 		unitWriters.PATCH("/units/:id", unitHandler.UpdateUnit)
+		unitWriters.POST("/components", unitHandler.CreateComponent)
+		unitWriters.PATCH("/components/:id", unitHandler.UpdateComponent)
+		unitWriters.POST("/units/:id/component-installations", unitHandler.InstallComponent)
+		unitWriters.POST("/units/:id/component-installations/:installation_id/replace", unitHandler.ReplaceComponent)
+		unitWriters.POST("/units/:id/component-installations/:installation_id/transfer", unitHandler.TransferComponent)
 
 		meterWriters := authorized.Group("")
 		meterWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner, auth.RoleMechanic))
