@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FileText,
   LayoutDashboard,
+  LayoutGrid,
   ListChecks,
   PackageSearch,
   Settings2,
@@ -120,6 +121,7 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
     items: [
       { href: "/master", label: "Master Unit", icon: Boxes, beta: true },
       { href: "/spareparts", label: "Sparepart", icon: PackageSearch, beta: true },
+      { href: "/modules", label: "Modul", icon: LayoutGrid, beta: true },
     ],
   },
   {

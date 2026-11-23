@@ -236,9 +236,33 @@ File terkait: `components/inventory-dashboard-view.tsx`, `components/inventory-m
 
 ---
 
-## 12. Riwayat
+## 12. Catatan implementasi node `25:1071` — Detail Modul
+
+Node ini adalah halaman katalog/detail modul, bukan layar operasional inventory.
+
+| Elemen Figma | Keputusan implementasi |
+|---|---|
+| `AppTopBar` + `AppSidebarV2` | Memakai `AppShell` existing; tidak dibuat ulang. |
+| Breadcrumb | `PageHeader` di route `/modules` dengan `Beranda / Modul / Inventory`. |
+| Kartu identitas modul + status `Terpasang` | `Card` + `Badge`, ikon `Warehouse` dari `lucide-react`. |
+| Metadata Versi / Penerbit / Diperbarui / Ukuran | Grid `1 → sm:2 → xl:4`, label `text-sm text-muted-foreground`, nilai `text-sm font-medium`. |
+| 3 metrik modul | `Card` grid `1 → sm:3`, nilai `text-2xl font-semibold`. |
+| Riwayat Versi | `Table` dalam `overflow-x-auto`, 3 baris statis. |
+| Dependensi Finance & Sales | `Card` + ikon `Coins`/`ShoppingCart`, badge status. |
+| Panel Aksi | `Button` **disabled** karena tidak ada module registry/API; diberi `title` penjelas. |
+| Data modul | Konstanta statis dari Figma, diberi alert "Data contoh dari template Figma". |
+| Ikon 24px Figma | Tetap `lucide-react` `size-4` sesuai kontrak. |
+
+File terkait: `components/module-detail-view.tsx`, route `(app)/modules/page.tsx`, dan menu `Modul` di `components/app-shell.tsx`.
+
+> Catatan implementasi: Figma MCP masih terkena batas kuota Starter. Acuan yang dipakai adalah metadata `25:1071` yang diekstrak dari `get_metadata` sebelum kuota habis. Label tombol aksi diperkirakan dari ukuran/konvensi tombol Figma karena teksnya tidak terbaca di metadata.
+
+---
+
+## 13. Riwayat
 
 | Tanggal | Perubahan |
 |---|---|
 | 2026-11-23 | Dibuat di branch `pams` sebagai pengganti `docs/Frontend UI Guidelines.md`. Menetapkan Figma Sanggar ERP sebagai template wajib dan resolusi konflik dengan guidelines project. |
 | 2026-11-23 | Menambahkan keputusan adaptasi node `32:2` (Dashboard Inventory) ke kontrak. |
+| 2026-11-23 | Menambahkan keputusan adaptasi node `25:1071` (Detail Modul) ke kontrak. |
