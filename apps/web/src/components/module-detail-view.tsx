@@ -74,8 +74,8 @@ export function ModuleDetailView() {
         title={moduleInfo.name}
         description={moduleInfo.description}
         actions={
-          <Link href="/modules" className={cn(buttonVariants({ variant: "outline" }))}>
-            <LayoutGrid aria-hidden="true" /> Daftar modul
+          <Link href="/modules/new" className={cn(buttonVariants({ variant: "outline" }))}>
+            <LayoutGrid aria-hidden="true" /> Tambah modul
           </Link>
         }
       />

@@ -259,10 +259,31 @@ File terkait: `components/module-detail-view.tsx`, route `(app)/modules/page.tsx
 
 ---
 
-## 13. Riwayat
+## 13. Catatan implementasi node `26:1280` — Tambah Modul
+
+| Elemen Figma | Keputusan implementasi |
+|---|---|
+| `AppTopBar` + `AppSidebarV2` | Memakai `AppShell` existing. |
+| Breadcrumb | `PageHeader` di route `/modules/new` dengan `Beranda / Modul / Tambah modul`. |
+| Dropzone `Berkas Modul` | `<label>` untuk `<input type="file" accept=".zip" className="sr-only">`; ikon `CloudUpload`, teks maksimal 50 MB. |
+| 2 `TextInput` + `SelectField` + `Textarea` | `Field` + `FieldLabel` + `Input`/`NativeSelect`/`Textarea`; semua kontrol `text-sm`. |
+| 3 `Checkbox` izin | `<input type="checkbox">` dengan kelas Tailwind; exception karena project belum punya primitive `Checkbox`. |
+| `KeyValueInfoCard` | `Card` "Ringkasan instalasi" dengan pasangan label/nilai + badge `Draft`. |
+| `Alur Instalasi` + `ToastAlert` | `Card` + `Info` + `Alert`; teks status Draft dan informasi belum terhubung API. |
+| Tombol aksi | `Button` **disabled** untuk "Pasang modul"; tidak ada mutasi. |
+| Data formulir | `defaultValue` statis dari Figma + alert "Data contoh dari template Figma". |
+
+File terkait: `components/module-form-view.tsx` dan route `(app)/modules/new/page.tsx`.
+
+> Catatan implementasi: Figma MCP masih terkena batas kuota Starter. Acuan yang dipakai adalah metadata `26:1280` yang diekstrak dari `get_metadata` sebelum kuota habis. Label dua `TextInput` diperkirakan sebagai "Nama modul" dan "Versi" karena teks label tidak terbaca di metadata.
+
+---
+
+## 14. Riwayat
 
 | Tanggal | Perubahan |
 |---|---|
 | 2026-11-23 | Dibuat di branch `pams` sebagai pengganti `docs/Frontend UI Guidelines.md`. Menetapkan Figma Sanggar ERP sebagai template wajib dan resolusi konflik dengan guidelines project. |
 | 2026-11-23 | Menambahkan keputusan adaptasi node `32:2` (Dashboard Inventory) ke kontrak. |
 | 2026-11-23 | Menambahkan keputusan adaptasi node `25:1071` (Detail Modul) ke kontrak. |
+| 2026-11-23 | Menambahkan keputusan adaptasi node `26:1280` (Tambah Modul) ke kontrak. |
