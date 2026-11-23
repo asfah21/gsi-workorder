@@ -4,7 +4,9 @@ import { cn } from "@/lib/utils";
 
 const statusLabels: Record<string, string> = {
   pending: "Pending",
-  approved: "Disetujui",
+  validated: "Tervalidasi",
+  converted: "Dikonversi",
+  approved: "Dikonversi",
   skipped: "Ditolak",
   auto_created: "WO otomatis",
   archived: "Arsip",
@@ -17,7 +19,9 @@ export function CandidateStatusBadge({ status }: { status: string }) {
       className={cn(
         "h-5 border-transparent px-2",
         status === "pending" && "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-        status === "approved" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+        status === "validated" && "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+        (status === "converted" || status === "approved") &&
+          "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
         status === "auto_created" && "bg-sky-500/10 text-sky-700 dark:text-sky-300",
         status === "skipped" && "bg-muted text-muted-foreground",
         status === "archived" && "bg-transparent text-muted-foreground",

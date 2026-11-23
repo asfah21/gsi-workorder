@@ -17,6 +17,7 @@ const (
 	RoleMechanic    = "mechanic"
 	RoleStorekeeper = "storekeeper"
 	RoleViewer      = "viewer"
+	RoleDispatch    = "dispatch"
 )
 
 var (
@@ -36,6 +37,7 @@ var validRoles = map[string]struct{}{
 	RoleMechanic:    {},
 	RoleStorekeeper: {},
 	RoleViewer:      {},
+	RoleDispatch:    {},
 }
 
 func ValidRole(role string) bool {

@@ -1,6 +1,6 @@
 # GSI Work Order & Maintenance: PRD
 
-**Status:** Baseline rilis/UI tahap 1 accepted — rev. 5 (v0.1.7 / M7); M8b–M8d diimplementasikan lokal; acceptance server UAT tetap gate terpisah.
+**Status:** Baseline rilis/UI tahap 1 accepted — rev. 6 (v0.1.7 / M7); M8b–M9b diimplementasikan lokal; acceptance server UAT tetap gate terpisah.
 **Author:** Azvan IT (PT GSI)
 **Date:** 2026-11-18
 **Last updated:** 2026-11-23
@@ -14,6 +14,7 @@
 | 3 | 2026-11-18 | Ekspansi scope: PM (HM/KM/calendar), material planning & readiness, sparepart & compatibility, internal inventory, unit history, dashboard/reporting, timezone WITA. Roadmap M1–M7 disusun ulang; M0 tetap locked. |
 | 4 | 2026-11-23 | Baseline tahap 1 / `v0.1.7` (M7): rebranding UI PAMS, dashboard shadcn dengan data nyata, hero tanpa tanggal/summary, Beta badge amber, urutan menu Usulan WO, dan versi sidebar `v.0.1.7`. PRD dan Agent Brief tetap dipertahankan sebagai source of truth; masukan user dicatat di decision log, bukan dihapus. |
 | 5 | 2026-11-23 | PAM CR M8: discovery komponen, master komponen/instalasi/lifetime API (`000012`), P2H HM/KM ingestion + anomali + backfill (`000013`), UI komponen unit & master komponen (M8D); keputusan D-23–D-26 dan open questions Q-11–Q-13 dicatat. Import data/threshold final pending PAM. |
+| 6 | 2026-11-23 | PAM CR M9: Work Request manual/P2H, role `dispatch`, status `validated`/`converted`, kategori Service/Scheduled/Unscheduled/Incident/UBOP, breakdown/backlog, dan UI Work Request. Migration `000014_m9_work_requests`; keputusan D-27–D-29 dicatat. |
 
 Dokumen pendukung:
 
@@ -94,8 +95,8 @@ Dokumen pendukung:
 * [ ] **R2 — Sinkron user & employee.** Worker menarik user/employee dari Odoo setiap 6 jam ke `users`/`employees`; user nonaktif dinonaktifkan lokal, tidak dihapus.
 * [ ] **R3 — Sinkron P2H periodik.** Worker menarik daftar P2H setiap 15 menit, lalu detail checklist untuk laporan baru/berubah; idempoten per `odoo_report_id`.
 * [ ] **R4 — Ekstraksi temuan.** Baris `rusak`/`tidak_ada` disimpan di `p2h_findings`; baris `baik` tidak disimpan, jumlah item diperiksa dicatat.
-* [ ] **R5 — Usulan WO dari P2H, bukan WO otomatis.** Satu laporan bertemuan menghasilkan satu `wo_candidates` unik; worker tidak membuat `work_orders` pada kondisi default.
-* [ ] **R6 — Konfirmasi setujui/tolak.** Planner/admin menyetujui → WO dibuat; menolak → `skipped` dengan alasan wajib; bulk maksimal 50.
+* [ ] **R5 — Work Request dari P2H/manual, bukan WO otomatis.** Satu laporan P2H bertemuan menghasilkan satu `wo_candidates` unik; Work Request manual memakai tabel yang sama dengan `source='manual'`; worker tidak membuat `work_orders` pada kondisi default.
+* [ ] **R6 — Validasi/konversi Work Request.** Dispatch/planner memvalidasi lalu mengonversi menjadi WO; aksi gabungan tetap tersedia. Penolakan memakai alasan wajib; bulk maksimal 50.
 * [ ] **R7 — Toggle otomatis P2H.** `p2h_auto_wo` default `false`; hanya usulan baru yang terpengaruh; perubahan dicatat di `app_settings_history`.
 * [ ] **R8 — Notifikasi.** Notifikasi in-app untuk planner/admin, keputusan usulan, dan reminder 24 jam; email opsional fase berikut.
 * [ ] **R9 — WO manual.** Planner dapat membuat WO tanpa usulan P2H.
@@ -258,7 +259,7 @@ Dokumen pendukung:
 | `units` | master unit; `odoo_unit_id` unik; `code` = no lambung |
 | `p2h_reports` | snapshot laporan P2H; `odoo_report_id` unik; `raw jsonb` |
 | `p2h_findings` | temuan checklist; `odoo_line_id` unik; condition rusak/tidak_ada |
-| `wo_candidates` | usulan WO P2H; `p2h_report_id` unik; status pending/approved/skipped/auto_created/archived; `notified_at` |
+| `wo_candidates` | Work Request P2H/manual (M9); `p2h_report_id` unik/nullable; source/status/kategori/validasi/konversi; `notified_at` |
 | `work_orders` | WO dari P2H/manual; `code` unik; `p2h_report_id` unik |
 | `wo_findings` | relasi WO ↔ temuan P2H; PK gabungan |
 | `wo_updates` | riwayat status/komentar WO; append-only |
@@ -679,6 +680,8 @@ Aturan prioritas status (dievaluasi berurutan): `Cancelled` → `Completed` → 
 |---|---|---|---|---|---|
 | Setting & sync | ✅ | — | — | — | — |
 | Approve/skip kandidat P2H | ✅ | ✅ | — | — | — |
+| Work Request create (manual) | ✅ | ✅ | ✅ | — | — |
+| Work Request validate/convert/skip | ✅ | ✅ | — | — | — |
 | Buat/ubah WO | ✅ | ✅ | — | — | — |
 | Mulai/selesaikan WO sendiri | ✅ | ✅ | ✅ | — | — |
 | PM plan/schedule | ✅ | ✅ | — | — | — |
@@ -691,7 +694,7 @@ Aturan prioritas status (dievaluasi berurutan): `Cancelled` → `Completed` → 
 | Opname counting | ✅ | — | — | ✅ | — |
 | Lihat dashboard/report | ✅ | ✅ | terbatas | ✅ | ✅ |
 
-Catatan: matrix ini proposal; approval matrix final menunggu keputusan di §13.
+Catatan: matrix ini proposal; approval matrix final menunggu keputusan di §13. Role `dispatch` (M9) dapat create Work Request manual, validate/convert/skip, dan read unit/WO; tidak mengelola settings/inventory/material.
 
 ---
 
@@ -865,10 +868,11 @@ Detail dan test case ada di `docs/Timezone.md`.
 | **M6** | Material planning/readiness, reservation/release, issue/return, waiting_part integration, shortage aging, PM material requirement integration | M4, M5 | Planning/reservation tidak mengurangi stok; issue mengurangi; return menambah; readiness benar |
 | **M7** ✅ tahap 1 | Unit history/profile, timeline, component history/intervals, downtime, dashboard lengkap, report/export, performance & audit hardening | M6 | Semua history dari transaksi aktual; report WITA; p95 target |
 | **M8** 🟡 | PAM CR master unit & komponen: M8a discovery, M8b master komponen/instalasi/lifetime API (`000012`), M8c P2H HM/KM ingestion/anomali/backfill (`000013`), M8d UI/alert | M7 | Additive; serial aktif unik; current HM/KM dari reading valid; UI/import pending |
+| **M9** 🟡 | PAM CR Work Request: manual/P2H, dispatch, validate/convert, kategori, breakdown/backlog, UI | M8 | Additive; P2H existing tetap; backlog non-breakdown; UAT pending |
 
 **Catatan dependensi:** M4 PM core tidak menjanjikan readiness stok; `pm_plan_materials` baru ada di M5 (butuh master sparepart), dan material requirement/readiness penuh di M6. Jika PM harus launch dengan material plan/readiness, urutan M4/M5/M6 perlu approval.
 
-**Baseline rilis tahap 1:** `v0.1.7` (M7). Angka `7` pada versi merujuk ke milestone M7; `M7B` adalah sub-milestone reporting. Acceptance server UAT untuk M5/M6/M7A/M7B tetap menjadi gate terpisah dan tidak membatalkan baseline UI tahap 1. M8 adalah PAM change request pasca-baseline; status dan keputusan detail dicatat di `docs/M8 Discovery.md`.
+**Baseline rilis tahap 1:** `v0.1.7` (M7). Angka `7` pada versi merujuk ke milestone M7; `M7B` adalah sub-milestone reporting. Acceptance server UAT untuk M5/M6/M7A/M7B tetap menjadi gate terpisah dan tidak membatalkan baseline UI tahap 1. M8–M9 adalah PAM change request pasca-baseline; status dan keputusan detail dicatat di `docs/M8 Discovery.md`, `docs/Agent Brief.md`, dan `docs/Domain Rules.md`.
 
 ---
 
@@ -904,6 +908,9 @@ Detail dan test case ada di `docs/Timezone.md`.
 | D-24 | 2026-11-23 | M8: lifetime komponen memakai default HM/hari/KM dari master dan dapat dioverride per instalasi; Target Hour sebagai field terpisah ditunda | Final untuk implementasi lokal |
 | D-25 | 2026-11-23 | M8c: P2H `hm_awal`/`km_akhir` menjadi reading HM/KM source `p2h`; `recorded_at` awal tanggal laporan WITA; reading P2H lebih rendah ditandai anomali, tidak menimpa `units.current_*`, dan dinotifikasikan ke admin; backfill via worker | Final untuk implementasi lokal |
 | D-26 | 2026-11-23 | M8d: UI tab Komponen di profil unit menampilkan lifetime, install/replace/transfer, dan alert due/overdue; Master Unit punya tab komponen untuk create/edit master. Replace/transfer tetap diizinkan untuk master nonaktif; instalasi baru tidak | Final untuk implementasi lokal |
+| D-27 | 2026-11-23 | M9: role `dispatch` ditambahkan; mechanic/operator dapat membuat Work Request manual, dispatch/planner/admin memvalidasi, mengonversi, dan menolak | Final untuk implementasi lokal |
+| D-28 | 2026-11-23 | M9: status Work Request `pending → validated → converted`; `skipped` dari pending/validated; `approved`/`auto_created` tetap sebagai status historis; aksi gabungan tetap tersedia | Final untuk implementasi lokal |
+| D-29 | 2026-11-23 | M9: kategori Service/Scheduled/Unscheduled/Incident/UBOP; backlog default non-breakdown pending/validated; UI Work Request dengan form manual, detail P2H/manual, validasi/konversi/skip | Final untuk implementasi lokal |
 
 ### 13.2 Open questions
 
@@ -922,6 +929,8 @@ Detail dan test case ada di `docs/Timezone.md`.
 | Q-11 | Apakah satu unit boleh punya lebih dari satu komponen aktif dengan tipe yang sama? | Model instalasi/lifetime | Default satu aktif per unit+tipe; pecah kode komponen bila perlu; konfirmasi PAM | M8D |
 | Q-12 | Bagaimana memetakan shift P2H ke timestamp intra-hari? | Urutan reading harian | Saat ini awal tanggal laporan WITA; tambahkan mapping shift bila PAM menyediakan definisi jam | M8D/M11 |
 | Q-13 | Dari mana data master komponen dan instalasi awal? | Kelengkapan lifetime | Import Excel/manual dari PAM; jangan mengarang data | M8D |
+| Q-14 | Apakah mapping kategori Work Request ke `maintenance_type` sudah final? | Klasifikasi WO/downtime | Default Scheduled→preventive, Incident/breakdown→breakdown, lainnya corrective; konfirmasi PAM | M10 |
+| Q-15 | Siapa user yang diberi role `dispatch`? | Alur validasi Work Request | Admin menetapkan via role management; fallback planner sampai matrix disetujui | M9 UAT |
 
 ---
 
@@ -1053,7 +1062,7 @@ Aturan idempoten: unik `wo_candidates.p2h_report_id` dan `work_orders.p2h_report
 | ID | Modul | Kriteria |
 |---|---|---|
 | AC-01 | M0 | `docker compose up -d` → 4 service healthy; 15 tabel aplikasi + `schema_migrations`; seed 3 setting; `/healthz` 200 |
-| AC-02 | M1 | Login Odoo → JWT; role `admin/planner/mechanic/storekeeper/viewer`; unit model/engine dan meter reading tersimpan |
+| AC-02 | M1 | Login Odoo → JWT; role baseline `admin/planner/mechanic/storekeeper/viewer` + `dispatch` (M9); unit model/engine dan meter reading tersimpan |
 | AC-03 | M2 | `sync-full` 2x tidak duplikat; kandidat pending; `work_orders` hasil sync = 0; approve → 1 WO; skip wajib alasan; approve ulang 409 |
 | AC-04 | M3 | Transisi WO valid; `wo_updates` mencatat pelaku/waktu; `waiting_part` hanya untuk material; cancel wajib alasan; done mengikuti guard |
 | AC-05 | M4 | Plan per unit/model; interval HM/KM/calendar; combined first reached; due/upcoming/overdue; PM → WO; auto-WO 0 saat default; next due benar |

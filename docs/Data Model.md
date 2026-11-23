@@ -41,12 +41,12 @@ Nilai DB memakai `snake_case`; label UI memakai Title Case.
 
 | Tabel | PK | Relasi penting |
 |---|---|---|
-| `users` | `id` | `odoo_user_id` unik; role baseline 4 nilai |
+| `users` | `id` | `odoo_user_id` unik; role baseline + `storekeeper`/`dispatch` |
 | `employees` | `id` | `odoo_employee_id` unik; `user_id → users` |
 | `units` | `id` | `odoo_unit_id` unik; `code` = no lambung |
 | `p2h_reports` | `id` | `unit_id → units`; `odoo_report_id` unik |
 | `p2h_findings` | `id` | `report_id → p2h_reports`; `odoo_line_id` unik |
-| `wo_candidates` | `id` | `p2h_report_id → p2h_reports` unik; `unit_id → units` |
+| `wo_candidates` | `id` | `p2h_report_id → p2h_reports` unik/nullable; `unit_id → units`; source p2h/manual |
 | `work_orders` | `id` | `unit_id → units`; `candidate_id → wo_candidates`; `p2h_report_id` unik |
 | `wo_findings` | `(wo_id, finding_id)` | `wo_id → work_orders`; `finding_id → p2h_findings` |
 | `wo_updates` | `id` | `wo_id → work_orders`; append-only |
@@ -61,13 +61,15 @@ Nilai DB memakai `snake_case`; label UI memakai Title Case.
 
 * `work_orders.source CHECK (source IN ('p2h','manual'))` — akan diperluas ke `pm`.
 * `work_orders.status CHECK (status IN ('open','in_progress','waiting_part','done','cancelled'))` — **reuse** `waiting_part`.
-* `users.role CHECK (role IN ('admin','planner','mechanic','viewer'))` — akan ditambah `storekeeper`.
-* `wo_candidates.status` sudah memiliki `archived`; `notified_at` sudah ada.
+* `users.role CHECK` baseline ditambah `storekeeper` dan `dispatch`.
+* `wo_candidates.status` mendukung `pending/validated/converted`, plus `approved`/`auto_created` historis; `notified_at` sudah ada.
 * Seed: `p2h_auto_wo=false`, `candidate_sla_hours=24`, `candidate_backfill_days=30`.
 
 ### 2.3 Index M0
 
 `work_orders(status, priority)`, `work_orders(unit_id)`, `wo_candidates(status, created_at)`, `p2h_reports(unit_id, report_date DESC)`, `p2h_findings(report_id)`, `p2h_findings(category_norm)`, `notifications(user_id, read_at)`.
+
+M9 menambahkan `wo_candidates(source, status, created_at DESC)` dan partial index backlog `(status, created_at DESC) WHERE is_breakdown=false AND status IN ('pending','validated')`.
 
 ---
 
@@ -141,7 +143,7 @@ Catatan:
 ```sql
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
-  CHECK (role IN ('admin','planner','mechanic','storekeeper','viewer'));
+  CHECK (role IN ('admin','planner','mechanic','storekeeper','viewer','dispatch'));
 ```
 
 ### 4.2 `units`
@@ -194,7 +196,41 @@ CREATE INDEX idx_work_orders_type_status ON work_orders (maintenance_type, statu
 
 `closed_at` sudah ada; dipakai sebagai akhir downtime. `started_at` adalah awal eksekusi. `waiting_part_since` tidak ditambahkan—durasi dihitung dari `wo_updates`.
 
-### 4.4 `notifications`
+### 4.4 `wo_candidates`
+
+```sql
+ALTER TABLE wo_candidates
+  ALTER COLUMN p2h_report_id DROP NOT NULL,
+  ADD COLUMN source text NOT NULL DEFAULT 'p2h'
+    CHECK (source IN ('p2h','manual')),
+  ADD COLUMN title text,
+  ADD COLUMN description text,
+  ADD COLUMN work_category text
+    CHECK (work_category IS NULL OR work_category IN ('Service','Scheduled','Unscheduled','Incident','UBOP')),
+  ADD COLUMN is_breakdown boolean NOT NULL DEFAULT false,
+  ADD COLUMN created_by bigint REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN validated_by bigint REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN validated_at timestamptz,
+  ADD COLUMN converted_by bigint REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN converted_at timestamptz;
+
+ALTER TABLE wo_candidates DROP CONSTRAINT IF EXISTS wo_candidates_status_check;
+ALTER TABLE wo_candidates ADD CONSTRAINT wo_candidates_status_check
+  CHECK (status IN ('pending','validated','converted','approved','auto_created','skipped','archived'));
+
+ALTER TABLE wo_candidates ADD CONSTRAINT wo_candidates_manual_fields_check
+  CHECK (source <> 'manual' OR (unit_id IS NOT NULL AND btrim(title) <> '' AND work_category IS NOT NULL));
+
+CREATE INDEX idx_wo_candidates_source_status_created
+  ON wo_candidates (source, status, created_at DESC);
+CREATE INDEX idx_wo_candidates_backlog
+  ON wo_candidates (status, created_at DESC)
+  WHERE is_breakdown = false AND status IN ('pending','validated');
+```
+
+`approved` dan `auto_created` dipertahankan sebagai status historis. Backlog default = pending/validated non-breakdown.
+
+### 4.5 `notifications`
 
 ```sql
 ALTER TABLE notifications ADD COLUMN dedupe_key text;
@@ -1002,6 +1038,7 @@ Catatan:
 | M7-01 | `v_unit_maintenance_history`, `v_unit_component_history`, `v_unit_downtime`, `v_sparepart_consumption`, `v_inventory_movement`, `v_component_replacement_frequency` + index performa | reporting |
 | M8-01 | `ALTER components` (`component_class`, default lifetime), `unit_component_installations`, `v_unit_component_lifetime` | master/instalasi/lifetime komponen |
 | M8-02 | `ALTER unit_meter_readings` (`is_anomaly`, `anomaly_reason`) + partial index valid | anomali reading P2H |
+| M9-01 | `ALTER users role dispatch`; `ALTER wo_candidates` source/title/category/breakdown/validated/converted + index backlog | Work Request manual & alur validate/convert |
 
 **Aturan:** setiap migration harus punya `down` yang aman atau explicitly irreversible dengan alasan. Jangan mengubah migration yang sudah dijalankan. `pm_plan_materials` sengaja berada di M5 karena FK ke `spareparts`; M4 tidak boleh membuat tabel yang bergantung pada master M5.
 

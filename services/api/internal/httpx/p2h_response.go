@@ -47,12 +47,17 @@ type findingResponse struct {
 
 type candidateResponse struct {
 	ID                int64      `json:"id"`
-	P2HReportID       int64      `json:"p2h_report_id"`
+	P2HReportID       *int64     `json:"p2h_report_id,omitempty"`
+	Source            string     `json:"source"`
 	UnitID            *int64     `json:"unit_id,omitempty"`
 	UnitCode          string     `json:"unit_code"`
 	UnitType          string     `json:"unit_type"`
 	ReportName        string     `json:"report_name"`
 	ReportDate        string     `json:"report_date"`
+	Title             string     `json:"title"`
+	Description       string     `json:"description"`
+	WorkCategory      string     `json:"work_category"`
+	IsBreakdown       bool       `json:"is_breakdown"`
 	SuggestedPriority string     `json:"suggested_priority"`
 	Status            string     `json:"status"`
 	FindingsCount     int        `json:"findings_count"`
@@ -62,6 +67,14 @@ type candidateResponse struct {
 	DecidedAt         *time.Time `json:"decided_at,omitempty"`
 	SkipReason        string     `json:"skip_reason"`
 	DecisionNote      string     `json:"decision_note"`
+	CreatedBy         *int64     `json:"created_by,omitempty"`
+	CreatedByName     string     `json:"created_by_name"`
+	ValidatedBy       *int64     `json:"validated_by,omitempty"`
+	ValidatedByName   string     `json:"validated_by_name"`
+	ValidatedAt       *time.Time `json:"validated_at,omitempty"`
+	ConvertedBy       *int64     `json:"converted_by,omitempty"`
+	ConvertedByName   string     `json:"converted_by_name"`
+	ConvertedAt       *time.Time `json:"converted_at,omitempty"`
 	WorkOrderID       *int64     `json:"wo_id,omitempty"`
 	WorkOrderCode     string     `json:"wo_code"`
 	NotifiedAt        *time.Time `json:"notified_at,omitempty"`
@@ -100,8 +113,10 @@ type approveResponse struct {
 }
 
 type bulkResponse struct {
-	Approved []approveResponse   `json:"approved"`
-	Skipped  []candidateResponse `json:"skipped"`
+	Approved  []approveResponse   `json:"approved"`
+	Validated []candidateResponse `json:"validated"`
+	Converted []approveResponse   `json:"converted"`
+	Skipped   []candidateResponse `json:"skipped"`
 }
 
 func newReportResponse(report p2h.Report) reportResponse {
@@ -154,11 +169,16 @@ func newCandidateResponse(item candidates.Candidate) candidateResponse {
 	return candidateResponse{
 		ID:                item.ID,
 		P2HReportID:       item.P2HReportID,
+		Source:            item.Source,
 		UnitID:            item.UnitID,
 		UnitCode:          item.UnitCode,
 		UnitType:          item.UnitType,
 		ReportName:        item.ReportName,
 		ReportDate:        dateString(item.ReportDate),
+		Title:             item.Title,
+		Description:       item.Description,
+		WorkCategory:      item.WorkCategory,
+		IsBreakdown:       item.IsBreakdown,
 		SuggestedPriority: item.SuggestedPriority,
 		Status:            item.Status,
 		FindingsCount:     item.FindingsCount,
@@ -168,6 +188,14 @@ func newCandidateResponse(item candidates.Candidate) candidateResponse {
 		DecidedAt:         item.DecidedAt,
 		SkipReason:        item.SkipReason,
 		DecisionNote:      item.DecisionNote,
+		CreatedBy:         item.CreatedBy,
+		CreatedByName:     item.CreatedByName,
+		ValidatedBy:       item.ValidatedBy,
+		ValidatedByName:   item.ValidatedByName,
+		ValidatedAt:       item.ValidatedAt,
+		ConvertedBy:       item.ConvertedBy,
+		ConvertedByName:   item.ConvertedByName,
+		ConvertedAt:       item.ConvertedAt,
 		WorkOrderID:       item.WorkOrderID,
 		WorkOrderCode:     item.WorkOrderCode,
 		NotifiedAt:        item.NotifiedAt,

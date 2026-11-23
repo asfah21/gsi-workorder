@@ -5,8 +5,8 @@ import { CandidatesView } from "@/components/candidates-view";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = {
-  title: "Usulan WO | PAMS",
-  description: "Usulan work order dari temuan P2H",
+  title: "Work Request | PAMS",
+  description: "Work Request manual dan temuan P2H",
 };
 
 export default function CandidatesPage() {
@@ -19,7 +19,7 @@ export default function CandidatesPage() {
 
 function CandidatesPageSkeleton() {
   return (
-    <div className="space-y-6" role="status" aria-label="Memuat usulan WO">
+    <div className="space-y-6" role="status" aria-label="Memuat Work Request">
       <Skeleton className="h-9 w-48" />
       <Skeleton className="h-4 w-96 max-w-full" />
       <Skeleton className="h-28 w-full rounded-xl" />

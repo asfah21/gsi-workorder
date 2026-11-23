@@ -14,7 +14,7 @@ export type BackendUser = {
   nik: string;
   name: string;
   email: string;
-  role: "admin" | "planner" | "mechanic" | "storekeeper" | "viewer";
+  role: "admin" | "planner" | "mechanic" | "storekeeper" | "viewer" | "dispatch";
   is_active: boolean;
 };
 

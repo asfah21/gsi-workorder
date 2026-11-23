@@ -1,4 +1,4 @@
-export type Role = "admin" | "planner" | "mechanic" | "storekeeper" | "viewer";
+export type Role = "admin" | "planner" | "mechanic" | "storekeeper" | "viewer" | "dispatch";
 
 export type User = {
   id: number;
@@ -368,16 +368,23 @@ export type P2HReport = {
   findings: P2HFinding[];
 };
 
+export type WorkCategory = "Service" | "Scheduled" | "Unscheduled" | "Incident" | "UBOP";
+
 export type WOCandidate = {
   id: number;
-  p2h_report_id: number;
+  p2h_report_id?: number;
+  source: "p2h" | "manual";
   unit_id?: number;
   unit_code: string;
   unit_type: string;
   report_name: string;
-  report_date: string;
+  report_date?: string;
+  title: string;
+  description: string;
+  work_category: WorkCategory | "";
+  is_breakdown: boolean;
   suggested_priority: "low" | "medium" | "high" | "critical";
-  status: "pending" | "approved" | "skipped" | "auto_created" | "archived";
+  status: "pending" | "validated" | "converted" | "approved" | "skipped" | "auto_created" | "archived";
   findings_count: number;
   rusak_count: number;
   decided_by?: number;
@@ -385,6 +392,14 @@ export type WOCandidate = {
   decided_at?: string;
   skip_reason: string;
   decision_note: string;
+  created_by?: number;
+  created_by_name: string;
+  validated_by?: number;
+  validated_by_name: string;
+  validated_at?: string;
+  converted_by?: number;
+  converted_by_name: string;
+  converted_at?: string;
   wo_id?: number;
   wo_code: string;
   notified_at?: string;
@@ -498,7 +513,7 @@ export type CandidateWorkOrder = {
 
 export type CandidateDetail = {
   candidate: WOCandidate;
-  report: P2HReport;
+  report?: P2HReport;
   work_order: CandidateWorkOrder | null;
 };
 
@@ -509,6 +524,8 @@ export type CandidateApproveResponse = {
 
 export type CandidateBulkResponse = {
   approved: CandidateApproveResponse[];
+  validated: WOCandidate[];
+  converted: CandidateApproveResponse[];
   skipped: WOCandidate[];
 };
 

@@ -35,7 +35,7 @@
 * `material_requirement_updates` append-only; setiap transisi status material wajib menulis baris.
 * `inventory_transactions` posted tidak boleh dihapus/diubah item/qty-nya; satu-satunya update status adalah `posted → reversed` saat reversal.
 * `app_settings_history` mencatat setting lama → baru.
-* `wo_candidates` mencatat `decided_by/at`, `skip_reason`.
+* `wo_candidates` mencatat `created_by`, `decided_by/at`, `validated_by/at`, `converted_by/at`, dan `skip_reason`.
 * `pm_schedules` mencatat override (`override_reason`, `overridden_by`, `overridden_at`).
 * `sparepart_compatibility` mencatat `verified_by/at`; perubahan status tanpa history table adalah keterbatasan v1.
 
@@ -649,7 +649,20 @@ Tidak ada tabel total statis. Semua agregasi query/view.
 * State lifetime: `inactive`, `unset`, `safe`, `upcoming`, `due`, `overdue`. Ambang default `due` = 10% tersisa atau 7 hari; `upcoming` = 20% atau 30 hari.
 * UI, import data awal, dan ingestion HM/KM dari P2H belum termasuk M8b (M8c/M8d).
 
-### 7.6 Visibilitas
+### 7.6 Work Request (M9)
+
+* Work Request memakai `wo_candidates`; P2H dan manual berada di tabel yang sama.
+* P2H: `source='p2h'`, `p2h_report_id` wajib. Manual: `source='manual'`, `p2h_report_id=NULL`, wajib `unit_id`, `title`, dan `work_category`.
+* Status baru: `pending → validated → converted`; `skipped` boleh dari `pending`/`validated`. `approved` dan `auto_created` dipertahankan sebagai status historis.
+* Validasi tidak membuat WO; konversi membuat WO. Aksi lama `approve` menjadi gabungan validasi+konversi dan menulis status `converted`.
+* Kategori: `Service`, `Scheduled`, `Unscheduled`, `Incident`, `UBOP`.
+* Mapping konversi ke `work_orders.maintenance_type`: `Scheduled → preventive`; `Incident` atau `is_breakdown=true → breakdown`; lainnya `corrective`.
+* Backlog default = `pending`/`validated` + `is_breakdown=false`. Work Request breakdown tidak masuk backlog.
+* Role `dispatch` dapat membuat, memvalidasi, mengonversi, dan menolak. Mechanic dapat membuat manual. Admin/planner tetap penuh.
+* Konversi P2H tetap melampirkan findings; konversi manual memakai deskripsi Work Request.
+* Work order hasil konversi menyimpan `candidate_id`, sehingga kategori dan histori validasi tetap dapat ditelusuri.
+
+### 7.7 Visibilitas
 
 * Semua role authenticated dapat membaca unit history; mechanic dapat melihat WO sendiri dan unit terkait.
 * Data biaya tidak ada.
@@ -697,6 +710,8 @@ Aturan:
 | PM checklist execution | ✅ | ✅ | ✅ own | — | read |
 | PM completion | ✅ | ✅ | ✅ own | — | — |
 | Approve/skip kandidat P2H | ✅ | ✅ | — | — | — |
+| Work Request create (manual) | ✅ | ✅ | ✅ | — | — |
+| Work Request validate/convert/skip | ✅ | ✅ | — | — | — |
 | WO create/assign/cancel | ✅ | ✅ | — | — | — |
 | WO start/update/complete | ✅ | ✅ | ✅ own | — | — |
 | Sparepart master | ✅ | ✅ | — | read | read |
@@ -721,6 +736,7 @@ Aturan:
 
 Aturan:
 
+* Role `dispatch` (M9): create Work Request manual, validate/convert/skip, dan read unit/WO; tidak mengelola settings, inventory, atau material.
 * "own" = WO dengan `assignee_id = user.id`.
 * Otorisasi dicek di server, bukan hanya UI.
 * `storekeeper` tidak boleh mengubah PM plan/WO/material requirement.

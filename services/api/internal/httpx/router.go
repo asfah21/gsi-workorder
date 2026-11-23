@@ -142,9 +142,15 @@ func newRouter(logger *slog.Logger, checker Checker, authService AuthService, un
 			authorized.GET("/wo-candidates", candidateHandler.List)
 			authorized.GET("/wo-candidates/:id", candidateHandler.Get)
 
+			candidateCreators := authorized.Group("")
+			candidateCreators.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner, auth.RoleDispatch, auth.RoleMechanic))
+			candidateCreators.POST("/wo-candidates", candidateHandler.Create)
+
 			candidateWriters := authorized.Group("")
-			candidateWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner))
+			candidateWriters.Use(handler.RequireRoles(auth.RoleAdmin, auth.RolePlanner, auth.RoleDispatch))
+			candidateWriters.POST("/wo-candidates/:id/validate", candidateHandler.Validate)
 			candidateWriters.POST("/wo-candidates/:id/approve", candidateHandler.Approve)
+			candidateWriters.POST("/wo-candidates/:id/convert", candidateHandler.Convert)
 			candidateWriters.POST("/wo-candidates/:id/skip", candidateHandler.Skip)
 			candidateWriters.POST("/wo-candidates/bulk", candidateHandler.Bulk)
 		}

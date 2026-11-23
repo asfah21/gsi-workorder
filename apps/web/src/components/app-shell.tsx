@@ -65,6 +65,7 @@ export const roleLabels: Record<User["role"], string> = {
   mechanic: "Mekanik",
   storekeeper: "Storekeeper",
   viewer: "Viewer",
+  dispatch: "Dispatch",
 };
 
 type NavigationItem = {
@@ -95,9 +96,9 @@ const navigationGroups: { label: string; items: NavigationItem[] }[] = [
       },
       {
         href: "/wo-candidates",
-        label: "Usulan WO",
+        label: "Work Request",
         icon: ListChecks,
-        roles: ["admin", "planner"],
+        roles: ["admin", "planner", "dispatch", "mechanic"],
         beta: true,
       },
       {

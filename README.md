@@ -173,7 +173,7 @@ Daftar tabel:
 | Identitas/master | `users`, `employees`, `units` |
 | Komponen | `unit_component_installations` |
 | P2H | `p2h_reports`, `p2h_findings` |
-| Usulan & WO | `wo_candidates`, `work_orders`, `wo_findings`, `wo_updates`, `wo_attachments` |
+| Work Request & WO | `wo_candidates`, `work_orders`, `wo_findings`, `wo_updates`, `wo_attachments` |
 | Notifikasi & setting | `notifications`, `app_settings`, `app_settings_history` |
 | Sinkronisasi | `sync_runs`, `sync_state` |
 
@@ -451,10 +451,12 @@ Status lokal per 2026-11-23. Lihat `docs/Agent Brief.md` untuk rincian acceptanc
 | M7A — unit history, timeline, downtime | Accepted tahap 1 / `v0.1.7` (`000010_m7_history_reporting`); acceptance server UAT terpisah |
 | M7B — dashboard, report CSV, audit hardening | Accepted tahap 1 / `v0.1.7` (`000011_m7b_reporting`); acceptance server UAT terpisah |
 | M8A — discovery master unit & komponen | Selesai discovery (`docs/M8 Discovery.md`) |
-| M8B — master komponen, instalasi per unit, lifetime API | Selesai lokal (`000012_m8_components`); M8D belum |
+| M8B — master komponen, instalasi per unit, lifetime API | Selesai lokal (`000012_m8_components`) |
 | M8C — P2H HM/KM ingestion, anomali, backfill | Selesai lokal (`000013_m8c_meter_anomaly`); backfill via worker |
 | M8D — UI komponen unit, lifetime, install/replace/transfer, master komponen | Selesai lokal; import data & threshold final pending PAM |
+| M9A — Work Request manual/P2H, dispatch, validate/convert, kategori, backlog | Selesai lokal (`000014_m9_work_requests`); UAT pending |
+| M9B — UI Work Request, detail manual/P2H, validasi/konversi/skip, bulk | Selesai lokal; UAT dispatch/planner/mechanic pending |
 
-Baseline rilis tahap 1: **`v0.1.7` (M7)**. UI/operasional tahap 1 sudah accepted; acceptance server UAT M5/M6/M7A/M7B tetap dicatat terpisah. Angka `7` merujuk ke milestone M7; `M7B` adalah sub-milestone reporting. M8B–M8D adalah pekerjaan pasca-baseline dan belum menjadi bagian rilis tahap 1.
+Baseline rilis tahap 1: **`v0.1.7` (M7)**. UI/operasional tahap 1 sudah accepted; acceptance server UAT M5/M6/M7A/M7B tetap dicatat terpisah. Angka `7` merujuk ke milestone M7; `M7B` adalah sub-milestone reporting. M8B–M9B adalah pekerjaan pasca-baseline dan belum menjadi bagian rilis tahap 1.
 
 Jangan melanjutkan ke milestone berikutnya tanpa instruksi eksplisit.

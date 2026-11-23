@@ -121,7 +121,7 @@ func TestM2P2HFlow(t *testing.T) {
 	}
 	assertCount(t, ctx, pool, "work_orders", 1)
 	assertCount(t, ctx, pool, "wo_findings", 2)
-	assertCandidateStatus(t, ctx, pool, saved.Candidate.ID, "approved")
+	assertCandidateStatus(t, ctx, pool, saved.Candidate.ID, "converted")
 	if _, err := candidateRepo.Approve(ctx, saved.Candidate.ID, plannerID, candidates.ApproveInput{}); !errors.Is(err, candidates.ErrConflict) {
 		t.Fatalf("duplicate approve error = %v, want conflict", err)
 	}

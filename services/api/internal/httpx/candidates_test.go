@@ -26,7 +26,19 @@ func (f *fakeCandidateService) Get(context.Context, int64) (candidates.Detail, e
 	return candidates.Detail{}, nil
 }
 
+func (f *fakeCandidateService) Create(context.Context, candidates.CreateInput) (candidates.Candidate, error) {
+	return candidates.Candidate{}, nil
+}
+
+func (f *fakeCandidateService) Validate(context.Context, int64, int64, candidates.ValidateInput) (candidates.Candidate, error) {
+	return candidates.Candidate{}, nil
+}
+
 func (f *fakeCandidateService) Approve(context.Context, int64, int64, candidates.ApproveInput) (candidates.ApproveResult, error) {
+	return candidates.ApproveResult{}, nil
+}
+
+func (f *fakeCandidateService) Convert(context.Context, int64, int64, candidates.ApproveInput) (candidates.ApproveResult, error) {
 	return candidates.ApproveResult{}, nil
 }
 
